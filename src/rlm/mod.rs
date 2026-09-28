@@ -65,7 +65,7 @@ pub struct Decomposer;
 
 impl Decomposer {
     pub fn new() -> Self {
-        Decomposer::default()
+        Decomposer
     }
 
     /// Decompoe uma tarefa. Stub: heuristicas baseadas em keywords.
