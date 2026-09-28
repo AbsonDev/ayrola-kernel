@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Configuracao principal do kernel Ayrola.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct KernelConfig {
     pub kernel: KernelSection,
     pub decision: DecisionSection,
@@ -42,17 +42,6 @@ impl KernelConfig {
             return Err(ConfigError::invalid("agent.max_subagents", "must be > 0"));
         }
         Ok(())
-    }
-}
-
-impl Default for KernelConfig {
-    fn default() -> Self {
-        KernelConfig {
-            kernel: KernelSection::default(),
-            decision: DecisionSection::default(),
-            agent: AgentSection::default(),
-            logging: LoggingSection::default(),
-        }
     }
 }
 
