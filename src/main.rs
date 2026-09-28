@@ -52,6 +52,8 @@ enum Commands {
     Health,
     /// Roda golden set contra o LLM real (9Router)
     Shadow,
+    /// Roda golden set de CODIGO no sandbox (Railway VM)
+    CodeShadow,
 }
 
 
@@ -202,6 +204,17 @@ async fn main() {
                     Ok(_) => println!("Saved to {}", path),
                     Err(e) => eprintln!("Failed to save: {}", e),
                 }
+            }
+        }
+        Commands::CodeShadow => {
+            use ayrola_kernel::shadow::{default_code_golden_set, CodeShadowRunner};
+            let cases = default_code_golden_set();
+            println!("Running {} code golden cases on Railway VM...", cases.len());
+            let runner = CodeShadowRunner::remote(cases);
+            let report = runner.execute();
+            println!("{}", report.render());
+            if !report.promoted {
+                std::process::exit(1);
             }
         }
         Commands::Shadow => {

@@ -469,6 +469,218 @@ pub fn default_golden_set() -> GoldenSet {
     gs
 }
 
+
+/// Golden case de codigo: roda um comando e compara stdout com o esperado.
+#[derive(Debug, Clone)]
+pub struct CodeGoldenCase {
+    pub id: String,
+    pub name: String,
+    /// Comando shell executado no sandbox.
+    pub command: String,
+    /// Substring (case-insensitive) que precisa aparecer no stdout.
+    pub expect_contains: String,
+    /// Exit code esperado.
+    pub expect_exit: i32,
+}
+
+impl CodeGoldenCase {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        command: impl Into<String>,
+        expect_contains: impl Into<String>,
+        expect_exit: i32,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            command: command.into(),
+            expect_contains: expect_contains.into(),
+            expect_exit,
+        }
+    }
+}
+
+/// Resultado de um CodeGoldenCase.
+#[derive(Debug, Clone)]
+pub struct CodeCaseResult {
+    pub case_id: String,
+    pub name: String,
+    pub passed: bool,
+    pub stdout: String,
+    pub exit_code: i32,
+    pub duration_ms: u64,
+    pub reason: String,
+}
+
+/// Relatorio do CodeShadowRunner.
+#[derive(Debug, Clone)]
+pub struct CodeShadowReport {
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub results: Vec<CodeCaseResult>,
+    pub promoted: bool,
+    pub total_ms: u64,
+}
+
+impl CodeShadowReport {
+    /// Renderiza o relatorio como texto.
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&format!(
+            "Code Shadow: {}/{} passed in {}ms
+",
+            self.passed, self.total, self.total_ms
+        ));
+        for r in &self.results {
+            let status = if r.passed { "PASS" } else { "FAIL" };
+            out.push_str(&format!(
+                "  [{}] {} ({}ms exit={}) {}",
+                status, r.case_id, r.duration_ms, r.exit_code, r.reason
+            ));
+            if !r.passed {
+                out.push_str(&format!("
+       stdout: {}", r.stdout.trim()));
+            }
+            out.push('\n');
+        }
+        out
+    }
+}
+
+/// Executa golden set de CODIGO no sandbox Railway via SSH.
+///
+/// Phase 3 — S15: o `LlmShadowRunner` valida respostas de LLM; este valida
+/// execucao real de codigo. E o teste end-to-end do Pilar 1 (sandbox por agente).
+pub struct CodeShadowRunner {
+    cases: Vec<CodeGoldenCase>,
+    use_remote: bool,
+}
+
+impl CodeShadowRunner {
+    /// Usa o sandbox remoto (Railway) — modo real, com Linux namespaces.
+    pub fn remote(cases: Vec<CodeGoldenCase>) -> Self {
+        Self { cases, use_remote: true }
+    }
+
+    /// Usa o sandbox local (`std::process::Command`) — mais rapido, sem isolamento forte.
+    pub fn local(cases: Vec<CodeGoldenCase>) -> Self {
+        Self { cases, use_remote: false }
+    }
+
+    pub fn len(&self) -> usize { self.cases.len() }
+    pub fn is_empty(&self) -> bool { self.cases.is_empty() }
+
+    /// Roda todos os casos e devolve o relatorio.
+    pub fn execute(&self) -> CodeShadowReport {
+        let start = std::time::Instant::now();
+        let mut results = Vec::new();
+
+        for case in &self.cases {
+            results.push(self.evaluate(case));
+        }
+
+        let passed = results.iter().filter(|r| r.passed).count();
+        let total = results.len();
+        CodeShadowReport {
+            total,
+            passed,
+            failed: total - passed,
+            results,
+            promoted: passed == total && total > 0,
+            total_ms: start.elapsed().as_millis() as u64,
+        }
+    }
+
+    fn evaluate(&self, case: &CodeGoldenCase) -> CodeCaseResult {
+        let t0 = std::time::Instant::now();
+
+        let (stdout, exit_code) = if self.use_remote {
+            let cfg = crate::sandbox::SandboxConfig::default();
+            let exec = crate::sandbox::RemoteSandboxExecutor::new(cfg);
+            let res = exec.run(&case.command);
+            (res.stdout.clone(), res.exit_code)
+        } else {
+            let cfg = crate::sandbox::SandboxConfig::default();
+            let exec = crate::sandbox::SandboxExecutor::new(cfg);
+            let res = exec.run(&case.command);
+            (res.stdout.clone(), res.exit_code)
+        };
+
+        let duration_ms = t0.elapsed().as_millis() as u64;
+        let lowered = stdout.to_lowercase();
+        let expected = case.expect_contains.to_lowercase();
+
+        let passed = exit_code == case.expect_exit && lowered.contains(&expected);
+        let reason = if passed {
+            String::new()
+        } else if exit_code != case.expect_exit {
+            format!("exit {exit_code} != expected {}", case.expect_exit)
+        } else {
+            format!("stdout missing `{}`", case.expect_contains)
+        };
+
+        CodeCaseResult {
+            case_id: case.id.clone(),
+            name: case.name.clone(),
+            passed,
+            stdout,
+            exit_code,
+            duration_ms,
+            reason,
+        }
+    }
+}
+
+/// Golden set de codigo: 6 casos que exercitam a toolchain real do sandbox.
+pub fn default_code_golden_set() -> Vec<CodeGoldenCase> {
+    vec![
+        CodeGoldenCase::new(
+            "code-echo",
+            "echo round-trip",
+            "echo ayrola_code_ok",
+            "ayrola_code_ok",
+            0,
+        ),
+        CodeGoldenCase::new(
+            "code-arith",
+            "shell arithmetic",
+            "echo $((6 * 7))",
+            "42",
+            0,
+        ),
+        CodeGoldenCase::new(
+            "code-pipe",
+            "pipeline processing",
+            "printf 'a\nb\nc\n' | wc -l",
+            "3",
+            0,
+        ),
+        CodeGoldenCase::new(
+            "code-grep",
+            "grep match",
+            "echo 'hello world' | grep -o world",
+            "world",
+            0,
+        ),
+        CodeGoldenCase::new(
+            "code-fail-exit",
+            "non-zero exit propagates",
+            "sh -c 'exit 3'",
+            "",
+            3,
+        ),
+        CodeGoldenCase::new(
+            "code-seq",
+            "sequence generation",
+            "seq 1 5 | tr '\n' ','",
+            "1,2,3,4,5",
+            0,
+        ),
+    ]
+}
+
 /// Circuit breaker para shadow executor: para execucoes repetidamente falhas.
 #[derive(Debug, Clone, Default)]
 pub struct ShadowCircuitBreaker {
