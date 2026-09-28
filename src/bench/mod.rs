@@ -584,7 +584,7 @@ pub fn render_throughput(results: &[ThroughputResult]) -> String {
     out.push_str(&format!(
         "| {:<32} | {:>8} | {:>10} | {:>10} | {:>8} | {:>8} |
 ",
-        "operation", "iters", "ops/sec", "p50 us", "p99 us", "total ms"
+        "operation", "iters", "ops/sec", "p50 us", "p99 us", "total us"
     ));
     out.push_str("|--------------------------------|----------|------------|------------|----------|----------|
 ");

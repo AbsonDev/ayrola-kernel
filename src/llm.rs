@@ -425,7 +425,7 @@ mod tests {
     fn llm_9router_query_works() {
         let llm = Llm::new(LlmBackend::NineRouter);
         if !Llm::is_9router_available() {
-            eprintln!("9Router not available, skipping");
+            // 9Router not available, skipping (expected in CI)
             return;
         }
         let resp = llm.query("Say hi").unwrap();
