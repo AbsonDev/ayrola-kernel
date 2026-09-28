@@ -42,6 +42,13 @@ pub struct LlmResponse {
 /// Timeout padrao: 30s.
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
+/// Modelo padrao do 9Router (128k ctx, reasoning, tools, vision).
+const MODEL: &str = "fusion-5tier";
+
+/// Tokens de saida pedidos por chamada. Precisa ser alto porque
+/// modelos de reasoning consomem tokens antes de emitir `content`.
+const TOKENS: &str = r#""max_tokens":800"#;
+
 /// LLM: wrapper para claude/opencode (subprocess) + 9Router (HTTP local).
 ///
 /// Phase 1: subprocess para CLI local.
@@ -165,6 +172,7 @@ impl Llm {
     /// API key lida de ~/.9router/db/data.sqlite (read-only sqlite3).
     /// Custo: $0 (free tier).
     fn query_9router(&self, prompt: &str) -> Result<LlmResponse, String> {
+        let start = Instant::now();
         let db_path = std::env::var("HOME")
             .map(|h| format!("{}/.9router/db/data.sqlite", h))
             .unwrap_or_else(|_| "~/.9router/db/data.sqlite".to_string());
@@ -172,73 +180,159 @@ impl Llm {
         let key = Self::read_9router_key(&db_path)?;
 
         let body = format!(
-            r#"{{"model":"fusion-5tier","messages":[{{"role":"user","content":{}}}],"max_tokens":50}}"#,
+            r#"{{"model":"{MODEL}","messages":[{{"role":"user","content":{}}}],{TOKENS}}}"#,
             serde_json::to_string(prompt).map_err(|e| e.to_string())?
         );
 
         let output = Command::new("curl")
             .arg("-s")
+            .arg("--max-time")
+            .arg((self.timeout_ms / 1000).max(1).to_string())
             .arg("-X")
             .arg("POST")
             .arg("http://localhost:20128/v1/chat/completions")
             .arg("-H")
             .arg("Content-Type: application/json")
             .arg("-H")
-            .arg(format!("Authorization: Bearer {}", key))
+            .arg(format!("Authorization: Bearer {key}"))
             .arg("-d")
             .arg(&body)
             .output()
-            .map_err(|e| format!("curl failed: {}", e))?;
+            .map_err(|e| format!("curl failed: {e}"))?;
 
         let response = String::from_utf8_lossy(&output.stdout);
-        let response = response.trim();
+        let duration = start.elapsed();
 
-        // 9Router returns JSON + trailing "data: [DONE]" (no newline) — strip it
-        let json_part = response.strip_suffix("data: [DONE]")
-            .map(|s| s.trim())
-            .unwrap_or(response)
-            .trim();
-
-        let parsed: serde_json::Value = serde_json::from_str(json_part)
-            .map_err(|e| format!("9Router JSON parse: {} | body: {}", e, &json_part[..json_part.len().min(200)]))?;
-
-        let content = parsed
-            .get("choices")
-            .and_then(|c| c.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|choice| choice.get("message"))
-            .and_then(|msg| msg.get("content"))
-            .and_then(|c| c.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        let _model = parsed
-            .get("model")
-            .and_then(|m| m.as_str())
-            .unwrap_or("9router")
-            .to_string();
-
-        let usage = parsed.get("usage");
-        let input_tokens = usage
-            .and_then(|u| u.get("prompt_tokens"))
-            .and_then(|t| t.as_u64())
-            .unwrap_or(0) as u32;
-        let output_tokens = usage
-            .and_then(|u| u.get("completion_tokens"))
-            .and_then(|t| t.as_u64())
-            .unwrap_or(0) as u32;
+        // 9Router devolve 2 formatos: JSON unico + "data: [DONE]", ou SSE com chunks "data: {...}".
+        // O campo de texto varia: content, reasoning, reasoning_content.
+        let (content, input_tokens, output_tokens) = Self::parse_9router(&response)?;
 
         Ok(LlmResponse {
             backend: LlmBackend::NineRouter,
             content,
-            duration_ms: 0, // curl subprocess timing TODO
-            cost_usd: 0.0,  // Free tier
+            duration_ms: duration.as_millis() as u64,
+            cost_usd: 0.0, // free tier
             input_tokens,
             output_tokens,
         })
     }
 
-    /// Read active API key from 9Router SQLite DB (read-only via sqlite3 CLI).
+    /// Extrai texto e tokens de qualquer formato de resposta do 9Router.
+    ///
+    /// Formatos aceitos:
+    /// 1. `{...json...}data: [DONE]` — resposta unica
+    /// 2. `data: {...json...}\ndata: {...}\ndata: [DONE]` — SSE com chunks
+    ///
+    /// Campos de texto attemptados, em ordem: `content`, `reasoning_content`, `reasoning`.
+    fn parse_9router(response: &str) -> Result<(String, u32, u32), String> {
+        /// Extrai o texto de um objeto JSON de completion.
+        fn extract_text(obj: &serde_json::Value, from_delta: bool) -> String {
+            let choices = match obj.get("choices").and_then(|c| c.as_array()) {
+                Some(c) if !c.is_empty() => c,
+                _ => return String::new(),
+            };
+            let container = if from_delta {
+                choices[0].get("delta")
+            } else {
+                choices[0].get("message")
+            };
+            let container = match container {
+                Some(c) => c,
+                None => return String::new(),
+            };
+            for field in ["content", "reasoning_content", "reasoning"] {
+                if let Some(text) = container.get(field).and_then(|v| v.as_str()) {
+                    if !text.trim().is_empty() {
+                        return text.trim().to_string();
+                    }
+                }
+            }
+            String::new()
+        }
+
+        fn tokens(obj: &serde_json::Value) -> (u32, u32) {
+            let usage = obj.get("usage");
+            let in_t = usage
+                .and_then(|u| u.get("prompt_tokens"))
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0) as u32;
+            let out_t = usage
+                .and_then(|u| u.get("completion_tokens"))
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0) as u32;
+            (in_t, out_t)
+        }
+
+        let trimmed = response.trim();
+        if trimmed.is_empty() {
+            return Err("9Router returned empty body".to_string());
+        }
+
+        let mut text = String::new();
+        let (mut in_t, mut out_t) = (0u32, 0u32);
+        let mut matched = false;
+
+        // Caminho 1: SSE — cada linha comeca com "data: ".
+        if trimmed.starts_with("data:") {
+            // Reasoning models mandam o raciocínio em deltas "reasoning" e a
+            // resposta final em deltas "content". Acumula os dois separados e
+            // prefere "content" — o reasoning contem a pergunta de volta e
+            // polui a deteccao de yes/no.
+            let mut content_buf = String::new();
+            let mut reasoning_buf = String::new();
+            for line in trimmed.lines() {
+                let line = line.trim();
+                let Some(payload) = line.strip_prefix("data:") else {
+                    continue;
+                };
+                let payload = payload.trim();
+                if payload.is_empty() || payload == "[DONE]" {
+                    continue;
+                }
+                let Ok(obj) = serde_json::from_str::<serde_json::Value>(payload) else {
+                    continue;
+                };
+                matched = true;
+                if let Some(choices) = obj.get("choices").and_then(|c| c.as_array()) {
+                    if let Some(delta) = choices.first().and_then(|ch| ch.get("delta")) {
+                        if let Some(c) = delta.get("content").and_then(|v| v.as_str()) {
+                            content_buf.push_str(c);
+                        }
+                        for field in ["reasoning_content", "reasoning"] {
+                            if let Some(r) = delta.get(field).and_then(|v| v.as_str()) {
+                                reasoning_buf.push_str(r);
+                                break;
+                            }
+                        }
+                    }
+                }
+                let (ci, co) = tokens(&obj);
+                in_t = in_t.max(ci);
+                out_t = out_t.max(co);
+            }
+            text = if content_buf.trim().is_empty() {
+                reasoning_buf
+            } else {
+                content_buf
+            };
+        }
+
+        // Caminho 2: JSON unico + "data: [DONE]" no final.
+        if !matched {
+            let json_part = trimmed.trim_end_matches("data: [DONE]").trim();
+            let obj: serde_json::Value = serde_json::from_str(json_part)
+                .map_err(|e| format!("9Router parse error: {{e}} | body: {{preview}}"))?;
+            matched = true;
+            text = extract_text(&obj, false);
+            let (ci, co) = tokens(&obj);
+            in_t = ci;
+            out_t = co;
+        }
+
+        let _ = matched;
+        Ok((text.trim().to_string(), in_t, out_t))
+    }
+
     fn read_9router_key(db_path: &str) -> Result<String, String> {
         let output = Command::new("sqlite3")
             .arg(db_path)

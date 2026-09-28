@@ -262,7 +262,9 @@ impl Tier2LLM {
             return Self::heuristic_fallback(question);
         }
 
-        let llm = crate::llm::Llm::default();
+        // Usa 9Router local como LLM backend — $0, free tier.
+        // Claude/opencode podem estar offline (OAuth expirado); 9Router e mais confiavel.
+        let llm = crate::llm::Llm::new(crate::llm::LlmBackend::NineRouter);
 
         match llm.query(question) {
             Ok(resp) if !resp.content.is_empty() => Self::parse_llm_response(&resp.content),
@@ -270,18 +272,67 @@ impl Tier2LLM {
         }
     }
 
-    /// Parseia resposta do LLM (espera "yes" ou "no" no texto).
+    /// Parseia resposta do LLM em `Answer::YesNo`.
+    ///
+    /// Modelos de reasoning (ex: fusion-5tier) devolvem o raciocínio completo.
+    /// A resposta final fica no fim do texto, entao procura o veredito mais
+    /// perto do final usando a ULTIMA ocorrencia de qualquer padrao.
     fn parse_llm_response(content: &str) -> Answer {
         let lower = content.to_lowercase();
-        let yes = lower.contains("yes") || lower.contains("sim") || lower.contains("true");
-        let no = lower.contains("no") || lower.contains("não") || lower.contains("false");
 
-        if yes && !no {
-            Answer::YesNo { yes: true, confidence: 0.85 }
-        } else if no && !yes {
-            Answer::YesNo { yes: false, confidence: 0.85 }
-        } else {
-            Answer::YesNo { yes: true, confidence: 0.6 }
+        // Procura o veredito no fim do texto (resposta final vem por ultimo).
+        let tail: String = lower
+            .chars()
+            .rev()
+            .take(600)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+
+        // Padroes com peso: procura TODOS e usa o ULTIMO match (mais perto do fim = resposta real).
+        let yes_words = ["yes", "sim", "true", "correct"];
+        let no_words = ["no", "nao", "não", "false"];
+
+        let mut last_yes: Option<usize> = None;
+        let mut last_no: Option<usize> = None;
+
+        for word in &yes_words {
+            if let Some(pos) = tail.rfind(word) {
+                let before_ok = pos == 0 || !tail.as_bytes()[pos - 1].is_ascii_alphanumeric();
+                let after_ok = pos + word.len() >= tail.len() || !tail.as_bytes()[pos + word.len()].is_ascii_alphanumeric();
+                if before_ok && after_ok {
+                    last_yes = Some(last_yes.map_or(pos, |p| p.max(pos)));
+                }
+            }
+        }
+        for word in &no_words {
+            if let Some(pos) = tail.rfind(word) {
+                let before_ok = pos == 0 || !tail.as_bytes()[pos - 1].is_ascii_alphanumeric();
+                let after_ok = pos + word.len() >= tail.len() || !tail.as_bytes()[pos + word.len()].is_ascii_alphanumeric();
+                if before_ok && after_ok {
+                    last_no = Some(last_no.map_or(pos, |p| p.max(pos)));
+                }
+            }
+        }
+
+        match (last_yes, last_no) {
+            (Some(yp), Some(np)) if yp > np => Answer::YesNo { yes: true, confidence: 0.85 },
+            (Some(yp), Some(np)) if np > yp => Answer::YesNo { yes: false, confidence: 0.85 },
+            (Some(_), None) => Answer::YesNo { yes: true, confidence: 0.85 },
+            (None, Some(_)) => Answer::YesNo { yes: false, confidence: 0.85 },
+            _ => {
+                // Sem padrao explicito no tail: conta keywords no texto inteiro.
+                let yes = lower.contains("yes") || lower.contains("sim") || lower.contains("true");
+                let no = lower.contains("no") || lower.contains("não") || lower.contains("false");
+                if yes && !no {
+                    Answer::YesNo { yes: true, confidence: 0.75 }
+                } else if no && !yes {
+                    Answer::YesNo { yes: false, confidence: 0.75 }
+                } else {
+                    Answer::YesNo { yes: true, confidence: 0.6 }
+                }
+            }
         }
     }
 
