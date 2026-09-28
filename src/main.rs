@@ -50,6 +50,8 @@ enum Commands {
     Doctor,
     /// Health check: 9Router, event store, metricas
     Health,
+    /// Roda golden set contra o LLM real (9Router)
+    Shadow,
 }
 
 
@@ -200,6 +202,21 @@ async fn main() {
                     Ok(_) => println!("Saved to {}", path),
                     Err(e) => eprintln!("Failed to save: {}", e),
                 }
+            }
+        }
+        Commands::Shadow => {
+            use ayrola_kernel::shadow::{default_golden_set, LlmShadowRunner};
+            let gs = default_golden_set();
+            println!("Running {} golden cases against 9Router...", gs.len());
+            let runner = LlmShadowRunner::new(gs);
+            let report = runner.execute("ayrola-shadow");
+            println!("Shadow: {}/{} passed (promoted: {})", report.passed, report.total, report.promoted);
+            for r in &report.results {
+                let status = if r.passed { "PASS" } else { "FAIL" };
+                println!("  [{}] {}: {:?}", status, r.case_id, r.error);
+            }
+            if !report.promoted {
+                std::process::exit(1);
             }
         }
         Commands::Health => {

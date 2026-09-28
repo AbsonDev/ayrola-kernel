@@ -246,6 +246,230 @@ impl ShadowExecutor {
     }
 }
 
+/// Executor de shadow que roda o golden set contra um LLM real.
+///
+/// Phase 3 — S13: fecha o gap mais importante do Phase 1.
+/// O `ShadowExecutor` antigo comparava input==expected (nunca executava nada).
+/// Este runner chama o 9Router de verdade e avalia a resposta real.
+pub struct LlmShadowRunner {
+    golden_set: GoldenSet,
+    system_prompt: String,
+    timeout_ms: u64,
+}
+
+impl LlmShadowRunner {
+    pub fn new(golden_set: GoldenSet) -> Self {
+        Self {
+            golden_set,
+            system_prompt: "You are a deterministic assistant. Answer with the shortest correct answer and no explanation.".to_string(),
+            timeout_ms: 30_000,
+        }
+    }
+
+    pub fn with_system_prompt(mut self, prompt: impl Into<String>) -> Self {
+        self.system_prompt = prompt.into();
+        self
+    }
+
+    pub fn with_timeout(mut self, ms: u64) -> Self {
+        self.timeout_ms = ms;
+        self
+    }
+
+    pub fn len(&self) -> usize { self.golden_set.len() }
+    pub fn is_empty(&self) -> bool { self.golden_set.is_empty() }
+
+    /// Roda todos os casos contra o 9Router e devolve o relatorio.
+    pub fn execute(&self, candidate_name: &str) -> ShadowReport {
+        let mut report = ShadowReport::new(candidate_name);
+
+        if !crate::llm::Llm::is_9router_available() {
+            for (id, case) in &self.golden_set.cases {
+                report.add_result(ShadowResult::fail(
+                    id,
+                    serde_json::Value::String(String::new()),
+                    case.expected_output.clone(),
+                    "llm_unavailable: 9router daemon nao respondeu",
+                ));
+            }
+            report.promoted = false;
+            return report;
+        }
+
+        for (id, case) in &self.golden_set.cases {
+            let result = self.evaluate_case(id, case);
+            report.add_result(result);
+        }
+
+        report.promoted = report.should_promote();
+        report
+    }
+
+    fn evaluate_case(&self, id: &str, case: &GoldenCase) -> ShadowResult {
+        if case.expected_output.is_null() {
+            return ShadowResult::pass(id, case.expected_output.clone());
+        }
+
+        let llm = crate::llm::Llm::new(crate::llm::LlmBackend::NineRouter)
+            .with_timeout(self.timeout_ms);
+
+        let prompt = format!("{}\n\nQuestion: {}\nAnswer:", self.system_prompt, case.input);
+
+        match llm.query(&prompt) {
+            Ok(resp) => self.grade(id, case, &resp.content),
+            Err(e) => ShadowResult::fail(
+                id,
+                serde_json::Value::String(String::new()),
+                case.expected_output.clone(),
+                format!("llm_error: {e}"),
+            ),
+        }
+    }
+
+    fn grade(&self, id: &str, case: &GoldenCase, actual_text: &str) -> ShadowResult {
+        let actual = serde_json::Value::String(actual_text.trim().to_string());
+
+        if let Ok(actual_num) = actual_text.parse::<f64>() {
+            if let Some(exp_num) = case.expected_output.as_f64() {
+                let diff = (actual_num - exp_num).abs();
+                if diff <= case.tolerance {
+                    return ShadowResult::pass(id, case.expected_output.clone());
+                }
+                return ShadowResult::fail(
+                    id,
+                    actual,
+                    case.expected_output.clone(),
+                    format!("numeric diff {diff} > tolerance {}", case.tolerance),
+                );
+            }
+        }
+
+        if let Some(exp_str) = case.expected_output.as_str() {
+            let norm_actual = actual_text.to_lowercase();
+            let norm_expected = exp_str.trim().to_lowercase();
+            if norm_expected.is_empty() {
+                return ShadowResult::pass(id, case.expected_output.clone());
+            }
+            if norm_actual.contains(&norm_expected) {
+                return ShadowResult::pass(id, case.expected_output.clone());
+            }
+            return ShadowResult::fail(
+                id,
+                actual,
+                case.expected_output.clone(),
+                format!("expected `{}` not found in response", exp_str.trim()),
+            );
+        }
+
+        if let Some(exp_bool) = case.expected_output.as_bool() {
+            let norm = actual_text.to_lowercase();
+            let has_true = norm.contains("true") || norm.contains("yes") || norm.contains("sim");
+            let has_false = norm.contains("false") || norm.contains("no") || norm.contains("n\u{00e3}o");
+            let matched = if exp_bool { has_true } else { has_false };
+            if matched {
+                return ShadowResult::pass(id, case.expected_output.clone());
+            }
+            return ShadowResult::fail(
+                id,
+                actual,
+                case.expected_output.clone(),
+                format!("expected boolean {exp_bool} not found in response"),
+            );
+        }
+
+        ShadowResult::fail(
+            id,
+            actual,
+            case.expected_output.clone(),
+            "unsupported expected_output type in golden case",
+        )
+    }
+
+    /// Normaliza texto: lowercase e converte subscript unicode para digitos.
+    /// Resolve o caso onde o LLM responde H2O com indice unicode.
+    fn normalize_text(text: &str) -> String {
+        const SUBS: &[(char, char)] = &[
+            ('\u{2080}', '0'),
+            ('\u{2081}', '1'),
+            ('\u{2082}', '2'),
+            ('\u{2083}', '3'),
+            ('\u{2084}', '4'),
+            ('\u{2085}', '5'),
+            ('\u{2086}', '6'),
+            ('\u{2087}', '7'),
+            ('\u{2088}', '8'),
+            ('\u{2089}', '9'),
+        ];
+        let mut out = String::with_capacity(text.len());
+        for c in text.chars() {
+            if let Some((_, d)) = SUBS.iter().find(|(s, _)| *s == c) {
+                out.push(*d);
+            } else {
+                out.push(c);
+            }
+        }
+        out.to_lowercase()
+    }
+}
+
+
+/// Golden set padrao: 8 casos com resposta factual verificavel.
+///
+/// Escolhidos para serem estaveis (nao dependem de data/versao) e
+/// inequivocos (resposta curta e unica).
+pub fn default_golden_set() -> GoldenSet {
+    let mut gs = GoldenSet::new();
+    gs.add(GoldenCase::new(
+        "gs-capital-france",
+        "Capital of France",
+        "What is the capital of France? Answer with one word.".into(),
+        serde_json::json!("Paris"),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-water-formula",
+        "Chemical formula of water",
+        "What is the chemical formula of water?".into(),
+        serde_json::json!("H2O"),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-planet-count",
+        "Number of planets in solar system",
+        "How many planets are in our solar system (excluding dwarf planets)? Answer with a number.".into(),
+        serde_json::json!(8),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-largest-ocean",
+        "Largest ocean on Earth",
+        "What is the largest ocean on Earth?".into(),
+        serde_json::json!("Pacific"),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-sky-blue-yesno",
+        "Is the sky blue (yes/no)",
+        "Is the daytime sky blue? Answer yes or no.".into(),
+        serde_json::json!(true),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-rust-creator",
+        "Who created Rust",
+        "Who created the Rust programming language?".into(),
+        serde_json::json!("Graydon"),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-boiling-point",
+        "Boiling point of water at sea level",
+        "At what temperature does water boil at sea level in Celsius? Answer with a number.".into(),
+        serde_json::json!(100),
+    ));
+    gs.add(GoldenCase::new(
+        "gs-continent-count",
+        "Number of continents",
+        "How many continents are there on Earth? Answer with a number.".into(),
+        serde_json::json!(7),
+    ));
+    gs
+}
+
 /// Circuit breaker para shadow executor: para execucoes repetidamente falhas.
 #[derive(Debug, Clone, Default)]
 pub struct ShadowCircuitBreaker {
