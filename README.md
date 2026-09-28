@@ -4,9 +4,9 @@ Kernel do **Ayrola Harness** — agente Rust-native com memória event-sourced,
 subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 
 **Status:** Semanas 1-8 do ROADMAP concluídas.
-**Testes:** 115 (111 unit + 4 integração) — todos verdes.
+**Testes:** 157 (153 unit + 4 integração) — todos verdes.
 **Clippy:** `cargo clippy -- -D warnings` limpo.
-**Linhas:** 3.772 (source).
+**Linhas:** 5.125 (source).
 
 ---
 
@@ -16,17 +16,17 @@ subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 |---|---|---|
 | `event_store` | 327 | Log append-only NDJSON, cadeia causal SHA-256, `replay`, `verify_chain` |
 | `decision` | 476 | `trait DecisionLayer` + `DecisionEngine` 3 tiers (cache → heurística → LLM) |
-| `agent` | 235 | `AgentId`, `AgentState`, `spawn_subagent`, `spawn_parallel` (JoinSet) |
+| `agent` | 235 | `AgentId`, `AgentState`, `spawn_subagent`, `spawn_parallel`, `AgentRegistry` (live tracking) |
 | `memory` | 486 | `Snapshot` (SHA-256), `SnapshotManager`, query, compaction |
-| `refine` | 234 | `Critic`, `Pruner`, `Proposer`, `Environment` — auto-melhoria N3 (stubs) |
+| `refine` | 234 | `Critic` (avalia vs GoldenSet), `Pruner` (dead-code), `Proposer`, `Environment` (patch + `cargo check`) |
 | `shadow` | 352 | `GoldenSet`, `ShadowExecutor`, `ShadowReport`, rollback automático |
 | `cert` | 297 | `CertifiedDecision` (SHA-256), `DecisionLog` — certificação de decisão |
-| `bench` | 277 | `BenchTask` (10 tipos), `Scoreboard`, `default_suite` — ayrola-bench v0 |
-| `sandbox` | 220 | `SandboxConfig`, `SandboxExecutor`, `CircuitBreaker` (stub, macOS) |
-| `tools` | 248 | `ToolReader`, `SpeculativeTool`, `ToolRegistry` |
+| `bench` | 277 | `BenchTask` (10 tipos), `Scoreboard` (speedup vs baseline), `run_suite` — ayrola-bench v1 |
+| `sandbox` | 220 | `SandboxConfig`, `SandboxExecutor` (real `std::process::Command` + allowlist), `CircuitBreaker` |
+| `tools` | 248 | `ToolReader`, `GrepTool`, `ToolExecutor` (dispatch + JoinSet paralelo), `ToolRegistry` |
 | `config` | 253 | `KernelConfig` (YAML), `ConfigLoader`, `ConfigError`, validação |
-| `rlm` | 208 | `Decomposer` (heurística), `Planner` (spawn paralelo) |
-| `llm` | 220 | `Llm` (subprocess: claude/opencode), `LlmBackend`, `LlmResponse` |
+| `rlm` | 208 | `Decomposer` (heurística), `Planner` (spawn paralelo + `ExecutionReport` com timing) |
+| `llm` | 220 | `Llm` (subprocess: claude/opencode), `LlmBackend`, `LlmResponse` |ude/opencode), `LlmBackend`, `LlmResponse` |
 
 ---
 
