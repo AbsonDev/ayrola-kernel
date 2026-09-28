@@ -433,8 +433,8 @@ impl Tier2LLM {
 /// Motor de decisao ensemble: Tier 0 -> Tier 1 -> Tier 2.
 #[derive(Debug, Clone, Default)]
 pub struct DecisionEngine {
+    pub prefilter: Tier1PreFilter,
     cache: Tier0Cache,
-    prefilter: Tier1PreFilter,
     llm: Tier2LLM,
 }
 

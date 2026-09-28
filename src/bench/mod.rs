@@ -397,6 +397,204 @@ pub fn compare_ayrola_vs_opencode() -> String {
     )
 }
 
+
+/// Resultado de um benchmark de throughput.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThroughputResult {
+    pub operation: String,
+    pub iterations: usize,
+    pub total_ms: f64,
+    pub ops_per_sec: f64,
+    pub p50_us: f64,
+    pub p99_us: f64,
+}
+
+impl ThroughputResult {
+    /// Renderiza como linha de tabela.
+    pub fn render_row(&self) -> String {
+        format!(
+            "| {:<32} | {:>8} | {:>10.0} | {:>10.0} | {:>8.0} | {:>8.2} |",
+            self.operation,
+            self.iterations,
+            self.ops_per_sec,
+            self.p50_us,
+            self.p99_us,
+            self.total_ms
+        )
+    }
+}
+
+/// Calcula percentis de uma lista de latencias (microssegundos).
+fn percentiles(mut latencies_us: Vec<f64>) -> (f64, f64) {
+    if latencies_us.is_empty() {
+        return (0.0, 0.0);
+    }
+    latencies_us.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let idx50 = (latencies_us.len() as f64 * 0.50) as usize;
+    let idx99 = ((latencies_us.len() as f64 * 0.99) as usize);
+    let idx99 = idx99.min(latencies_us.len() - 1);
+    (
+        latencies_us[idx50.min(latencies_us.len() - 1)],
+        latencies_us[idx99],
+    )
+}
+
+/// Benchmark de throughput: quantas operacoes o kernel faz por segundo.
+///
+/// Phase 3 — S18. Mede o caminho QUENTE real (sem stubs):
+/// - Tier0 cache lookup
+/// - Tier1 pre-filter
+/// - Event store append + read
+/// - Decision cert (hash SHA-256)
+pub fn throughput_bench(iterations: usize) -> Vec<ThroughputResult> {
+    use crate::cert::{CertifiedDecision, DecisionTier, Evidence};
+    use crate::decision::{DecisionEngine, QuestionType};
+    use crate::event_store::EventStore;
+    use std::time::Instant;
+
+    let mut results = Vec::new();
+
+    // 1. Tier0 cache lookup
+    {
+        let mut engine = DecisionEngine::new();
+        // Pre-popula o cache
+        let _ = engine.ask(QuestionType::YesNo, "Is the sky blue?");
+        let mut latencies = Vec::with_capacity(iterations);
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let t0 = Instant::now();
+            let _ = engine.ask(QuestionType::YesNo, "Is the sky blue?");
+            latencies.push(t0.elapsed().as_micros() as f64);
+        }
+        let total_ms = start.elapsed().as_millis() as f64;
+        let (p50, p99) = percentiles(latencies);
+        results.push(ThroughputResult {
+            operation: "tier0_cache_lookup".to_string(),
+            iterations,
+            total_ms,
+            ops_per_sec: if total_ms > 0.0 {
+                (iterations as f64 / total_ms) * 1000.0
+            } else {
+                0.0
+            },
+            p50_us: p50,
+            p99_us: p99,
+        });
+    }
+
+    // 2. Tier1 pre-filter
+    {
+        let engine = DecisionEngine::new();
+        let mut latencies = Vec::with_capacity(iterations);
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let t0 = Instant::now();
+            let _ = engine.prefilter.classify("Should I spawn a subagent to handle this?");
+            latencies.push(t0.elapsed().as_micros() as f64);
+        }
+        let total_ms = start.elapsed().as_millis() as f64;
+        let (p50, p99) = percentiles(latencies);
+        results.push(ThroughputResult {
+            operation: "tier1_prefilter".to_string(),
+            iterations,
+            total_ms,
+            ops_per_sec: if total_ms > 0.0 {
+                (iterations as f64 / total_ms) * 1000.0
+            } else {
+                0.0
+            },
+            p50_us: p50,
+            p99_us: p99,
+        });
+    }
+
+    // 3. Decision cert (SHA-256 hash)
+    {
+        let mut latencies = Vec::with_capacity(iterations);
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let t0 = Instant::now();
+            let d = CertifiedDecision::new(
+                serde_json::json!({"q": "bench"}),
+                serde_json::json!({"yes": true}),
+                Evidence::new("bench", "throughput", 0.9),
+                0.0,
+                DecisionTier::Tier0,
+            );
+            std::hint::black_box(d.hash.len());
+            latencies.push(t0.elapsed().as_micros() as f64);
+        }
+        let total_ms = start.elapsed().as_millis() as f64;
+        let (p50, p99) = percentiles(latencies);
+        results.push(ThroughputResult {
+            operation: "decision_cert_hash".to_string(),
+            iterations,
+            total_ms,
+            ops_per_sec: if total_ms > 0.0 {
+                (iterations as f64 / total_ms) * 1000.0
+            } else {
+                0.0
+            },
+            p50_us: p50,
+            p99_us: p99,
+        });
+    }
+
+    // 4. Event store read
+    {
+        let dir = std::env::temp_dir().join(format!("ayrola-bench-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("events.jsonl");
+        let mut store = EventStore::open(&path).unwrap();
+        for i in 0..10 {
+            let _ = store.append("bench", serde_json::json!({"i": i})).unwrap();
+        }
+        let mut latencies = Vec::with_capacity(iterations);
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let t0 = Instant::now();
+            let _ = store.read_all().unwrap();
+            latencies.push(t0.elapsed().as_micros() as f64);
+        }
+        let total_ms = start.elapsed().as_millis() as f64;
+        let (p50, p99) = percentiles(latencies);
+        let _ = std::fs::remove_dir_all(&dir);
+        results.push(ThroughputResult {
+            operation: "event_store_read".to_string(),
+            iterations,
+            total_ms,
+            ops_per_sec: if total_ms > 0.0 {
+                (iterations as f64 / total_ms) * 1000.0
+            } else {
+                0.0
+            },
+            p50_us: p50,
+            p99_us: p99,
+        });
+    }
+
+    results
+}
+
+/// Renderiza o relatório de throughput.
+pub fn render_throughput(results: &[ThroughputResult]) -> String {
+    let mut out = String::new();
+    out.push_str("=== Ayrola Kernel Throughput Benchmark ===
+");
+    out.push_str(&format!(
+        "| {:<32} | {:>8} | {:>10} | {:>10} | {:>8} | {:>8} |
+",
+        "operation", "iters", "ops/sec", "p50 us", "p99 us", "total ms"
+    ));
+    out.push_str("|--------------------------------|----------|------------|------------|----------|----------|
+");
+    for r in results {
+        out.push_str(&r.render_row());
+        out.push('\n');
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
