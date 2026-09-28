@@ -217,6 +217,7 @@ impl Llm {
         })
     }
 
+    #[allow(clippy::collapsible_if)]
     /// Extrai texto e tokens de qualquer formato de resposta do 9Router.
     ///
     /// Formatos aceitos:
@@ -321,7 +322,7 @@ impl Llm {
         if !matched {
             let json_part = trimmed.trim_end_matches("data: [DONE]").trim();
             let obj: serde_json::Value = serde_json::from_str(json_part)
-                .map_err(|e| "9Router parse error: ".to_string())?;
+                .map_err(|_| "9Router parse error".to_string())?;
             matched = true;
             text = extract_text(&obj, false);
             let (ci, co) = tokens(&obj);
