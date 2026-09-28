@@ -14,6 +14,7 @@ pub mod event_store;
 pub mod memory;
 pub mod refine;
 pub mod sandbox;
+pub mod rlm;
 pub mod tools;
 
 /// Versao do kernel.

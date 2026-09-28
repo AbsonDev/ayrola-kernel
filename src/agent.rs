@@ -74,6 +74,12 @@ pub struct Agent {
     state: Arc<RwLock<AgentState>>,
 }
 
+impl Default for Agent {
+    fn default() -> Self {
+        Agent::new("default")
+    }
+}
+
 impl Agent {
     /// Cria um novo agente com a tarefa dada.
     pub fn new(task: impl Into<String>) -> Self {
