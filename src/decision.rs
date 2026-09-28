@@ -266,52 +266,118 @@ impl Tier2LLM {
         // Claude/opencode podem estar offline (OAuth expirado); 9Router e mais confiavel.
         let llm = crate::llm::Llm::new(crate::llm::LlmBackend::NineRouter);
 
-        match llm.query(question) {
+        // Prompt JSON forçado: elimina prosa ambígua ("That depends...") dos
+        // modelos de reasoning. JSON de 1 linha é parseado diretamente.
+        let structured = format!(
+            "Answer with ONLY a JSON object: {{\"answer\": \"yes\" or \"no\"}}\nQuestion: {question}"
+        );
+
+        match llm.query(&structured) {
             Ok(resp) if !resp.content.is_empty() => Self::parse_llm_response(&resp.content),
             _ => Self::heuristic_fallback(question),
         }
     }
 
+    /// Extrai {"answer":"yes"} ou {"answer":"no"} de uma resposta JSON.
+    fn parse_json_answer(content: &str) -> Option<bool> {
+        let lower = content.to_lowercase();
+        let key_pos = lower.find("\"answer\"")?;
+        // Busca o ':' apos a chave "answer"
+        let after_key = &content[key_pos + 7..];
+        let colon_pos = after_key.find(':')?;
+        let after_colon = &after_key[colon_pos + 1..].trim_start();
+        let value_pos = after_colon.find("yes").or_else(|| after_colon.find("no"))?;
+        let snippet = &after_colon[value_pos..];
+        let lower_snip = snippet.to_lowercase();
+        if lower_snip.starts_with("yes") {
+            Some(true)
+        } else if lower_snip.starts_with("no") {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
     /// Parseia resposta do LLM em `Answer::YesNo`.
     ///
-    /// Modelos de reasoning (ex: fusion-5tier) devolvem o raciocínio completo.
-    /// A resposta final fica no fim do texto, entao procura o veredito mais
-    /// perto do final usando a ULTIMA ocorrencia de qualquer padrao.
+    /// Modelos de reasoning devolvem o raciocínio completo. A resposta direta
+    /// geralmente aparece NO INICIO (ex: "Yes. The sky is blue because...").
+    /// Estrategia: (1) procura no HEAD (primeiros 200 chars) por resposta direta.
+    /// (2) se nao achar, procura no TAIL (ultimos 600 chars) usando last-match.
+    /// (3) fallback: conta keywords no texto inteiro.
     fn parse_llm_response(content: &str) -> Answer {
+        // Tenta JSON primeiro (prompt forçado).
+        if let Some(yes) = Self::parse_json_answer(content) {
+            return Answer::YesNo { yes, confidence: 0.9 };
+        }
+
         let lower = content.to_lowercase();
+        let bytes = lower.as_bytes();
 
-        // Procura o veredito no fim do texto (resposta final vem por ultimo).
-        let tail: String = lower
-            .chars()
-            .rev()
-            .take(600)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect();
+        // 1) HEAD: resposta direta nos primeiros 200 chars.
+        let head_len = 200.min(bytes.len());
+        let head = &lower[..head_len];
 
-        // Padroes com peso: procura TODOS e usa o ULTIMO match (mais perto do fim = resposta real).
+        // Procura "yes" ou "no" como palavra inteira no head.
         let yes_words = ["yes", "sim", "true", "correct"];
         let no_words = ["no", "nao", "não", "false"];
+
+        // Funcao auxiliar: primeiro match de qualquer palavra com boundary.
+        let find_first = |text: &str, words: &[&str]| -> Option<(usize, bool)> {
+            let mut first: Option<(usize, bool)> = None;
+            for word in words {
+                let is_yes = matches!(*word, "yes" | "sim" | "true" | "correct");
+                if let Some(pos) = text.find(word) {
+                    let before_ok = pos == 0 || !text.as_bytes()[pos - 1].is_ascii_alphanumeric();
+                    let after = pos + word.len();
+                    let after_ok = after >= text.len() || !text.as_bytes()[after].is_ascii_alphanumeric();
+                    if before_ok && after_ok {
+                        first = first.map_or(Some((pos, is_yes)), |(fp, _)| Some((fp.min(pos), is_yes)));
+                    }
+                }
+            }
+            first
+        };
+
+        if let Some((pos, is_yes)) = find_first(head, &yes_words) {
+            // Verifica se tem 'no' ANTES desse 'yes' no head (ex: "no, yes").
+            let has_no_before = no_words.iter().any(|w| {
+                head.find(w).is_some_and(|p| {
+                    let before_ok = p == 0 || !head.as_bytes()[p - 1].is_ascii_alphanumeric();
+                    let after = p + w.len();
+                    let after_ok = after >= head.len() || !head.as_bytes()[after].is_ascii_alphanumeric();
+                    before_ok && after_ok && p < pos
+                })
+            });
+            if !has_no_before {
+                return Answer::YesNo { yes: is_yes, confidence: 0.85 };
+            }
+        }
+
+        // 2) TAIL: last-match-wins nos ultimos 600 chars.
+        let tail_start = bytes.len().saturating_sub(600);
+        let tail = &lower[tail_start..];
 
         let mut last_yes: Option<usize> = None;
         let mut last_no: Option<usize> = None;
 
         for word in &yes_words {
             if let Some(pos) = tail.rfind(word) {
-                let before_ok = pos == 0 || !tail.as_bytes()[pos - 1].is_ascii_alphanumeric();
-                let after_ok = pos + word.len() >= tail.len() || !tail.as_bytes()[pos + word.len()].is_ascii_alphanumeric();
+                let abs_pos = tail_start + pos;
+                let before_ok = pos == 0 || !lower.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
+                let after_ok = abs_pos + word.len() >= bytes.len() || !bytes[abs_pos + word.len()].is_ascii_alphanumeric();
                 if before_ok && after_ok {
-                    last_yes = Some(last_yes.map_or(pos, |p| p.max(pos)));
+                    last_yes = Some(last_yes.map_or(abs_pos, |p| p.max(abs_pos)));
                 }
             }
         }
         for word in &no_words {
             if let Some(pos) = tail.rfind(word) {
-                let before_ok = pos == 0 || !tail.as_bytes()[pos - 1].is_ascii_alphanumeric();
-                let after_ok = pos + word.len() >= tail.len() || !tail.as_bytes()[pos + word.len()].is_ascii_alphanumeric();
+                let abs_pos = tail_start + pos;
+                let before_ok = pos == 0 || !lower.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
+                let after_ok = abs_pos + word.len() >= bytes.len() || !bytes[abs_pos + word.len()].is_ascii_alphanumeric();
                 if before_ok && after_ok {
-                    last_no = Some(last_no.map_or(pos, |p| p.max(pos)));
+                    last_no = Some(last_no.map_or(abs_pos, |p| p.max(abs_pos)));
                 }
             }
         }
@@ -322,7 +388,7 @@ impl Tier2LLM {
             (Some(_), None) => Answer::YesNo { yes: true, confidence: 0.85 },
             (None, Some(_)) => Answer::YesNo { yes: false, confidence: 0.85 },
             _ => {
-                // Sem padrao explicito no tail: conta keywords no texto inteiro.
+                // 3) Fallback: conta keywords no texto inteiro.
                 let yes = lower.contains("yes") || lower.contains("sim") || lower.contains("true");
                 let no = lower.contains("no") || lower.contains("não") || lower.contains("false");
                 if yes && !no {
@@ -612,7 +678,53 @@ mod tests {
         // "anything" has no keywords → default confidence 0.6
         assert!((ans.confidence() - 0.60).abs() < 1e-9);
     }
+
+
+    #[test]
+    fn parse_llm_response_handles_json() {
+        // Prompt estruturado: resposta ideal
+        let a = Tier2LLM::parse_llm_response(r#"{"answer":"yes"}"#);
+        eprintln!("[TEST] a = {:?}", a);
+        assert!(matches!(a, Answer::YesNo { yes: true, confidence } if confidence >= 0.9));
+
+        let b = Tier2LLM::parse_llm_response(r#"{"answer":"no"}"#);
+        eprintln!("[TEST] b = {:?}", b);
+        assert!(matches!(b, Answer::YesNo { yes: false, confidence } if confidence >= 0.9));
+    }
+
+    #[test]
+    fn parse_llm_response_handles_prose_head() {
+        // Resposta direta no inicio
+        let a = Tier2LLM::parse_llm_response("Yes. The sky is blue due to Rayleigh scattering.");
+        assert!(matches!(a, Answer::YesNo { yes: true, .. }));
+
+        let b = Tier2LLM::parse_llm_response("No. Fire is hot, not cold, because of combustion.");
+        assert!(matches!(b, Answer::YesNo { yes: false, .. }));
+    }
+
+    #[test]
+    fn parse_llm_response_handles_reasoning_with_no_in_head() {
+        // Resposta com reasoning onde "no" aparece como substring mas veredito e yes
+        let content = "Yes, definitely. There is no doubt that 2+2=4, and the sky is no mystery.";
+        let a = Tier2LLM::parse_llm_response(content);
+        assert!(matches!(a, Answer::YesNo { yes: true, .. }));
+    }
+
+    #[test]
+    fn parse_llm_response_word_boundary() {
+        // "nothing" contem "no" mas nao e veredito
+        let a = Tier2LLM::parse_llm_response("Yes, there is nothing to worry about.");
+        assert!(matches!(a, Answer::YesNo { yes: true, .. }));
+    }
+
+    #[test]
+    fn parse_llm_response_falls_back_on_ambiguous() {
+        // Resposta ambigua sem veredito claro
+        let a = Tier2LLM::parse_llm_response("That depends on the context.");
+        assert!(matches!(a, Answer::YesNo { yes: true, confidence } if confidence <= 0.6));
+    }
 }
+
     #[test]
     fn ask_certified_returns_certified_decision() {
         let mut engine = DecisionEngine::new();
