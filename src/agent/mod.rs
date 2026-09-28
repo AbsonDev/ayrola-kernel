@@ -6,11 +6,13 @@
 //! - Agent: struct principal com spawn_subagent + decide
 
 use serde::{Deserialize, Serialize};
+pub mod registry;
+
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Identificador unico de um agente.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct AgentId(pub uuid::Uuid);
 
 impl AgentId {
