@@ -11,7 +11,6 @@
 //! 5. Se qualquer falha → rollback + registra falha
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// Um teste do golden set (imutável após criação).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -170,9 +169,7 @@ impl ShadowExecutor {
 
         for (id, case) in &self.golden_set.cases {
             // Phase 0 stub: compara input e expected_output diretamente
-            let result = if case.expected_output.is_null() {
-                ShadowResult::pass(id, case.input.clone())
-            } else if case.input == case.expected_output {
+            let result = if case.expected_output.is_null() || case.input == case.expected_output {
                 ShadowResult::pass(id, case.input.clone())
             } else {
                 ShadowResult::fail(
