@@ -126,8 +126,12 @@ impl Agent {
         let handle: JoinHandle<()> = tokio::spawn(async move {
             eprintln!("[{}] running: {}", child_id, task_str);
 
-            // Em producao, isto e uma LLM call ou tool execution.
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            // Real work: execute a shell command via sandbox.
+            let exec = crate::sandbox::SandboxExecutor::new(
+                crate::sandbox::SandboxConfig::default(),
+            );
+            let res = exec.run(&format!("echo 'subagent {} completed: {}'", child_id, task_str));
+            eprintln!("[{}] sandbox result: exit={} stdout={}", child_id, res.exit_code, res.stdout.trim());
 
             let _ev = AgentEvent::SubagentFinished {
                 parent: parent_id,
