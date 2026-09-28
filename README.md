@@ -26,6 +26,7 @@ subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 | `tools` | 248 | `ToolReader`, `SpeculativeTool`, `ToolRegistry` |
 | `config` | 253 | `KernelConfig` (YAML), `ConfigLoader`, `ConfigError`, validação |
 | `rlm` | 208 | `Decomposer` (heurística), `Planner` (spawn paralelo) |
+| `llm` | 220 | `Llm` (subprocess: claude/opencode), `LlmBackend`, `LlmResponse` |
 
 ---
 
