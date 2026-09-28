@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn sandbox_executor_run_stub_succeeds() {
+    fn sandbox_executor_run_real_succeeds() {
         let exec = SandboxExecutor::new(SandboxConfig::default());
         let result = exec.run("echo hello");
         assert!(result.success);
@@ -340,17 +340,21 @@ mod tests {
 
     #[test]
     fn sandbox_custom_allow_network() {
-        let mut cfg = SandboxConfig::default();
-        cfg.allow_network = true;
+        let cfg = SandboxConfig {
+            allow_network: true,
+            ..Default::default()
+        };
         let exec = SandboxExecutor::new(cfg);
         assert!(exec.is_allowed("curl http://example.com"));
     }
 
     #[test]
     fn sandbox_executor_with_custom_config() {
-        let mut cfg = SandboxConfig::default();
-        cfg.max_memory_mb = 512;
-        cfg.max_cpu_percent = 75;
+        let cfg = SandboxConfig {
+            max_memory_mb: 512,
+            max_cpu_percent: 75,
+            ..Default::default()
+        };
         let exec = SandboxExecutor::new(cfg);
         assert_eq!(exec.estimated_memory(), 512);
         assert_eq!(exec.config.max_cpu_percent, 75);

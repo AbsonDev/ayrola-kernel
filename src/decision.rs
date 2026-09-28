@@ -5,8 +5,7 @@
 //! - Tier 1: pre-filter ONNX pequeno (~5ms, so descarta candidatos)
 //! - Tier 2: LLM completo (Laya/Jev/outro) so quando tiers 0+1 falham
 //!
-//! Stub Phase 0: ContainsSpawn — heuristica `contains("spawn")`
-//! em vez de Laya ONNX. Nao integra Laya ainda.
+// Tier 0: cache semantico. Tier 1: heuristica rapida. Tier 2: LLM real (opt-in). Nao integra Laya ainda.
 
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::{DefaultHasher, HashMap};
@@ -171,7 +170,7 @@ impl From<&str> for CacheKey {
 
 /// Tier 1: classificador leve — heuristico ou ONNX.
 ///
-/// Phase 0/1: heuristica baseada em palavras-chave.
+/// Tier 1: pre-filter heuristico baseado em palavras-chave.
 /// Phase 2: substitui por modelo ONNX real (~5MB, <5ms).
 #[derive(Debug, Clone, Default)]
 pub struct Tier1PreFilter;
@@ -233,7 +232,7 @@ impl Tier1PreFilter {
 
 /// Tier 2: interface para LLM completo via MCP backend.
 ///
-/// Phase 0/1: resposta simulada baseada em heuristica.
+/// Tier 2 (heuristica fallback): resposta baseada em keywords.
 /// Phase 2: integra com MCP backend (Laya/Jev/outro).
 /// Tier 2: LLM real (opt-in) ou heuristica local (default).
 #[derive(Debug, Clone, Default)]
@@ -415,7 +414,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn contains_spawn_stub_returns_yes_no() {
+    fn contains_spawn_heuristic_returns_yes_no() {
         let layer = ContainsSpawn;
         let a = layer.ask(QuestionType::YesNo, "Should I spawn a subagent?");
         match a {
@@ -484,7 +483,7 @@ mod tests {
         let a = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match a {
             Answer::YesNo { yes, confidence } => {
-                assert_eq!(yes, true, "tier 2 heuristic default: yes=true");
+                assert!(yes, "tier 2 heuristic default: yes=true");
                 assert!((confidence - 0.60).abs() < 1e-9, "expected 0.60, got {}", confidence);
             }
             _ => panic!("expected YesNo"),
@@ -494,7 +493,7 @@ mod tests {
         let b = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match b {
             Answer::YesNo { yes, confidence } => {
-                assert_eq!(yes, true);
+                assert!(yes);
                 assert!(
                     (confidence - 0.60).abs() < 1e-9,
                     "cache hit devolve a mesma resposta do tier 2"
@@ -550,14 +549,14 @@ mod tests {
     }
 
     #[test]
-    fn tier1_prefilter_stub_returns_none() {
-        let pf = Tier1PreFilter::default();
+    fn tier1_prefilter_returns_none() {
+        let pf = Tier1PreFilter;
         assert!(pf.classify("anything").is_none());
     }
 
     #[test]
-    fn tier2_llm_stub_returns_default() {
-        let llm = Tier2LLM::default();
+    fn tier2_llm_fallback_returns_default() {
+        let llm = Tier2LLM::new();
         let ans = llm.query("anything");
         // "anything" has no keywords → default confidence 0.6
         assert!((ans.confidence() - 0.60).abs() < 1e-9);

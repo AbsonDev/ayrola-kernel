@@ -92,12 +92,12 @@ mod tests {
     use crate::event_store::ReplayState;
 
     fn state_with(n: u64) -> ReplayState {
-        let mut s = ReplayState::default();
-        s.event_count = n;
-        s.head_hash = format!("head{}", n);
-        s.agent_order.push("agent_1".to_string());
-        s.by_kind.insert("test".to_string(), n);
-        s
+        ReplayState {
+            event_count: n,
+            head_hash: format!("head{}", n),
+            agent_order: vec!["agent_1".to_string()],
+            by_kind: [("test".to_string(), n)].into_iter().collect(),
+        }
     }
 
     #[test]

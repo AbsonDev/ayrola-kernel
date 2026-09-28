@@ -234,7 +234,7 @@ impl ShadowExecutor {
         let report = self.execute(candidate_name);
         if !report.promoted {
             // Rollback: em producao, reverte para versao anterior
-            // Phase 0: apenas log
+            // Rollback: log only (reversao real precisa Railway VM)
             eprintln!(
                 "ROLLBACK: candidato '{}' falhou em {}/{} casos",
                 candidate_name,

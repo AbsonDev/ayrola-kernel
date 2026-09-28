@@ -1,7 +1,8 @@
-//! LLM integration via subprocess.
+//! LLM integration via subprocess + 9Router HTTP.
 //!
-//! Tier 2 do ensemble: chama `claude -p` ou `opencode` via subprocess.
-//! Nao usa crate HTTP — usa o CLI instalado localmente.
+//! Tier 2 do ensemble: chama `claude -p` / `opencode` via subprocess
+//! OU 9Router local (http://localhost:20128) para modelos free.
+//! Nao usa crate HTTP externo — curl + sqlite3 CLI.
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -12,6 +13,7 @@ use std::time::Instant;
 pub enum LlmBackend {
     Claude,
     OpenCode,
+    NineRouter,
     Stub,
 }
 
@@ -20,6 +22,7 @@ impl std::fmt::Display for LlmBackend {
         match self {
             LlmBackend::Claude => write!(f, "claude"),
             LlmBackend::OpenCode => write!(f, "opencode"),
+            LlmBackend::NineRouter => write!(f, "9router"),
             LlmBackend::Stub => write!(f, "stub"),
         }
     }
@@ -39,10 +42,10 @@ pub struct LlmResponse {
 /// Timeout padrao: 30s.
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
-/// LLM: wrapper simples para claude/opencode via subprocess.
+/// LLM: wrapper para claude/opencode (subprocess) + 9Router (HTTP local).
 ///
-/// Phase 1: usa `claude -p` ou `opencode` CLI.
-/// Phase 2: HTTP direto para API (menor overhead).
+/// Phase 1: subprocess para CLI local.
+/// Phase 2 (opcional): 9Router local para modelos free (kc/openrouter/free, etc).
 #[derive(Debug, Clone)]
 pub struct Llm {
     backend: LlmBackend,
@@ -51,11 +54,12 @@ pub struct Llm {
 
 impl Default for Llm {
     fn default() -> Self {
-        // Detecta backend disponivel
         let backend = if which("claude") {
             LlmBackend::Claude
         } else if which("opencode") {
             LlmBackend::OpenCode
+        } else if Self::is_9router_available() {
+            LlmBackend::NineRouter
         } else {
             LlmBackend::Stub
         };
@@ -87,11 +91,23 @@ impl Llm {
         self
     }
 
-    /// Chama o LLM via subprocess. Retorna resposta em texto.
+    /// Check if 9Router daemon is reachable on localhost:20128.
+    fn is_9router_available() -> bool {
+        use std::net::TcpStream;
+        use std::time::Duration;
+
+        let timeout = Duration::from_millis(500);
+        TcpStream::connect_timeout(&"127.0.0.1:20128".parse().unwrap(), timeout)
+            .map(|_| true)
+            .unwrap_or(false)
+    }
+
+    /// Chama o LLM via subprocess ou HTTP.
     pub fn query(&self, prompt: &str) -> Result<LlmResponse, String> {
         match self.backend {
             LlmBackend::Claude => self.query_claude(prompt),
             LlmBackend::OpenCode => self.query_opencode(prompt),
+            LlmBackend::NineRouter => self.query_9router(prompt),
             LlmBackend::Stub => self.query_stub(prompt),
         }
     }
@@ -106,13 +122,10 @@ impl Llm {
         let duration = start.elapsed();
         let content = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-
         let success = output.status.success();
 
-        // Estima tokens (1 token ~ 4 chars)
         let input_tokens = (prompt.len() / 4) as u32;
         let output_tokens = (content.len() / 4) as u32;
-        // Estimativa de custo: $0.015/1k tokens (Claude Haiku)
         let cost = (input_tokens as f64 * 0.015 + output_tokens as f64 * 0.015) / 1000.0;
 
         Ok(LlmResponse {
@@ -134,8 +147,8 @@ impl Llm {
 
         let duration = start.elapsed();
         let content = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
         let output_tokens = (content.len() / 4) as u32;
+
         Ok(LlmResponse {
             backend: LlmBackend::OpenCode,
             content,
@@ -144,6 +157,101 @@ impl Llm {
             input_tokens: (prompt.len() / 4) as u32,
             output_tokens,
         })
+    }
+
+    /// Query via 9Router local daemon (http://localhost:20128).
+    ///
+    /// Usa modelos free: kc/openrouter/free, bzl/auto:free, cf/@cf/meta/llama-3.2-1b-instruct.
+    /// API key lida de ~/.9router/db/data.sqlite (read-only sqlite3).
+    /// Custo: $0 (free tier).
+    fn query_9router(&self, prompt: &str) -> Result<LlmResponse, String> {
+        let db_path = std::env::var("HOME")
+            .map(|h| format!("{}/.9router/db/data.sqlite", h))
+            .unwrap_or_else(|_| "~/.9router/db/data.sqlite".to_string());
+
+        let key = Self::read_9router_key(&db_path)?;
+
+        let body = format!(
+            r#"{{"model":"kc/openrouter/free","messages":[{{"role":"user","content":{}}}],"max_tokens":50}}"#,
+            serde_json::to_string(prompt).map_err(|e| e.to_string())?
+        );
+
+        let output = Command::new("curl")
+            .arg("-s")
+            .arg("-X")
+            .arg("POST")
+            .arg("http://localhost:20128/v1/chat/completions")
+            .arg("-H")
+            .arg("Content-Type: application/json")
+            .arg("-H")
+            .arg(format!("Authorization: Bearer {}", key))
+            .arg("-d")
+            .arg(&body)
+            .output()
+            .map_err(|e| format!("curl failed: {}", e))?;
+
+        let response = String::from_utf8_lossy(&output.stdout);
+        let response = response.trim();
+
+        // 9Router returns JSON + trailing "data: [DONE]" — extract first JSON object
+        let json_part = response
+            .lines()
+            .next()
+            .unwrap_or(response)
+            .trim();
+
+        let parsed: serde_json::Value = serde_json::from_str(json_part)
+            .map_err(|e| format!("9Router JSON parse: {} | body: {}", e, &json_part[..json_part.len().min(200)]))?;
+
+        let content = parsed
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|choice| choice.get("message"))
+            .and_then(|msg| msg.get("content"))
+            .and_then(|c| c.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        let _model = parsed
+            .get("model")
+            .and_then(|m| m.as_str())
+            .unwrap_or("9router")
+            .to_string();
+
+        let usage = parsed.get("usage");
+        let input_tokens = usage
+            .and_then(|u| u.get("prompt_tokens"))
+            .and_then(|t| t.as_u64())
+            .unwrap_or(0) as u32;
+        let output_tokens = usage
+            .and_then(|u| u.get("completion_tokens"))
+            .and_then(|t| t.as_u64())
+            .unwrap_or(0) as u32;
+
+        Ok(LlmResponse {
+            backend: LlmBackend::NineRouter,
+            content,
+            duration_ms: 0, // curl subprocess timing TODO
+            cost_usd: 0.0,  // Free tier
+            input_tokens,
+            output_tokens,
+        })
+    }
+
+    /// Read active API key from 9Router SQLite DB (read-only via sqlite3 CLI).
+    fn read_9router_key(db_path: &str) -> Result<String, String> {
+        let output = Command::new("sqlite3")
+            .arg(db_path)
+            .arg("SELECT key FROM apiKeys WHERE isActive=1 LIMIT 1;")
+            .output()
+            .map_err(|e| format!("sqlite3 failed: {}", e))?;
+
+        let key = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if key.is_empty() {
+            return Err("No active API key in 9Router DB".to_string());
+        }
+        Ok(key)
     }
 
     /// Stub: para testes sem LLM instalado.
@@ -167,6 +275,7 @@ mod tests {
     fn llm_backend_display() {
         assert_eq!(LlmBackend::Claude.to_string(), "claude");
         assert_eq!(LlmBackend::OpenCode.to_string(), "opencode");
+        assert_eq!(LlmBackend::NineRouter.to_string(), "9router");
         assert_eq!(LlmBackend::Stub.to_string(), "stub");
     }
 
@@ -182,11 +291,9 @@ mod tests {
     #[test]
     fn llm_default_detects_backend_or_stub() {
         let llm = Llm::default();
-        // Detecta o que existe no PATH; nunca falha.
-        let backend = llm.backend;
         assert!(matches!(
-            backend,
-            LlmBackend::Claude | LlmBackend::OpenCode | LlmBackend::Stub
+            llm.backend,
+            LlmBackend::Claude | LlmBackend::OpenCode | LlmBackend::NineRouter | LlmBackend::Stub
         ));
     }
 
@@ -212,17 +319,10 @@ mod tests {
     }
 
     #[test]
-    fn llm_token_estimation() {
-        let resp = LlmResponse {
-            backend: LlmBackend::Stub,
-            content: "hello world this is a test".to_string(),
-            duration_ms: 0,
-            cost_usd: 0.0,
-            input_tokens: 25, // "hello world this is a test" ~ 8 words ~ 25 tokens
-            output_tokens: 6,
-        };
-        // Just verify fields are settable
-        assert_eq!(resp.input_tokens, 25);
-        assert_eq!(resp.output_tokens, 6);
+    fn llm_9router_backend_available() {
+        // Verify backend enum works
+        let llm = Llm::new(LlmBackend::NineRouter);
+        assert_eq!(llm.backend, LlmBackend::NineRouter);
+        assert_eq!(LlmBackend::NineRouter.to_string(), "9router");
     }
 }

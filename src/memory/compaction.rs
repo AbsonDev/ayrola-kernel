@@ -55,11 +55,8 @@ mod tests {
     use crate::event_store::EventStore;
     use std::env;
 
-    fn tmp_store(tag: &str) -> (EventStore, std::path::PathBuf) {
-        let mut p = env::temp_dir();
-        p.push(format!("ayrola_compact_{}.ndjson", tag, )); // uuid appended separately
-        p.set_extension(format!("ndjson"));
-        let p = std::env::temp_dir().join(format!("ayrola_compact_{}.ndjson", uuid::Uuid::new_v4()));
+    fn tmp_store(_tag: &str) -> (EventStore, std::path::PathBuf) {
+        let p = env::temp_dir().join(format!("ayrola_compact_{}.ndjson", uuid::Uuid::new_v4()));
         let store = EventStore::open(&p).unwrap();
         (store, p)
     }

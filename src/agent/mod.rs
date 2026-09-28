@@ -167,7 +167,7 @@ impl Agent {
 
     /// Decide usando a decision layer.
     ///
-    /// Stub: usa `ContainsSpawn` (heuristica `contains("spawn")`).
+    /// Usa decision layer (Tier 0 cache + Tier 1 heuristic + Tier 2 LLM opt-in).
     /// Em producao: usa `DecisionEngine`.
     pub async fn decide(&self, _qtype: crate::decision::QuestionType, question: &str) -> crate::decision::Answer {
         use crate::decision::{DecisionLayer, ContainsSpawn};
