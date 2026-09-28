@@ -94,7 +94,6 @@ struct ContentBlock {
 }
 
 /// Routes a tool call to the kernel and returns the MCP-formatted result.
-
 fn handle_read(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
     let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
     if path.is_empty() {
