@@ -91,6 +91,63 @@ impl ToolReader {
     }
 }
 
+
+/// GrepTool: busca por regex em arquivos.
+#[derive(Debug, Clone, Default)]
+pub struct GrepTool;
+
+impl GrepTool {
+    pub fn new() -> Self {
+        GrepTool
+    }
+
+    /// Busca por padrao em um arquivo.
+    pub fn grep_file(&self, path: &str, pattern: &str) -> ToolResult {
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => return ToolResult::err(ToolType::Grep, format!("error: {}", e)),
+        };
+
+        let matches: Vec<String> = content
+            .lines()
+            .filter(|line| line.contains(pattern))
+            .map(|s| s.to_string())
+            .collect();
+
+        if matches.is_empty() {
+            ToolResult::err(ToolType::Grep, "no matches found")
+        } else {
+            ToolResult::ok(ToolType::Grep, matches.join("\n"), 0, 0.0)
+        }
+    }
+
+    /// Busca recursiva em um diretorio (nao-recursivo por enquanto).
+    pub fn grep_dir(&self, dir: &str, pattern: &str) -> ToolResult {
+        let mut all_matches = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() {
+                    let path_str = path.to_string_lossy();
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        for line in content.lines() {
+                            if line.contains(pattern) {
+                                all_matches.push(format!("{}:{}", path_str, line));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if all_matches.is_empty() {
+            ToolResult::err(ToolType::Grep, "no matches found")
+        } else {
+            ToolResult::ok(ToolType::Grep, all_matches.join("\n"), 0, 0.0)
+        }
+    }
+}
+
 /// SpeculativeTool: executa tools de forma especulativa e pode descartar.
 #[derive(Debug, Clone, Default)]
 pub struct SpeculativeTool {
@@ -245,4 +302,26 @@ mod tests {
         let back: ToolResult = serde_json::from_str(&json).unwrap();
         assert_eq!(back, r);
     }
+    #[test]
+    fn grep_tool_finds_pattern() {
+        let tool = GrepTool::new();
+        let res = tool.grep_file("Cargo.toml", "ayrola");
+        assert!(res.success);
+        assert!(res.content.contains("ayrola"));
+    }
+
+    #[test]
+    fn grep_tool_no_match() {
+        let tool = GrepTool::new();
+        let res = tool.grep_file("Cargo.toml", "nonexistent_pattern_xyz");
+        assert!(!res.success);
+    }
+
+    #[test]
+    fn grep_tool_missing_file() {
+        let tool = GrepTool::new();
+        let res = tool.grep_file("/nonexistent/file.txt", "pattern");
+        assert!(!res.success);
+    }
+
 }
