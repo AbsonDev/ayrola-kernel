@@ -29,6 +29,9 @@ enum Commands {
         /// Tipo de resposta
         #[arg(short = 't', long, default_value = "yesno")]
         qtype: String,
+        /// Habilita LLM real (claude/opencode) no tier 2
+        #[arg(long, default_value = "false")]
+        llm: bool,
     },
     /// Cria agente e spawn de subagente (demonstracao)
     Spawn {
@@ -50,7 +53,7 @@ async fn main() {
             println!("Decision tiers: {}", info.tiers);
             println!("Phase: 0 (stub — nao usa Laya ONNX)");
         }
-        Commands::Decide { question, qtype } => {
+        Commands::Decide { question, qtype, llm } => {
             let qtype = match qtype.as_str() {
                 "yesno" => QuestionType::YesNo,
                 "choice" => QuestionType::Choice,
@@ -61,8 +64,12 @@ async fn main() {
                 }
             };
 
-            // Usa DecisionEngine (ensemble 3 tiers com stubs).
-            let mut engine = DecisionEngine::new();
+            // Usa DecisionEngine: with_llm() habilita LLM real (subprocess).
+            let mut engine = if llm {
+                DecisionEngine::with_llm()
+            } else {
+                DecisionEngine::new()
+            };
             let answer = engine.ask(qtype, &question);
             match answer {
                 ayrola_kernel::decision::Answer::YesNo { yes, confidence } => {
