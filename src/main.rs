@@ -45,6 +45,105 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
     },
+    /// Roda todos os gates: test, clippy, build
+    Doctor,
+}
+
+
+/// Roda todos os gates do projeto e reporta status.
+async fn run_doctor() {
+    use std::process::Command;
+
+    println!("Ayrola Kernel — Doctor\n");
+
+    // 1. Tests
+    println!("[1/4] cargo test ...");
+    let test = Command::new("cargo").args(["test", "--", "--test-threads=4"]).output();
+    match test {
+        Ok(o) if o.status.success() => println!("  {} tests: PASS", count_tests(&String::from_utf8_lossy(&o.stdout))),
+        Ok(o) => {
+            let out = String::from_utf8_lossy(&o.stdout);
+            let count = count_tests(&out);
+            println!("  {} tests: FAIL (see output below)", count);
+            print_test_failures(&out);
+        }
+        Err(e) => println!("  FAIL: {}", e),
+    }
+
+    // 2. Clippy
+    println!("\n[2/4] cargo clippy -- -D warnings ...");
+    let clippy = Command::new("cargo").args(["clippy", "--", "-D", "warnings"]).output();
+    match clippy {
+        Ok(o) if o.status.success() => println!("  CLEAN"),
+        Ok(o) => {
+            let out = String::from_utf8_lossy(&o.stderr);
+            println!("  FAIL");
+            for line in out.lines().take(20) {
+                if !line.trim().is_empty() {
+                    println!("    {}", line);
+                }
+            }
+        }
+        Err(e) => println!("  FAIL: {}", e),
+    }
+
+    // 3. Build
+    println!("\n[3/4] cargo build --release ...");
+    let build = Command::new("cargo").args(["build", "--release"]).output();
+    match build {
+        Ok(o) if o.status.success() => println!("  OK"),
+        Ok(o) => {
+            let out = String::from_utf8_lossy(&o.stderr);
+            println!("  FAIL");
+            for line in out.lines().take(20) {
+                if !line.trim().is_empty() {
+                    println!("    {}", line);
+                }
+            }
+        }
+        Err(e) => println!("  FAIL: {}", e),
+    }
+
+    // 4. Doc
+    println!("\n[4/4] cargo doc --no-deps --document-private-items ...");
+    let doc = Command::new("cargo").args(["doc", "--no-deps", "--document-private-items"]).output();
+    match doc {
+        Ok(o) if o.status.success() => println!("  OK"),
+        Ok(o) => {
+            let out = String::from_utf8_lossy(&o.stderr);
+            println!("  FAIL");
+            for line in out.lines().take(20) {
+                if !line.trim().is_empty() {
+                    println!("    {}", line);
+                }
+            }
+        }
+        Err(e) => println!("  FAIL: {}", e),
+    }
+
+    println!("\nDoctor complete.");
+}
+
+fn count_tests(output: &str) -> usize {
+    output.lines()
+        .filter(|l| l.contains("test result:"))
+        .map(|l| {
+            let parts: Vec<&str> = l.split_whitespace().collect();
+            parts.get(3).and_then(|s| s.parse().ok()).unwrap_or(0)
+        })
+        .sum()
+}
+
+fn print_test_failures(output: &str) {
+    let mut in_failures = false;
+    for line in output.lines() {
+        if line.contains("failures:") {
+            in_failures = true;
+        }
+        if in_failures && line.trim().len() > 0 && !line.starts_with("test result") {
+            println!("    {}", line);
+        }
+    }
 }
 
 #[tokio::main]
@@ -99,6 +198,9 @@ async fn main() {
                     Err(e) => eprintln!("Failed to save: {}", e),
                 }
             }
+        }
+        Commands::Doctor => {
+            run_doctor().await;
         }
         Commands::Spawn { task } => {
             println!("Spawning subagent for: {}", task);
