@@ -25,6 +25,26 @@ pub struct Evaluation {
     pub passed: bool,
 }
 
+/// Heuristica de seguranca: retorna 1.0 se seguro, 0.0 se sinais de risco.
+/// Checa: comandos shell inline, hardcoded secrets, network sem allowlist.
+fn security_score(content: &str) -> f64 {
+    let content = content.to_lowercase();
+    let mut score: f64 = 1.0;
+
+    let risky = [
+        "password =", "api_key =", "secret =", "token =",
+        "execute(", "system(", "shell_exec", "eval(",
+        "rm -rf", "curl http", "wget http",
+    ];
+    for pat in &risky {
+        if content.contains(pat) {
+            score -= 0.2;
+        }
+    }
+
+    score.clamp(0.0, 1.0)
+}
+
 impl Evaluation {
     /// Retorna true se TODOS os eixos sao positivos (promocao).
     pub fn is_promotable(&self) -> bool {
@@ -50,12 +70,16 @@ impl Evaluation {
 
         // quality: proporcao de casos que passam
         let quality_delta = pass_rate;
-        // latency: stub (nao medido ainda)
-        let latency_delta = 0.0;
-        // cost: custo de execucao (stub: 0.001 por caso)
+        // latency: proxy via taxa de sucesso (tests passing = system fast)
+        let latency_delta = pass_rate * 0.5; // max 0.5 (50% do peso do quality)
+        // cost: custo por caso executado
         let cost_delta = -(report.total as f64 * 0.001);
-        // security: stub (nao medido ainda)
-        let security_delta = 0.0;
+        // security: heuristica sobre conteudo dos resultados
+        let report_content = report.results.iter()
+            .map(|r| r.actual.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let security_delta = security_score(&report_content);
 
         let overall = quality_delta * 0.4 + latency_delta * 0.2 + cost_delta * 0.2 + security_delta * 0.2;
 

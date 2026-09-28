@@ -1,6 +1,6 @@
 //! Sandbox module. Pilar 4 — isolamento de subagentes.
 //!
-//! Phase 0: stubs (macOS nao suporta Linux namespaces).
+//! Phase 1: SandboxExecutor real (std::process::Command + allowlist).
 //! Phase 1: via Railway VM (Linux namespaces + cgroups).
 //!
 //! Em producao:

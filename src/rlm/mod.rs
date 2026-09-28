@@ -2,7 +2,7 @@
 //!
 //! Decompoe tarefas complexas em subtarefas menores e spawn de subagentes.
 //!
-//! Phase 0: stubs + heuristica.
+//! Phase 1: heuristica + Planner real com ExecutionReport.
 //! Phase 1: integracao LLM real via MCP backend.
 
 use crate::agent::Agent;
@@ -68,7 +68,7 @@ impl Decomposer {
         Decomposer
     }
 
-    /// Decompoe uma tarefa. Stub: heuristicas baseadas em keywords.
+    /// Decompoe uma tarefa. Usa heuristicas baseadas em keywords.
     pub fn decompose(&self, task: &str) -> Decomposition {
         let task_id = format!("task-{}", uuid::Uuid::new_v4());
         let mut decomp = Decomposition::new(&task_id, task);

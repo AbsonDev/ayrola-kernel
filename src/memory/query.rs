@@ -1,6 +1,6 @@
 //! Memory query interface.
 //!
-//! Busca semantica de eventos passados. Em Phase 0, usa FTS basico.
+//! Busca semantica de eventos passados. Usa FTS basico (BTreeMap de keywords).
 //! Futuro: integracao com pgvector/Qdrant.
 
 use crate::event_store::{Event, EventStore};

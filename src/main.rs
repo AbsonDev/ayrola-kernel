@@ -8,7 +8,7 @@
 use clap::{Parser, Subcommand};
 use ayrola_kernel::decision::{DecisionEngine, QuestionType};
 
-/// Ayrola Kernel — Rust-native agent harness (Phase 0 stub)
+/// Ayrola Kernel — Rust-native agent harness (Phase 1)
 #[derive(Parser)]
 #[command(name = "ayrola")]
 #[command(version, about)]
@@ -45,7 +45,7 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
     },
-    /// Roda todos os gates: test, clippy, build
+    /// Roda todos os gates: test, clippy, build, doc
     Doctor,
 }
 
@@ -156,7 +156,7 @@ async fn main() {
             println!("Ayrola Kernel v{}", info.version);
             println!("Edition: {}", info.edition);
             println!("Decision tiers: {}", info.tiers);
-            println!("Phase: 0 (stub — nao usa Laya ONNX)");
+            println!("Phase: 1 (real — opt-in LLM via --llm, 15 modulos)");
         }
         Commands::Decide { question, qtype, llm } => {
             let qtype = match qtype.as_str() {

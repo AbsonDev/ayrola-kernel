@@ -1,6 +1,6 @@
 //! Tools module. Interface para tools externas (speculative reading, etc).
 //!
-//! Phase 0: stubs.
+//! Phase 1: GrepTool + ToolExecutor reais.
 //! Phase 1: integracao real via MCP (read, grep, web, etc).
 
 use serde::{Deserialize, Serialize};
@@ -68,7 +68,7 @@ impl ToolReader {
         ToolReader
     }
 
-    /// Le um arquivo. Stub: retorna erro se nao existir.
+    /// Le um arquivo. Retorna erro se nao existir.
     pub fn read_file(&self, path: &str) -> ToolResult {
         match std::fs::read_to_string(path) {
             Ok(content) => ToolResult::ok(ToolType::Read, content, 0, 0.0),
@@ -76,7 +76,7 @@ impl ToolReader {
         }
     }
 
-    /// Lista arquivos em um diretorio. Stub.
+    /// Lista arquivos em um diretorio.
     pub fn list_dir(&self, path: &str) -> ToolResult {
         match std::fs::read_dir(path) {
             Ok(entries) => {
@@ -246,10 +246,26 @@ impl ToolExecutor {
                 (Some(path), None) => self.grep.grep_dir(path, ""),
                 _ => ToolResult::err(ToolType::Grep, "missing path or pattern"),
             },
-            ToolType::WebFetch => ToolResult::err(
-                ToolType::WebFetch,
-                "web_fetch not implemented (requires HTTP client)",
-            ),
+            ToolType::WebFetch => {
+                let start = std::time::Instant::now();
+                let url = args.first().copied().unwrap_or("");
+                let output = std::process::Command::new("curl")
+                    .args(["-sL", "--max-time", "10", url])
+                    .output();
+                let duration = start.elapsed().as_millis() as u64;
+
+                match output {
+                    Ok(o) if o.status.success() => {
+                        let content = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                        ToolResult::ok(ToolType::WebFetch, content, duration, 0.0)
+                    }
+                    Ok(o) => {
+                        let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                        ToolResult::err(ToolType::WebFetch, format!("curl failed: {}", err))
+                    }
+                    Err(e) => ToolResult::err(ToolType::WebFetch, format!("curl not found: {}", e)),
+                }
+            }
             ToolType::Run => ToolResult::err(
                 ToolType::Run,
                 "run not implemented (requires sandbox, see ADR-006)",

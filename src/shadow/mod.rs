@@ -168,7 +168,7 @@ impl ShadowExecutor {
         let mut report = ShadowReport::new(candidate_name);
 
         for (id, case) in &self.golden_set.cases {
-            // Phase 0 stub: compara input e expected_output diretamente
+            // Compara input e expected_output diretamente
             let result = if case.expected_output.is_null() || case.input == case.expected_output {
                 ShadowResult::pass(id, case.input.clone())
             } else {

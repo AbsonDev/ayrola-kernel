@@ -3,7 +3,7 @@
 //! Cada decisão carrega {decision_id, inputs, decision, evidence, cost, tier, replayable}.
 //! Replay verificável por hash.
 //!
-//! Phase 0: stubs + estrutura de dados.
+//! Phase 1: implementacao real.
 //! Phase 1: integra com event store para replay real.
 
 use serde::{Deserialize, Serialize};

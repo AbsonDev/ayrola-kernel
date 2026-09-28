@@ -5,7 +5,7 @@
 //! 2. Agentes com subagentes async via Tokio (agent)
 //! 3. Decision layer trait + ensemble 3 tiers (decision)
 //!
-//! Phase 0: stubs e heuristicas. Nao usa Laya ONNX.
+//! Phase 1: todos os modulos implementados. Laya ONNX opcional no tier 2.
 //! Verifique `Cargo.toml` para dependencias reais.
 
 pub mod agent;

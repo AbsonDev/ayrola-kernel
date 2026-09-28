@@ -167,7 +167,7 @@ impl From<&str> for CacheKey {
     }
 }
 
-// ── Tier 1: pre-filter (heuristic + ONNX stub) ─────────────────────
+// ── Tier 1: pre-filter (heuristic) ─────────────────────
 
 /// Tier 1: classificador leve — heuristico ou ONNX.
 ///
@@ -229,7 +229,7 @@ impl Tier1PreFilter {
     }
 }
 
-// ─- Tier 2: LLM backend (simulated + MCP stub) ──────────────────
+// ── Tier 2: LLM backend (real via subprocess opt-in) ──────────────────
 
 /// Tier 2: interface para LLM completo via MCP backend.
 ///

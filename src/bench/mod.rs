@@ -84,7 +84,7 @@ pub struct BenchResult {
 }
 
 impl BenchResult {
-    /// Cria resultado stub (sem execucao real).
+    /// Cria resultado para testes (sem execucao real).
     pub fn stub(task: &BenchTask, success: bool, duration_ms: u64) -> Self {
         BenchResult {
             task_id: task.id.clone(),
@@ -274,7 +274,7 @@ pub fn default_suite() -> Vec<BenchTask> {
 
 /// Executa uma task via Llm e mede latencia.
 ///
-/// Phase 1: usa Llm::new(LlmBackend::Stub) para testes deterministicos.
+/// Phase 1: implementacao real.
 /// Phase 2: LlmBackend::Claude/OpenCode para execucao real.
 pub fn run_task(task: &BenchTask) -> BenchResult {
     let start = Instant::now();

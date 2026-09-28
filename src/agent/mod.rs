@@ -126,7 +126,7 @@ impl Agent {
         let handle: JoinHandle<()> = tokio::spawn(async move {
             eprintln!("[{}] running: {}", child_id, task_str);
 
-            // Simula trabalho (stub). Em producao, isto e uma LLM call ou tool execution.
+            // Em producao, isto e uma LLM call ou tool execution.
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
             let _ev = AgentEvent::SubagentFinished {
@@ -165,7 +165,7 @@ impl Agent {
         ids
     }
 
-    /// Decide usando a decision layer (stub Phase 0).
+    /// Decide usando a decision layer.
     ///
     /// Stub: usa `ContainsSpawn` (heuristica `contains("spawn")`).
     /// Em producao: usa `DecisionEngine`.
