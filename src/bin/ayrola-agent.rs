@@ -20,14 +20,13 @@ use std::process::exit;
 use ayrola_kernel::{
     bench::default_suite,
     decision::{DecisionEngine, QuestionType},
-    llm::LlmBackend,
     obs::init_tracing,
-    shadow::default_golden_set,
 };
 
 /// JSON-RPC 2.0 request.
 #[derive(serde::Deserialize, Debug)]
 struct JsonRpcRequest {
+    #[allow(dead_code)]
     jsonrpc: String,
     id: Option<serde_json::Value>,
     method: String,
@@ -38,6 +37,7 @@ struct JsonRpcRequest {
 /// JSON-RPC 2.0 response (unified: result or error).
 #[derive(serde::Serialize)]
 struct JsonRpcResponse {
+    #[allow(dead_code)]
     jsonrpc: String,
     id: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
