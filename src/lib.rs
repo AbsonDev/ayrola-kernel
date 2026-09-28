@@ -15,6 +15,8 @@ pub mod memory;
 pub mod refine;
 pub mod sandbox;
 pub mod rlm;
+pub mod bench;
+pub mod config;
 pub mod tools;
 
 /// Versao do kernel.
