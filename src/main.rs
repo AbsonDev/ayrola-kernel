@@ -39,6 +39,12 @@ enum Commands {
         #[arg(short, long)]
         task: String,
     },
+    /// Executa a suite de benchmark (10 tasks)
+    Bench {
+        /// Salva resultado em JSON
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -80,6 +86,17 @@ async fn main() {
                 }
                 ayrola_kernel::decision::Answer::Score { value, max, confidence } => {
                     println!("Score: {}/{} | Confidence: {:.2}", value, max, confidence);
+                }
+            }
+        }
+        Commands::Bench { output } => {
+            let suite = ayrola_kernel::bench::default_suite();
+            let sb = ayrola_kernel::bench::run_suite(&suite);
+            println!("{}", sb.summary());
+            if let Some(path) = output {
+                match sb.save_json(&path) {
+                    Ok(_) => println!("Saved to {}", path),
+                    Err(e) => eprintln!("Failed to save: {}", e),
                 }
             }
         }

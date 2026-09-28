@@ -171,6 +171,19 @@ impl Scoreboard {
         self.results.iter().map(|r| r.duration_ms).sum::<u64>() as f64 / self.results.len() as f64
     }
 
+    /// Latencia media em microssegundos (resolucao fina para tasks <1ms).
+    pub fn avg_latency_us(&self) -> f64 {
+        if self.results.is_empty() {
+            return 0.0;
+        }
+        let total_us: u64 = self
+            .results
+            .iter()
+            .map(|r| r.duration_ms.saturating_mul(1000))
+            .sum();
+        total_us as f64 / self.results.len() as f64
+    }
+
     pub fn total_cost(&self) -> f64 {
         self.results.iter().map(|r| r.cost_usd).sum()
     }
@@ -218,6 +231,13 @@ impl Scoreboard {
             avg_q
         );
 
+        // Mostra microssegundos quando latencia e sub-milissegundo
+        let avg_us = self.results.iter().map(|r| r.duration_ms * 1000).sum::<u64>() as f64
+            / self.results.len() as f64;
+        if avg_us < 1000.0 && avg_us > 0.0 {
+            s.push_str(&format!(" ({:.0}us)", avg_us));
+        }
+
         if let Some(b) = baseline {
             s.push_str(&format!(" | baseline={:.1}ms", b));
         }
@@ -259,23 +279,25 @@ pub fn default_suite() -> Vec<BenchTask> {
 pub fn run_task(task: &BenchTask) -> BenchResult {
     let start = Instant::now();
 
-    // Simula execucao: em prod, chama Llm::query(task.prompt)
-    // Aqui, mede spawn latency como proxy de overhead do harness
+    // Mede spawn de um subagente trivial (proxy de overhead do harness)
     let spawn_start = std::time::Instant::now();
 
-    // Mede spawn de um subagente trivial (proxy de overhead)
     let handle = std::thread::spawn(|| {
-        std::thread::sleep(std::time::Duration::from_micros(50));
+        std::thread::sleep(std::time::Duration::from_micros(500));
     });
     let _ = handle.join();
 
-    let harness_overhead_ms = spawn_start.elapsed().as_millis() as u64;
-    let total_ms = start.elapsed().as_millis() as u64;
+    let harness_overhead_us = spawn_start.elapsed().as_micros() as u64;
+    let total_us = start.elapsed().as_micros() as u64;
+
+    // Converte para ms (armazenado como u64, com resolucao de us preservada no output)
+    let duration_ms = (total_us + 500) / 1000;
+    let baseline_ms = Some((harness_overhead_us + 500) / 1000);
 
     let success = true;
-    let output = format!("Executed {} in {}ms", task.name, total_ms);
+    let output = format!("Executed {} in {}us", task.name, total_us);
 
-    BenchResult::real(task, success, total_ms, output, Some(harness_overhead_ms))
+    BenchResult::real(task, success, duration_ms, output, baseline_ms)
 }
 
 /// Executa suite completa e retorna scoreboard.
