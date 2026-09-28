@@ -12,3 +12,4 @@ Decisões de Arquitetura do Ayrola Kernel.
 | [ADR-006](adr/006-decision-certification.md) | Certificação de Decisão com SHA-256 | ✅ Aceito |
 | [ADR-007](adr/007-config-yaml.md) | Configuração via YAML com validação | ✅ Aceito |
 | [ADR-008](adr/008-bench-module.md) | ayrola-bench v0 como módulo nativo | ✅ Aceito |
+| [ADR-010](adr/010-9router-llm-backend.md) | 9Router como LLM backend free tier | ✅ Aceito |
