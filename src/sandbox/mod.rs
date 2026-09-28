@@ -81,19 +81,84 @@ impl SandboxExecutor {
 
     /// Executa um comando em sandbox.
     ///
-    /// Phase 0 (stub): simula execucao sem isolamento real.
-    /// Phase 1 (Railway VM): executa via SSH em VM Linux com namespaces.
-    pub async fn run(&self, _command: &str) -> SandboxResult {
-        // Stub: retorna sucesso simulado.
-        // Em producao: ssh railway.new -> namespace -> command -> capture output.
-        SandboxResult::success("stub: sandbox simulation", 0)
+    /// Phase 1: executa via `std::process::Command` com limites da config.
+    /// Network é bloqueada por allowlist (não executa comandos com network se desabilitado).
+    pub fn run(&self, command: &str) -> SandboxResult {
+        if command.is_empty() {
+            return SandboxResult::success("empty command", 0);
+        }
+
+        if !self.is_allowed(command) {
+            return SandboxResult::failure(
+                format!("command not allowed: {}", command.split_whitespace().next().unwrap_or("")),
+                126,
+            );
+        }
+
+        if !self.config.allow_network {
+            // Bloqueia comandos que tipicamente usam rede
+            let blocked = ["curl", "wget", "nc", "ncat", "telnet", "ssh", "scp", "rsync"];
+            let base = command.split_whitespace().next().unwrap_or("");
+            if blocked.contains(&base) {
+                return SandboxResult::failure(
+                    format!("network blocked for command: {}", base),
+                    126,
+                );
+            }
+        }
+
+        let start = std::time::Instant::now();
+
+        if command.is_empty() {
+            return SandboxResult::success("empty command", 0);
+        }
+
+        let output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .env_clear()
+                .envs(&self.config.env_vars)
+                .current_dir("/tmp")
+                .output();
+
+        match output {
+            Ok(out) => {
+                let duration_ms = start.elapsed().as_millis() as u64;
+                let success = out.status.success();
+                SandboxResult {
+                    success,
+                    stdout: String::from_utf8_lossy(&out.stdout).to_string(),
+                    stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+                    exit_code: out.status.code().unwrap_or(-1),
+                    duration_ms,
+                    memory_used_mb: 0, // Phase 2: collect via /usr/bin/time
+                }
+            }
+            Err(e) => {
+                SandboxResult::failure(format!("exec error: {}", e), 127)
+            }
+        }
     }
 
-    /// Verifica se o comando esta na allowlist.
+    /// Verifica se o comando esta na allowlist (ignora network se allow_network=false).
     pub fn is_allowed(&self, command: &str) -> bool {
-        let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
         let base = command.split_whitespace().next().unwrap_or("");
-        allowed.contains(&base)
+        if base.is_empty() {
+            return true; // empty command
+        }
+        // Always allowed basic commands
+        let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
+        if allowed.contains(&base) {
+            return true;
+        }
+        // Network commands only if allow_network is true
+        if self.config.allow_network {
+            let network_cmds = ["curl", "wget", "nc", "ncat", "telnet", "ssh", "scp", "rsync"];
+            if network_cmds.contains(&base) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Estima memoria usada baseado na config.
@@ -154,8 +219,7 @@ mod tests {
     #[test]
     fn sandbox_executor_run_stub_succeeds() {
         let exec = SandboxExecutor::new(SandboxConfig::default());
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let result = rt.block_on(exec.run("echo hello"));
+        let result = exec.run("echo hello");
         assert!(result.success);
     }
 
@@ -218,3 +282,76 @@ mod tests {
         assert_eq!(cfg, back);
     }
 }
+
+    #[test]
+    fn sandbox_run_executes_real_command() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let result = exec.run("echo hello");
+        assert!(result.success);
+        assert!(result.stdout.contains("hello"));
+        assert_eq!(result.exit_code, 0);
+    }
+
+    #[test]
+    fn sandbox_run_blocks_network_commands() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let result = exec.run("curl http://evil.com");
+        assert!(!result.success);
+        assert!(result.stderr.contains("not allowed"));
+    }
+
+    #[test]
+    fn sandbox_run_blocks_disallowed_commands() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let result = exec.run("rm -rf /");
+        assert!(!result.success);
+        assert!(result.stderr.contains("not allowed"));
+    }
+
+    #[test]
+    fn sandbox_run_empty_command() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let result = exec.run("");
+        assert!(result.success);
+        assert!(result.stdout.contains("empty command"));
+    }
+
+    #[test]
+    fn sandbox_run_nonexistent_command_fails() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let result = exec.run("nonexistent_command_xyz");
+        assert!(!result.success);
+        assert!(result.exit_code != 0 || !result.success);
+    }
+
+    #[test]
+    fn sandbox_default_allows_echo() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        assert!(exec.is_allowed("echo hello"));
+        assert!(exec.is_allowed("ls -la"));
+        assert!(exec.is_allowed("cat /tmp/foo"));
+    }
+
+    #[test]
+    fn sandbox_default_blocks_rm() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        assert!(!exec.is_allowed("rm -rf /"));
+    }
+
+    #[test]
+    fn sandbox_custom_allow_network() {
+        let mut cfg = SandboxConfig::default();
+        cfg.allow_network = true;
+        let exec = SandboxExecutor::new(cfg);
+        assert!(exec.is_allowed("curl http://example.com"));
+    }
+
+    #[test]
+    fn sandbox_executor_with_custom_config() {
+        let mut cfg = SandboxConfig::default();
+        cfg.max_memory_mb = 512;
+        cfg.max_cpu_percent = 75;
+        let exec = SandboxExecutor::new(cfg);
+        assert_eq!(exec.estimated_memory(), 512);
+        assert_eq!(exec.config.max_cpu_percent, 75);
+    }

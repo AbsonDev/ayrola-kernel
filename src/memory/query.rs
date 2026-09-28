@@ -67,6 +67,7 @@ mod tests {
     use crate::event_store::EventStore;
     use std::env;
 
+    #[allow(dead_code)]
     fn tmp_store(tag: &str) -> EventStore {
         let mut p = env::temp_dir();
         p.push(format!("ayrola_q_{}_{}.ndjson", tag, uuid::Uuid::new_v4()));
