@@ -40,6 +40,12 @@ enum Commands {
         #[arg(short, long)]
         task: String,
     },
+    /// Executa o benchmark de throughput (req/s)
+    Throughput {
+        /// Numero de iteracoes
+        #[arg(long, default_value_t = 1000)]
+        iterations: usize,
+    },
     /// Executa a suite de benchmark (10 tasks)
     Bench {
         /// Salva resultado em JSON
@@ -194,6 +200,10 @@ async fn main() {
                     println!("Score: {}/{} | Confidence: {:.2}", value, max, confidence);
                 }
             }
+        }
+        Commands::Throughput { iterations } => {
+            let results = ayrola_kernel::bench::throughput_bench(iterations);
+            println!("{}", ayrola_kernel::bench::render_throughput(&results));
         }
         Commands::Bench { output } => {
             let suite = ayrola_kernel::bench::default_suite();
