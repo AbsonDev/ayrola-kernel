@@ -486,6 +486,40 @@ impl DecisionEngine {
     /// Faz uma pergunta e retorna CertifiedDecision com hash SHA-256.
     ///
     /// Integra o modulo `cert` (Eixo E) diretamente no fluxo de decisao.
+    /// Pergunta certificada, registrando o evento no event store se disponivel.
+    ///
+    /// Phase 3 — S17: certificacao + event store integration.
+    ///
+    /// Se `store` for informado, a decisão é appendada como evento
+    /// `decision.made` com hash verificável. Isso cria a time-travel
+    /// capability: replay de qualquer decisão pelo hash da chain.
+    pub fn ask_certified_with_store(
+        &mut self,
+        qtype: QuestionType,
+        question: &str,
+        store: Option<&mut crate::event_store::EventStore>,
+    ) -> (CertifiedDecision, Option<crate::event_store::Event>) {
+        let certified = self.ask_certified(qtype, question);
+
+        let event = if let Some(store) = store {
+            let payload = serde_json::json!({
+                "decision_id": certified.decision_id.0,
+                "question": certified.inputs["question"],
+                "qtype": certified.inputs["qtype"],
+                "answer": certified.decision,
+                "tier": certified.tier.to_string(),
+                "confidence": certified.evidence.confidence,
+                "cost_usd": certified.cost_usd,
+                "hash": certified.hash,
+            });
+            store.append("decision.made", payload).ok()
+        } else {
+            None
+        };
+
+        (certified, event)
+    }
+
     pub fn ask_certified(&mut self, qtype: QuestionType, question: &str) -> CertifiedDecision {
         // Determina o tier ANTES de perguntar (cache hit = tier 0).
         let cache_hit = self.cache.get(question).is_some();
@@ -723,6 +757,63 @@ mod tests {
         let a = Tier2LLM::parse_llm_response("That depends on the context.");
         assert!(matches!(a, Answer::YesNo { yes: true, confidence } if confidence <= 0.6));
     }
+
+    #[test]
+    fn ask_certified_with_store_logs_event() {
+        use crate::event_store::EventStore;
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("events.jsonl");
+        let mut store = EventStore::open(&path).unwrap();
+
+        let mut engine = DecisionEngine::new();
+        let (cert, event) = engine.ask_certified_with_store(
+            QuestionType::YesNo,
+            "Is fire hot?",
+            Some(&mut store),
+        );
+
+        assert!(cert.verify(), "certified decision must verify");
+        assert!(event.is_some(), "event should be logged");
+        assert_eq!(store.len().unwrap(), 1, "store should have 1 event");
+
+        let events = store.read_all().unwrap();
+        assert_eq!(events[0].kind, "decision.made");
+    }
+
+    #[test]
+    fn ask_certified_with_store_none_returns_none_event() {
+        let mut engine = DecisionEngine::new();
+        let (cert, event) = engine.ask_certified_with_store(
+            QuestionType::YesNo,
+            "Is fire hot?",
+            None,
+        );
+
+        assert!(cert.verify());
+        assert!(event.is_none(), "no store = no event");
+    }
+
+    #[test]
+    fn ask_certified_with_store_chain_verifies() {
+        use crate::event_store::EventStore;
+        use tempfile::TempDir;
+
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("events.jsonl");
+        let mut store = EventStore::open(&path).unwrap();
+
+        let mut engine = DecisionEngine::new();
+        for i in 0..3 {
+            let q = format!("Question number {i}?");
+            let _ = engine.ask_certified_with_store(QuestionType::YesNo, &q, Some(&mut store));
+        }
+
+        assert!(store.verify_chain().unwrap(), "chain must verify after 3 decisions");
+        assert_eq!(store.len().unwrap(), 3);
+    }
+
 }
 
     #[test]
