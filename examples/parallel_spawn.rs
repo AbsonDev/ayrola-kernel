@@ -3,6 +3,7 @@
 
 use std::time::Instant;
 
+#[allow(dead_code)]
 async fn measure(agent: &ayrola_kernel::agent::Agent, count: usize) {
     let t0 = Instant::now();
     let ids = agent

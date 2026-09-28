@@ -164,6 +164,7 @@ async fn rlm_planner_spawns_all_subtasks() {
     // Code task → 5 subtasks
     assert_eq!(decomp.subtasks.len(), 5);
 
-    let results = planner.execute(&decomp).await;
-    assert_eq!(results.len(), 5, "planner must spawn one agent per subtask");
+    let report = planner.execute(&decomp).await;
+    assert_eq!(report.results.len(), 5, "planner must spawn one agent per subtask");
+    assert_eq!(report.success_rate(), 1.0);
 }
