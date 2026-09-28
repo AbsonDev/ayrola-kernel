@@ -1,0 +1,20 @@
+# Ayrola Kernel — configuracao padrao
+kernel:
+  name: ayrola-kernel
+  edition: "2024"
+
+decision:
+  t0_cache_enabled: true
+  t1_prefilter_enabled: true
+  t2_confidence_threshold: 0.75
+  ensemble_mode: three_tier
+
+agent:
+  max_subagents: 10
+  default_timeout_ms: 30000
+  retry_count: 2
+
+logging:
+  level: info
+  format: json
+  output: stderr
