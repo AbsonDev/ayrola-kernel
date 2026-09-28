@@ -20,6 +20,7 @@ pub mod shadow;
 pub mod bench;
 pub mod config;
 pub mod tools;
+pub mod llm;
 
 /// Versao do kernel.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
