@@ -212,6 +212,83 @@ impl ToolRegistry {
     }
 }
 
+
+/// ToolExecutor: despacha chamadas de tool pelo tipo.
+#[derive(Debug, Clone, Default)]
+pub struct ToolExecutor {
+    reader: ToolReader,
+    grep: GrepTool,
+}
+
+impl ToolExecutor {
+    pub fn new() -> Self {
+        Self {
+            reader: ToolReader::new(),
+            grep: GrepTool::new(),
+        }
+    }
+
+    /// Despacha uma chamada de tool.
+    ///
+    /// `args[0]` = path (read/list/grep), `args[1]` = pattern (grep).
+    pub fn dispatch(&self, tool: ToolType, args: &[&str]) -> ToolResult {
+        match tool {
+            ToolType::Read => match args.first() {
+                Some(path) => self.reader.read_file(path),
+                None => ToolResult::err(ToolType::Read, "missing path argument"),
+            },
+            ToolType::List => match args.first() {
+                Some(path) => self.reader.list_dir(path),
+                None => ToolResult::err(ToolType::List, "missing path argument"),
+            },
+            ToolType::Grep => match (args.first(), args.get(1)) {
+                (Some(path), Some(pattern)) => self.grep.grep_file(path, pattern),
+                (Some(path), None) => self.grep.grep_dir(path, ""),
+                _ => ToolResult::err(ToolType::Grep, "missing path or pattern"),
+            },
+            ToolType::WebFetch => ToolResult::err(
+                ToolType::WebFetch,
+                "web_fetch not implemented (requires HTTP client)",
+            ),
+            ToolType::Run => ToolResult::err(
+                ToolType::Run,
+                "run not implemented (requires sandbox, see ADR-006)",
+            ),
+        }
+    }
+
+    /// Dispatcha multiplas tools em paralelo usando tokio::task::JoinSet.
+    pub async fn dispatch_parallel(
+        self,
+        calls: Vec<(ToolType, Vec<String>)>,
+    ) -> Vec<ToolResult> {
+        use tokio::task::JoinSet;
+
+        let mut results = Vec::with_capacity(calls.len());
+        let mut set = JoinSet::new();
+
+        for (tool, args) in calls {
+            let exec = self.clone();
+            set.spawn(async move {
+                let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+                exec.dispatch(tool, &arg_refs)
+            });
+        }
+
+        while let Some(joined) = set.join_next().await {
+            match joined {
+                Ok(result) => results.push(result),
+                Err(e) => results.push(ToolResult::err(
+                    ToolType::Read,
+                    format!("join error: {}", e),
+                )),
+            }
+        }
+
+        results
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -323,5 +400,50 @@ mod tests {
         let res = tool.grep_file("/nonexistent/file.txt", "pattern");
         assert!(!res.success);
     }
+
+    #[tokio::test]
+    async fn tool_executor_dispatches_read() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::Read, &["Cargo.toml"]);
+        assert!(res.success);
+        assert!(res.content.contains("ayrola"));
+    }
+
+    #[tokio::test]
+    async fn tool_executor_dispatches_grep() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::Grep, &["Cargo.toml", "ayrola"]);
+        assert!(res.success);
+    }
+
+    #[tokio::test]
+    async fn tool_executor_missing_args() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::Read, &[]);
+        assert!(!res.success);
+        assert!(res.content.contains("missing"));
+    }
+
+    #[tokio::test]
+    async fn tool_executor_unimplemented_tools_error() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::Run, &["echo hi"]);
+        assert!(!res.success);
+        assert!(res.content.contains("sandbox"));
+    }
+
+    #[tokio::test]
+    async fn tool_executor_parallel_dispatch() {
+        let exec = ToolExecutor::new();
+        let calls = vec![
+            (ToolType::Read, vec!["Cargo.toml".to_string()]),
+            (ToolType::Read, vec!["/nonexistent".to_string()]),
+        ];
+        let results = exec.dispatch_parallel(calls).await;
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|r| r.success));
+        assert!(results.iter().any(|r| !r.success));
+    }
+
 
 }
