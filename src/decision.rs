@@ -235,14 +235,60 @@ impl Tier1PreFilter {
 ///
 /// Phase 0/1: resposta simulada baseada em heuristica.
 /// Phase 2: integra com MCP backend (Laya/Jev/outro).
+/// Tier 2: LLM real (opt-in) ou heuristica local (default).
 #[derive(Debug, Clone, Default)]
-pub struct Tier2LLM;
+pub struct Tier2LLM {
+    /// Quando false, usa apenas a heuristica local (deterministico, sem I/O).
+    pub use_llm: bool,
+}
 
 impl Tier2LLM {
-    pub fn query(&self, question: &str) -> Answer {
-        let q = question.to_lowercase();
+    /// Construtor padrao: heuristica local (sem chamada de LLM).
+    pub fn new() -> Self {
+        Tier2LLM { use_llm: false }
+    }
 
-        // Simula resposta LLM baseada em palavras-chave
+    /// Habilita LLM real via subprocess (claude/opencode).
+    pub fn with_llm() -> Self {
+        Tier2LLM { use_llm: true }
+    }
+}
+
+impl Tier2LLM {
+    /// Query via Llm module (subprocess: claude/opencode).
+    ///
+    /// Se o Llm falhar ou retornar vazio, cai para a heuristica local.
+    pub fn query(&self, question: &str) -> Answer {
+        if !self.use_llm {
+            return Self::heuristic_fallback(question);
+        }
+
+        let llm = crate::llm::Llm::default();
+
+        match llm.query(question) {
+            Ok(resp) if !resp.content.is_empty() => Self::parse_llm_response(&resp.content),
+            _ => Self::heuristic_fallback(question),
+        }
+    }
+
+    /// Parseia resposta do LLM (espera "yes" ou "no" no texto).
+    fn parse_llm_response(content: &str) -> Answer {
+        let lower = content.to_lowercase();
+        let yes = lower.contains("yes") || lower.contains("sim") || lower.contains("true");
+        let no = lower.contains("no") || lower.contains("não") || lower.contains("false");
+
+        if yes && !no {
+            Answer::YesNo { yes: true, confidence: 0.85 }
+        } else if no && !yes {
+            Answer::YesNo { yes: false, confidence: 0.85 }
+        } else {
+            Answer::YesNo { yes: true, confidence: 0.6 }
+        }
+    }
+
+    /// Heuristica local (fallback quando Llm nao esta disponivel).
+    fn heuristic_fallback(question: &str) -> Answer {
+        let q = question.to_lowercase();
         let yes_keywords = ["spawn", "write", "create", "implement", "add", "generate", "build", "start", "run", "execute", "deploy", "fix", "solve", "yes", "should i"];
         let no_keywords = ["delete", "remove", "stop", "cancel", "abort", "no", "don't", "avoid", "skip"];
 
@@ -257,20 +303,11 @@ impl Tier2LLM {
         }
 
         if yes_score > no_score {
-            Answer::YesNo {
-                yes: true,
-                confidence: 0.75 + (yes_score as f64 * 0.03).min(0.2),
-            }
+            Answer::YesNo { yes: true, confidence: 0.75 + (yes_score as f64 * 0.03).min(0.2) }
         } else if no_score > yes_score {
-            Answer::YesNo {
-                yes: false,
-                confidence: 0.75 + (no_score as f64 * 0.03).min(0.2),
-            }
+            Answer::YesNo { yes: false, confidence: 0.75 + (no_score as f64 * 0.03).min(0.2) }
         } else {
-            Answer::YesNo {
-                yes: true,
-                confidence: 0.6,
-            }
+            Answer::YesNo { yes: true, confidence: 0.6 }
         }
     }
 }
@@ -288,6 +325,17 @@ pub struct DecisionEngine {
 impl DecisionEngine {
     pub fn new() -> Self {
         DecisionEngine::default()
+    }
+
+    /// Cria engine com LLM real habilitado (tier 2 usa subprocess).
+    ///
+    /// Sem isso, tier 2 usa heuristica local (deterministico, sem I/O).
+    pub fn with_llm() -> Self {
+        DecisionEngine {
+            cache: Tier0Cache::new(),
+            prefilter: Tier1PreFilter,
+            llm: Tier2LLM::with_llm(),
+        }
     }
 
     /// Faz uma pergunta, percorrendo os tiers.
