@@ -10,7 +10,7 @@
 //! Nao inventa metricas: cada iteracao roda o LLM real e compara
 //! o numero de casos que passam antes e depois.
 
-use crate::shadow::{default_golden_set, GoldenSet, LlmShadowRunner, ShadowReport};
+use crate::shadow::{default_golden_set, GoldenSet, LlmShadowRunner};
 
 /// Uma iteracao do loop.
 #[derive(Debug, Clone)]
