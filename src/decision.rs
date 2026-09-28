@@ -515,3 +515,29 @@ mod tests {
         assert!((ans.confidence() - 0.60).abs() < 1e-9);
     }
 }
+    #[test]
+    fn ask_certified_returns_certified_decision() {
+        let mut engine = DecisionEngine::new();
+        let cert = engine.ask_certified(QuestionType::YesNo, "spawn a subagent?");
+        assert!(cert.verify(), "certified decision must verify");
+        assert!(!cert.hash.is_empty());
+    }
+
+    #[test]
+    fn ask_certified_detects_tamper() {
+        let mut engine = DecisionEngine::new();
+        let mut cert = engine.ask_certified(QuestionType::YesNo, "delete data?");
+        // Tamper with the decision
+        cert.decision = serde_json::json!({"yes": true});
+        assert!(!cert.verify(), "tampered cert must fail");
+    }
+
+    #[test]
+    fn ask_certified_cache_hit_is_tier0() {
+        let mut engine = DecisionEngine::new();
+        let q = "unique question xyz";
+        let _ = engine.ask(QuestionType::YesNo, q); // populate cache
+        let cert = engine.ask_certified(QuestionType::YesNo, q);
+        assert_eq!(cert.tier, DecisionTier::Tier0);
+    }
+
