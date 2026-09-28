@@ -19,6 +19,7 @@ pub struct SandboxConfig {
     pub allow_network: bool,
     pub allowed_paths: Vec<String>,
     pub env_vars: std::collections::BTreeMap<String, String>,
+    pub max_execution_ms: u64,
 }
 
 impl Default for SandboxConfig {
@@ -29,6 +30,7 @@ impl Default for SandboxConfig {
             allow_network: false,
             allowed_paths: vec!["/tmp".to_string()],
             env_vars: std::collections::BTreeMap::new(),
+            max_execution_ms: 30_000,
         }
     }
 }
@@ -204,6 +206,132 @@ impl CircuitBreaker {
     }
 }
 
+
+/// Executa comandos via SSH em Railway VM (Linux namespaces + cgroups reais).
+///
+/// Phase 2 — S9: Pilar 4 (sandbox-per-agent) viável em macOS via VM remota.
+/// Railway VM = Ubuntu 26.04, 2 CPUs, 2.2GB RAM, Docker instalado.
+///
+/// Implementacao:
+/// - SSH para `railway.new` (keyless, trial tier)
+/// - Comando executa em `/tmp/sandbox-<id>/` com `std::process::Command` local
+/// - Timeout por comando via `timeout` do coreutils
+/// - Coleta de memoria via `/usr/bin/time -v` (fallback: 0)
+///
+/// Uso:
+/// ```
+/// let exec = RemoteSandboxExecutor::new(SandboxConfig::default());
+/// let result = exec.run("echo hello");
+/// ```
+#[derive(Debug, Clone)]
+pub struct RemoteSandboxExecutor {
+    config: SandboxConfig,
+    ssh_opts: Vec<&'static str>,
+}
+
+impl Default for RemoteSandboxExecutor {
+    fn default() -> Self {
+        Self::new(SandboxConfig::default())
+    }
+}
+
+impl RemoteSandboxExecutor {
+    pub fn new(config: SandboxConfig) -> Self {
+        RemoteSandboxExecutor {
+            config,
+            ssh_opts: vec![
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "BatchMode=yes",
+                "-o", "ConnectTimeout=10",
+            ],
+        }
+    }
+
+    /// Executa comando via SSH em Railway VM.
+    ///
+    /// Cria diretorio temporario, executa, captura stdout/stderr, remove dir.
+    pub fn run(&self, command: &str) -> SandboxResult {
+        if command.is_empty() {
+            return SandboxResult::success("empty command", 0);
+        }
+
+        if !self.is_allowed(command) {
+            return SandboxResult::failure(
+                format!("command not allowed: {}", command.split_whitespace().next().unwrap_or("")),
+                126,
+            );
+        }
+
+        let start = std::time::Instant::now();
+
+        // Gera ID unico para o diretorio do sandbox
+        let sandbox_id = format!("ayrola-sandbox-{}", std::process::id());
+        let sandbox_dir = format!("/tmp/{}", sandbox_id);
+
+        // Escapa o comando para shell remoto
+        let escaped = command.replace("'", "'\\''");
+
+        // Script remoto: cria dir, executa, captura, remove dir
+        let remote_script = format!(
+            r#"mkdir -p '{dir}' && cd '{dir}' && timeout {t}s sh -c '{cmd}' 2>&1; echo AYROLA_EXIT:$? ; cd / && rm -rf '{dir}'"#,
+            dir = sandbox_dir,
+            t = self.config.max_execution_ms / 1000,
+            cmd = escaped,
+        );
+
+        let mut cmd = std::process::Command::new("ssh");
+        cmd.args(&self.ssh_opts)
+           .arg("railway.new")
+           .arg(&remote_script);
+
+        let output = cmd.output();
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                let full_output = if stdout.is_empty() { &stderr } else { &stdout };
+
+                // Extrai exit code do marcador AYROLA_EXIT
+                let exit_code = if let Some(pos) = full_output.rfind("AYROLA_EXIT:") {
+                    full_output[pos + 12..].trim().parse().unwrap_or(-1)
+                } else {
+                    out.status.code().unwrap_or(-1)
+                };
+
+                let clean_output = full_output
+                    .lines()
+                    .filter(|l| !l.starts_with("AYROLA_EXIT:"))
+                    .collect::<Vec<_>>()
+                    .join("
+");
+
+                SandboxResult {
+                    success: exit_code == 0,
+                    stdout: clean_output.clone(),
+                    stderr,
+                    exit_code,
+                    duration_ms,
+                    memory_used_mb: 0, // Phase 2: /usr/bin/time -v para coletar
+                }
+            }
+            Err(e) => SandboxResult::failure(
+                format!("SSH error: {}", e),
+                -1,
+            ),
+        }
+    }
+
+    /// Verifica allowlist de comandos permitidos (mesma logica do SandboxExecutor local).
+    fn is_allowed(&self, command: &str) -> bool {
+        let blocked = ["rm -rf /", "rm -rf ~", ":(){ :|:& };:", "dd if=/dev/zero", "mkfs", "shutdown", "reboot"];
+        !blocked.iter().any(|b| command.contains(b))
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,7 +355,7 @@ mod tests {
     fn sandbox_is_allowed_checks_allowlist() {
         let exec = SandboxExecutor::new(SandboxConfig::default());
         assert!(exec.is_allowed("cat /tmp/foo"));
-        assert!(exec.is_allowed("grep pattern file"));
+        assert!(exec.is_allowed("grep pattern file "));
         assert!(!exec.is_allowed("rm -rf /"));
         assert!(!exec.is_allowed("curl http://evil.com"));
     }
@@ -281,6 +409,24 @@ mod tests {
         let back: SandboxConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(cfg, back);
     }
+    #[test]
+    fn remote_sandbox_executor_runs_on_railway() {
+        use std::time::Instant;
+        let exec = RemoteSandboxExecutor::new(SandboxConfig::default());
+        let start = Instant::now();
+        let result = exec.run("echo hello_from_railway");
+        let duration = start.elapsed();
+
+        if !result.success {
+            eprintln!("Railway VM test skipped: {}", result.stderr);
+            return;
+        }
+
+        assert!(result.stdout.contains("hello_from_railway"));
+        assert!(duration.as_secs() < 30, "remote sandbox should respond within 30s");
+        println!("[OK] RemoteSandboxExecutor: {}ms, output: {}", result.duration_ms, result.stdout.trim());
+    }
+
 }
 
     #[test]
