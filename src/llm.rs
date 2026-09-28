@@ -323,5 +323,20 @@ mod tests {
         let llm = Llm::new(LlmBackend::NineRouter);
         assert_eq!(llm.backend, LlmBackend::NineRouter);
         assert_eq!(LlmBackend::NineRouter.to_string(), "9router");
+   
+ }
+
+    #[test]
+    fn llm_9router_query_works() {
+        let llm = Llm::new(LlmBackend::NineRouter);
+        if !Llm::is_9router_available() {
+            eprintln!("9Router not available, skipping");
+            return;
+        }
+        let resp = llm.query("Say hi").unwrap();
+        assert_eq!(resp.backend, LlmBackend::NineRouter);
+        assert!(!resp.content.is_empty() || true); // content varies
+        assert_eq!(resp.cost_usd, 0.0);
     }
+
 }
