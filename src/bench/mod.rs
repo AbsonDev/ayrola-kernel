@@ -431,7 +431,7 @@ fn percentiles(mut latencies_us: Vec<f64>) -> (f64, f64) {
     }
     latencies_us.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let idx50 = (latencies_us.len() as f64 * 0.50) as usize;
-    let idx99 = ((latencies_us.len() as f64 * 0.99) as usize);
+    let idx99 = (latencies_us.len() as f64 * 0.99) as usize;
     let idx99 = idx99.min(latencies_us.len() - 1);
     (
         latencies_us[idx50.min(latencies_us.len() - 1)],
