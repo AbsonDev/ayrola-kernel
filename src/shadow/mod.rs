@@ -64,6 +64,11 @@ impl GoldenSet {
         self.cases.get(id)
     }
 
+    /// IDs de todos os casos, em ordem de insercao.
+    pub fn ids(&self) -> Vec<&str> {
+        self.cases.iter().map(|(id, _)| id.as_str()).collect()
+    }
+
     pub fn len(&self) -> usize {
         self.cases.len()
     }

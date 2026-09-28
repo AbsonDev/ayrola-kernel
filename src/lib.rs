@@ -12,6 +12,7 @@ pub mod agent;
 pub mod decision;
 pub mod event_store;
 pub mod memory;
+pub mod improve;
 pub mod obs;
 pub mod refine;
 pub mod sandbox;
