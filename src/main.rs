@@ -7,6 +7,7 @@
 
 use clap::{Parser, Subcommand};
 use ayrola_kernel::decision::{DecisionEngine, QuestionType};
+use ayrola_kernel::obs::{health_check, init_tracing};
 
 /// Ayrola Kernel — Rust-native agent harness (Phase 1)
 #[derive(Parser)]
@@ -47,6 +48,8 @@ enum Commands {
     },
     /// Roda todos os gates: test, clippy, build, doc
     Doctor,
+    /// Health check: 9Router, event store, metricas
+    Health,
 }
 
 
@@ -197,6 +200,16 @@ async fn main() {
                     Ok(_) => println!("Saved to {}", path),
                     Err(e) => eprintln!("Failed to save: {}", e),
                 }
+            }
+        }
+        Commands::Health => {
+            init_tracing();
+            let event_path = std::env::var("AYROLA_EVENT_STORE")
+                .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+            let report = health_check(&event_path);
+            println!("{}", report.render());
+            if !report.all_healthy() {
+                std::process::exit(1);
             }
         }
         Commands::Doctor => {

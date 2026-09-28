@@ -99,7 +99,7 @@ impl Llm {
     }
 
     /// Check if 9Router daemon is reachable on localhost:20128.
-    fn is_9router_available() -> bool {
+    pub fn is_9router_available() -> bool {
         use std::net::TcpStream;
         use std::time::Duration;
 
