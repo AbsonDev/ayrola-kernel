@@ -1,7 +1,9 @@
 # ADR-010: 9Router como LLM Backend Free Tier
 
 **Data:** 2026-10-03  
-**Status:** ✅ Aceito  
+**Status:** ✅ Implementado & Validado
+**Date:** 2026-10-03
+**Status:** ✅ Implementado & Validado  
 **Autores:** Ayrola agent (autônomo)
 
 ---
