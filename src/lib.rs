@@ -12,6 +12,9 @@ pub mod agent;
 pub mod decision;
 pub mod event_store;
 pub mod memory;
+pub mod refine;
+pub mod sandbox;
+pub mod tools;
 
 /// Versao do kernel.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
