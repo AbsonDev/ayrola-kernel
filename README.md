@@ -100,20 +100,26 @@ Extras: `cert` (certificação de decisão com hash), `bench` (ayrola-bench v0),
 
 O que **ainda não** é real:
 
-- **`refine` / `sandbox` / `tools` são stubs.** Estruturas e testes existem;
-  integração real (LLM, namespaces, MCP) não.
-- **`Tier2LLM` não chama LLM.** É heurística local. Laya/Jev via MCP é o passo
-  seguinte (ADR-004 mantém Laya como candidato *tier 2*, não como camada principal).
-- **`Tier1PreFilter` é palavra-chave, não ONNX.** O crate `ort` seria o sucessor.
-- **`ShadowExecutor` compara `input == expected`.** Não executa código de verdade;
-  a versão real precisa da Railway VM.
-- **Sem baseline OpenCode.** O ROADMAP previa comparar resolve rate contra
-  OpenCode; isso não foi medido. O gate foi substituído por latência de spawn.
-- **Sem ADRs como arquivos.** As decisões estão em `DECISOES.md` no repo
-  Ayrola-Wisdom, não como `adr/` aqui.
+- **`Tier2LLM` é opt-in.** `DecisionEngine::new()` usa heurística local (determinística, sem I/O). LLM real via `DecisionEngine::with_llm()` + flag `--llm` no CLI. Não faz retry, streaming ou parse JSON estruturado.
+- **`Tier1PreFilter` é palavra-chave, não ONNX.** O crate `ort` (2.0.0-rc.13) seria o sucessor para inferência local.
+- **`ShadowExecutor` compara `input == expected`.** Não executa código real; versão de produção precisa de Railway VM com Linux namespaces.
+- **`SandboxExecutor` usa `std::process::Command` + allowlist.** Não usa Linux namespaces (macOS não suporta). Versão real exige VM Linux.
 
-Nada acima foi medido contra um número inventado. O que tem número, tem número
-de `cargo test` ou de `cargo run --release --example`.
+O que **é** real:
+
+- `refine::Critic` avalia candidatos contra `GoldenSet`
+- `refine::Pruner` detecta código morto (heurística)
+- `refine::Environment` aplica patch + `cargo check`
+- `tools::ToolExecutor` despacha Read/List/Grep com JoinSet paralelo
+- `tools::GrepTool` com `grep_file` / `grep_dir`
+- `sandbox::SandboxExecutor` bloqueia rede exceto `allow_network=true`
+- `agent::AgentRegistry` track de `JoinHandle` em `BTreeMap`
+- `llm::Llm::query()` invoca `claude -p` ou `opencode` via subprocess
+- `bench::run_suite()` executa 10 tasks + baseline + speedup factor
+- `rlm::Planner::execute()` retorna `ExecutionReport` com timing por subtask
+- 9 ADRs em `adr/*.md` (não mais só em `DECISOES.md`)
+
+Nada acima foi medido contra um número inventado. Tudo que tem número vem de `cargo test`, `cargo clippy -- -D warnings`, ou `cargo run --release`.
 
 ---
 
