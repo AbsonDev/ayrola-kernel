@@ -35,14 +35,12 @@ pub fn list_snapshots(dir: &Path) -> std::io::Result<Vec<Snapshot>> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("json") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(snap) = serde_json::from_str::<Snapshot>(&content) {
-                    if snap.verify() {
-                        out.push(snap);
-                    }
-                }
-            }
+        if path.extension().and_then(|e| e.to_str()) == Some("json")
+            && let Ok(content) = std::fs::read_to_string(&path)
+            && let Ok(snap) = serde_json::from_str::<Snapshot>(&content)
+            && snap.verify()
+        {
+            out.push(snap);
         }
     }
     out.sort_by_key(|s| s.seq);

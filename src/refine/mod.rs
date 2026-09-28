@@ -146,7 +146,7 @@ pub struct Environment;
 
 impl Environment {
     pub fn new() -> Self {
-        Environment::default()
+        Environment
     }
 
     /// Executa candidato no ambiente isolado.
