@@ -325,7 +325,7 @@ pub fn run_task_opencode(task: &BenchTask) -> BenchResult {
     let prompt = task.prompt.clone();
     let task_id = task.id.clone();
     let task_name = task.name.clone();
-    let task_type = task.task_type.clone();
+    let task_type = task.task_type;
 
     std::thread::spawn(move || {
         let out = std::process::Command::new("opencode")
