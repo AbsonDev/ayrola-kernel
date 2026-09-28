@@ -326,27 +326,26 @@ impl LlmShadowRunner {
         }
     }
 
+    #[allow(clippy::collapsible_if)]
     fn grade(&self, id: &str, case: &GoldenCase, actual_text: &str) -> ShadowResult {
         let actual = serde_json::Value::String(actual_text.trim().to_string());
 
-        if let Ok(actual_num) = actual_text.parse::<f64>() {
-            if let Some(exp_num) = case.expected_output.as_f64() {
-                let diff = (actual_num - exp_num).abs();
-                if diff <= case.tolerance {
-                    return ShadowResult::pass(id, case.expected_output.clone());
-                }
-                return ShadowResult::fail(
-                    id,
-                    actual,
-                    case.expected_output.clone(),
-                    format!("numeric diff {diff} > tolerance {}", case.tolerance),
-                );
+        if let (Ok(actual_num), Some(exp_num)) = (actual_text.parse::<f64>(), case.expected_output.as_f64()) {
+            let diff = (actual_num - exp_num).abs();
+            if diff <= case.tolerance {
+                return ShadowResult::pass(id, case.expected_output.clone());
             }
+            return ShadowResult::fail(
+                id,
+                actual,
+                case.expected_output.clone(),
+                format!("numeric diff {diff} > tolerance {}", case.tolerance),
+            );
         }
 
         if let Some(exp_str) = case.expected_output.as_str() {
-            let norm_actual = actual_text.to_lowercase();
-            let norm_expected = exp_str.trim().to_lowercase();
+            let norm_actual = Self::normalize_text(actual_text);
+            let norm_expected = Self::normalize_text(exp_str.trim());
             if norm_expected.is_empty() {
                 return ShadowResult::pass(id, case.expected_output.clone());
             }
