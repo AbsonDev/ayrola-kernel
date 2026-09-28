@@ -266,10 +266,31 @@ impl ToolExecutor {
                     Err(e) => ToolResult::err(ToolType::WebFetch, format!("curl not found: {}", e)),
                 }
             }
-            ToolType::Run => ToolResult::err(
-                ToolType::Run,
-                "run not implemented (requires sandbox, see ADR-006)",
-            ),
+            ToolType::Run => {
+                let start = std::time::Instant::now();
+                let command = args.first().copied().unwrap_or("");
+
+                // Tenta o sandbox remoto (Railway VM) primeiro.
+                let remote = crate::sandbox::RemoteSandboxExecutor::new(
+                    crate::sandbox::SandboxConfig::default(),
+                );
+                let res = remote.run(command);
+                let duration = start.elapsed().as_millis() as u64;
+
+                // Detecta "claim_required" do Railway: o build window expirou.
+                if res.stdout.contains("claim_required") {
+                    return ToolResult::err(
+                        ToolType::Run,
+                        "remote sandbox expired (Railway claim_required);                          provision a new box with railway_vm.provision()",
+                    );
+                }
+
+                if res.exit_code == 0 {
+                    ToolResult::ok(ToolType::Run, res.stdout, duration, 0.0)
+                } else {
+                    ToolResult::err(ToolType::Run, format!("exit {}: {}", res.exit_code, res.stderr))
+                }
+            },
         }
     }
 
@@ -441,11 +462,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tool_executor_unimplemented_tools_error() {
+    #[ignore = "requires Railway VM; run with --ignored"]
+    async fn tool_executor_run_via_sandbox() {
         let exec = ToolExecutor::new();
-        let res = exec.dispatch(ToolType::Run, &["echo hi"]);
-        assert!(!res.success);
-        assert!(res.content.contains("sandbox"));
+        let res = exec.dispatch(ToolType::Run, &["echo hello_from_sandbox"]);
+        if res.success {
+            assert!(res.content.contains("hello_from_sandbox"));
+        } else {
+            // Railway build window may expire; must be a clear, actionable message.
+            assert!(
+                res.content.contains("claim_required") || res.content.contains("expired"),
+                "failure must explain the expiry: {}",
+                res.content
+            );
+        }
     }
 
     #[tokio::test]
@@ -460,6 +490,7 @@ mod tests {
         assert!(results.iter().any(|r| r.success));
         assert!(results.iter().any(|r| !r.success));
     }
+
 
 
 }

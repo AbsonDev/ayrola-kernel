@@ -21,6 +21,7 @@ use ayrola_kernel::{
     bench::default_suite,
     decision::{DecisionEngine, QuestionType},
     obs::init_tracing,
+    tools::{GrepTool, ToolReader},
 };
 
 /// JSON-RPC 2.0 request.
@@ -93,12 +94,98 @@ struct ContentBlock {
 }
 
 /// Routes a tool call to the kernel and returns the MCP-formatted result.
+
+fn handle_read(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+    if path.is_empty() {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing path".into() }], is_error: Some(true) });
+    }
+    let res = ToolReader::new().read_file(path);
+    Ok(ToolResult {
+        content: vec![ContentBlock { kind: "text".into(), text: format!("{}: {}", if res.success { "OK" } else { "FAIL" }, res.content) }],
+        is_error: Some(!res.success),
+    })
+}
+
+fn handle_grep(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+    let pattern = args.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+    if path.is_empty() || pattern.is_empty() {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing path or pattern".into() }], is_error: Some(true) });
+    }
+    let res = GrepTool::new().grep_file(path, pattern);
+    Ok(ToolResult {
+        content: vec![ContentBlock { kind: "text".into(), text: format!("{}: {}", if res.success { "MATCH" } else { "NO MATCH" }, res.content) }],
+        is_error: Some(!res.success),
+    })
+}
+
+fn handle_webfetch(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("");
+    if url.is_empty() {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing url".into() }], is_error: Some(true) });
+    }
+    let start = std::time::Instant::now();
+    let output = std::process::Command::new("curl")
+        .args(["-sL", "--max-time", "10", url])
+        .output();
+    let duration = start.elapsed().as_millis() as u64;
+
+    match output {
+        Ok(o) if o.status.success() => {
+            let content = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            Ok(ToolResult {
+                content: vec![ContentBlock { kind: "text".into(), text: format!("fetched {} bytes in {}ms", content.len(), duration) }],
+                is_error: None,
+            })
+        }
+        Ok(o) => {
+            let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            Ok(ToolResult {
+                content: vec![ContentBlock { kind: "text".into(), text: format!("curl failed: {}", err) }],
+                is_error: Some(true),
+            })
+        }
+        Err(e) => Ok(ToolResult {
+            content: vec![ContentBlock { kind: "text".into(), text: format!("curl not found: {}", e) }],
+            is_error: Some(true),
+        }),
+    }
+}
+
+fn handle_run(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let command = args.get("command").and_then(|v| v.as_str()).unwrap_or("");
+    if command.is_empty() {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing command".into() }], is_error: Some(true) });
+    }
+    let exec = ayrola_kernel::sandbox::RemoteSandboxExecutor::new(
+        ayrola_kernel::sandbox::SandboxConfig::default(),
+    );
+    let res = exec.run(command);
+
+    if res.stdout.contains("claim_required") {
+        return Ok(ToolResult {
+            content: vec![ContentBlock { kind: "text".into(), text: "sandbox expired (Railway claim_required)".into() }],
+            is_error: Some(true),
+        });
+    }
+
+    Ok(ToolResult {
+        content: vec![ContentBlock { kind: "text".into(), text: format!("exit {} | stdout: {} | stderr: {}", res.exit_code, res.stdout.trim(), res.stderr.trim()) }],
+        is_error: Some(res.exit_code != 0),
+    })
+}
+
 fn handle_tool(name: &str, arguments: &serde_json::Value) -> anyhow::Result<ToolResult> {
     match name {
         "decide" => handle_decide(arguments),
         "shadow" => handle_shadow(arguments),
         "bench" => handle_bench(arguments),
         "health" => handle_health(arguments),
+        "read" => handle_read(arguments),
+        "grep" => handle_grep(arguments),
+        "webfetch" => handle_webfetch(arguments),
+        "run" => handle_run(arguments),
         _ => anyhow::Ok(ToolResult {
             content: vec![ContentBlock { kind: "text".into(), text: format!("unknown tool: {}", name) }],
             is_error: Some(true),
@@ -198,7 +285,7 @@ fn process_request(req: JsonRpcRequest) -> JsonRpcResponse {
             let tools = vec![
                 serde_json::json!({
                     "name": "decide",
-                    "description": "Decision layer: ask a yesno/choice/score question",
+                    "description": "Decision layer: ask a yesno/choice/score question (tier0/tier1/llm)",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
@@ -223,6 +310,45 @@ fn process_request(req: JsonRpcRequest) -> JsonRpcResponse {
                     "name": "health",
                     "description": "Health check: 9Router, event store, metrics",
                     "inputSchema": { "type": "object", "properties": {} }
+                }),
+                serde_json::json!({
+                    "name": "read",
+                    "description": "Read a local file path",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": { "path": { "type": "string" } },
+                        "required": ["path"]
+                    }
+                }),
+                serde_json::json!({
+                    "name": "grep",
+                    "description": "Search regex pattern in a file",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "path": { "type": "string" },
+                            "pattern": { "type": "string" }
+                        },
+                        "required": ["path", "pattern"]
+                    }
+                }),
+                serde_json::json!({
+                    "name": "webfetch",
+                    "description": "Fetch URL content via curl",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": { "url": { "type": "string" } },
+                        "required": ["url"]
+                    }
+                }),
+                serde_json::json!({
+                    "name": "run",
+                    "description": "Run shell command in remote sandbox (Railway VM)",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": { "command": { "type": "string" } },
+                        "required": ["command"]
+                    }
                 }),
             ];
             JsonRpcResponse::ok(req.id, serde_json::json!({ "tools": tools }))
