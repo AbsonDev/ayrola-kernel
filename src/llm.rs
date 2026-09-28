@@ -161,7 +161,7 @@ impl Llm {
 
     /// Query via 9Router local daemon (http://localhost:20128).
     ///
-    /// Usa modelos free: kc/openrouter/free, bzl/auto:free, cf/@cf/meta/llama-3.2-1b-instruct.
+    /// Usa modelo fusion-5tier (128k context, reasoning, tools, vision).
     /// API key lida de ~/.9router/db/data.sqlite (read-only sqlite3).
     /// Custo: $0 (free tier).
     fn query_9router(&self, prompt: &str) -> Result<LlmResponse, String> {
@@ -172,7 +172,7 @@ impl Llm {
         let key = Self::read_9router_key(&db_path)?;
 
         let body = format!(
-            r#"{{"model":"kc/openrouter/free","messages":[{{"role":"user","content":{}}}],"max_tokens":50}}"#,
+            r#"{{"model":"fusion-5tier","messages":[{{"role":"user","content":{}}}],"max_tokens":50}}"#,
             serde_json::to_string(prompt).map_err(|e| e.to_string())?
         );
 
