@@ -140,7 +140,7 @@ fn print_test_failures(output: &str) {
         if line.contains("failures:") {
             in_failures = true;
         }
-        if in_failures && line.trim().len() > 0 && !line.starts_with("test result") {
+        if in_failures && !line.trim().is_empty() && !line.starts_with("test result") {
             println!("    {}", line);
         }
     }
