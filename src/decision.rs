@@ -10,6 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::{DefaultHasher, HashMap};
+
+use crate::cert::{CertifiedDecision, DecisionTier, Evidence};
 use std::hash::{Hash, Hasher};
 
 /// Tipo de pergunta que a decision layer recebe.
@@ -317,9 +319,48 @@ impl DecisionEngine {
     pub fn cache_hit_rate(&self) -> f64 {
         self.cache.hit_rate()
     }
+    /// Faz uma pergunta e retorna CertifiedDecision com hash SHA-256.
+    ///
+    /// Integra o modulo `cert` (Eixo E) diretamente no fluxo de decisao.
+    pub fn ask_certified(&mut self, qtype: QuestionType, question: &str) -> CertifiedDecision {
+        // Determina o tier ANTES de perguntar (cache hit = tier 0).
+        let cache_hit = self.cache.get(question).is_some();
+        let prefilter_hit = self.prefilter.classify(question).is_some_and(|t| t > 0.95);
+
+        let answer = self.ask(qtype, question);
+
+        let tier = if cache_hit {
+            DecisionTier::Tier0
+        } else if prefilter_hit {
+            DecisionTier::Tier1
+        } else {
+            DecisionTier::Tier2
+        };
+
+        let inputs = serde_json::json!({
+            "question": question,
+            "qtype": format!("{:?}", qtype),
+        });
+
+        let evidence = Evidence::new(
+            format!("{:?}", tier).to_lowercase(),
+            "DecisionEngine::ask_certified",
+            answer.confidence(),
+        );
+
+        CertifiedDecision::new(
+            inputs,
+            serde_json::to_value(&answer).unwrap_or(serde_json::json!({})),
+            evidence,
+            0.0001,
+            tier,
+        )
+    }
+
 }
 
 // ─- Tests ────────────────────────────────────────────────────────
+
 
 #[cfg(test)]
 mod tests {
