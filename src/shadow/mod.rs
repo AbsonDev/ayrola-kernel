@@ -206,7 +206,7 @@ impl ShadowExecutor {
                     id,
                     input.clone(),
                     expected.clone(),
-                    &format!("numeric diff {} > tolerance {}", diff, case.tolerance),
+                    format!("numeric diff {} > tolerance {}", diff, case.tolerance),
                 );
             }
         }
