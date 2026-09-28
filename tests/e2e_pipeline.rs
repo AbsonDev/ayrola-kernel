@@ -27,7 +27,10 @@ fn full_pipeline_end_to_end() {
     assert_eq!(cfg.agent.max_subagents, 10);
 
     // ── 2. Event store: registra 3 eventos ──
-    let mut store = EventStore::open("/var/folders/vs/8dfsg5_108q99vjxm31yg3640000gn/T/tmpkeihwlxv/events.ndjson").unwrap();
+    let test_dir = std::env::temp_dir().join(format!("ayrola-e2e-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&test_dir);
+    let mut store = EventStore::open(test_dir.join("events.ndjson")).unwrap();
+    let _ = std::fs::remove_file(test_dir.join("events.ndjson"));
     store.append("decision", json!({"tier": 0, "answer": true})).unwrap();
     store.append("decision", json!({"tier": 1, "answer": false})).unwrap();
     store.append("spawn", json!({"task": "test"})).unwrap();
