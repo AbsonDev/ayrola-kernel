@@ -63,6 +63,33 @@ impl DecisionLayer for ContainsSpawn {
     }
 }
 
+
+/// Verifica se `text` contem `keyword` como palavra inteira (boundary-aware).
+/// Evita falsos positivos como "no" dentro de "unknown".
+fn contains_word(text: &str, keyword: &str) -> bool {
+    if keyword.is_empty() || text.len() < keyword.len() {
+        return false;
+    }
+    let kw_len = keyword.len();
+    let mut start = 0usize;
+    while let Some(pos) = text[start..].find(keyword) {
+        let abs = start + pos;
+        let after_end = abs + kw_len;
+        let before_ok = abs == 0 || !is_word_char(text[..abs].chars().next_back().unwrap_or(' '));
+        let after_ok = after_end >= text.len() || !is_word_char(text[after_end..].chars().next().unwrap_or(' '));
+        if before_ok && after_ok {
+            return true;
+        }
+        start = abs + 1;
+    }
+    false
+}
+
+/// True se o caractere e alfanumerico ou underscore.
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_'
+}
+
 // ── Tier 0: cache semantico por hash normalizado ──────────────────
 
 /// Chave de cache: hash do texto normalizado.
@@ -138,39 +165,110 @@ impl From<&str> for CacheKey {
     }
 }
 
-// ── Tier 1: pre-filter ONNX (stub) ───────────────────────────────
+// ── Tier 1: pre-filter (heuristic + ONNX stub) ─────────────────────
 
-/// Tier 1: classificador ONNX pequeno.
+/// Tier 1: classificador leve — heuristico ou ONNX.
 ///
-/// Stub: retorna `ConfidenceResult` sem chamar ONNX.
-/// Quando integrado: carrega `models/prefilter.onnx` (~5MB, <5ms).
+/// Phase 0/1: heuristica baseada em palavras-chave.
+/// Phase 2: substitui por modelo ONNX real (~5MB, <5ms).
 #[derive(Debug, Clone, Default)]
 pub struct Tier1PreFilter;
 
 impl Tier1PreFilter {
-    /// Classifica uma pergunta. Stub: assume que nao ha filtro.
+    /// Classifica uma pergunta usando heuristicas.
     ///
-    /// Retorna `Some(threshold)` se o pre-filter decidir (alta confianca),
-    /// ou `None` se precisar subir para tier 2.
-    pub fn classify(&self, _question: &str) -> Option<f64> {
-        None
+    /// Retorna `Some(confidence)` se a heuristica tem alta confianca (> 0.95),
+    /// ou `None` se precisar escalar para Tier 2 (LLM).
+    pub fn classify(&self, question: &str) -> Option<f64> {
+        let q = question.to_lowercase();
+
+        // Padroes de alta confianca para "sim" (spawn, write, create, etc)
+        let spawn_patterns = ["spawn", "create subagent", "parallel task", "fan out", "subagent"];
+        let write_patterns = ["write code", "implement", "add function", "create file", "generate"];
+        let fix_patterns = ["fix bug", "repair", "correct", "resolve error", "patch"];
+        let review_patterns = ["review pr", "audit", "check code", "inspect"];
+
+        // Padroes de alta confianca para "nao" (delete, remove, stop, cancel)
+        let cancel_patterns = ["cancel", "abort", "stop", "terminate", "delete", "remove"];
+
+        // Score positivo
+        let mut score: f64 = 0.0;
+        for p in &spawn_patterns {
+            if contains_word(&q, p) { score += 0.3; }
+        }
+        for p in &write_patterns {
+            if contains_word(&q, p) { score += 0.25; }
+        }
+        for p in &fix_patterns {
+            if contains_word(&q, p) { score += 0.2; }
+        }
+        for p in &review_patterns {
+            if contains_word(&q, p) { score += 0.15; }
+        }
+
+        // Score negativo
+        let mut neg_score: f64 = 0.0;
+        for p in &cancel_patterns {
+            if contains_word(&q, p) { neg_score += 0.4; }
+        }
+
+        // Normaliza
+        let net = (score - neg_score).clamp(-1.0, 1.0);
+
+        // Converte para confianca (0.5 = neutro, 1.0 = certeza sim, 0.0 = certeza nao)
+        let confidence = (net + 1.0) / 2.0;
+
+        // So decide se confianca > 0.95 (muito certeza)
+        if confidence > 0.95 || confidence < 0.05 {
+            Some(confidence)
+        } else {
+            None
+        }
     }
 }
 
-// ─- Tier 2: LLM backend (stub) ──────────────────────────────────
+// ─- Tier 2: LLM backend (simulated + MCP stub) ──────────────────
 
 /// Tier 2: interface para LLM completo via MCP backend.
 ///
-/// Stub: retorna resposta generica. Nao faz chamada HTTP.
-/// Quando integrado: chama MCP backend (Laya/Jev/outro).
+/// Phase 0/1: resposta simulada baseada em heuristica.
+/// Phase 2: integra com MCP backend (Laya/Jev/outro).
 #[derive(Debug, Clone, Default)]
 pub struct Tier2LLM;
 
 impl Tier2LLM {
-    pub fn query(&self, _question: &str) -> Answer {
-        Answer::YesNo {
-            yes: true,
-            confidence: 0.75,
+    pub fn query(&self, question: &str) -> Answer {
+        let q = question.to_lowercase();
+
+        // Simula resposta LLM baseada em palavras-chave
+        let yes_keywords = ["spawn", "write", "create", "implement", "add", "generate", "build", "start", "run", "execute", "deploy", "fix", "solve", "yes", "should i"];
+        let no_keywords = ["delete", "remove", "stop", "cancel", "abort", "no", "don't", "avoid", "skip"];
+
+        let mut yes_score = 0;
+        let mut no_score = 0;
+
+        for kw in &yes_keywords {
+            if contains_word(&q, kw) { yes_score += 1; }
+        }
+        for kw in &no_keywords {
+            if contains_word(&q, kw) { no_score += 1; }
+        }
+
+        if yes_score > no_score {
+            Answer::YesNo {
+                yes: true,
+                confidence: 0.75 + (yes_score as f64 * 0.03).min(0.2),
+            }
+        } else if no_score > yes_score {
+            Answer::YesNo {
+                yes: false,
+                confidence: 0.75 + (no_score as f64 * 0.03).min(0.2),
+            }
+        } else {
+            Answer::YesNo {
+                yes: true,
+                confidence: 0.6,
+            }
         }
     }
 }
@@ -293,12 +391,12 @@ mod tests {
     fn decision_engine_cache_miss_falls_through_to_tier2() {
         let mut engine = DecisionEngine::new();
 
-        // Cache miss -> tier 1 (None) -> tier 2 (stub: yes=true, 0.75).
+        // Cache miss -> tier 1 (None) -> tier 2 (heuristic: yes=true, 0.60).
         let a = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match a {
             Answer::YesNo { yes, confidence } => {
-                assert!(yes, "tier 2 stub retorna yes=true");
-                assert!((confidence - 0.75).abs() < 1e-9);
+                assert_eq!(yes, true, "tier 2 heuristic default: yes=true");
+                assert!((confidence - 0.60).abs() < 1e-9, "expected 0.60, got {}", confidence);
             }
             _ => panic!("expected YesNo"),
         }
@@ -307,9 +405,9 @@ mod tests {
         let b = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match b {
             Answer::YesNo { yes, confidence } => {
-                assert!(yes);
+                assert_eq!(yes, true);
                 assert!(
-                    (confidence - 0.75).abs() < 1e-9,
+                    (confidence - 0.60).abs() < 1e-9,
                     "cache hit devolve a mesma resposta do tier 2"
                 );
             }
@@ -372,6 +470,7 @@ mod tests {
     fn tier2_llm_stub_returns_default() {
         let llm = Tier2LLM::default();
         let ans = llm.query("anything");
-        assert_eq!(ans.confidence(), 0.75);
+        // "anything" has no keywords → default confidence 0.6
+        assert!((ans.confidence() - 0.60).abs() < 1e-9);
     }
 }
