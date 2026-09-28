@@ -297,7 +297,7 @@ mod tests {
         store.append("event", serde_json::json!({"text": "spawn another agent for testing"})).unwrap();
 
         let results = search_semantic(&store, "spawn agent", 3).unwrap();
-        assert!(results.len() >= 1, "should find matches");
+        assert!(!results.is_empty(), "should find matches");
         // Scores devem ser ordenados decrescentemente
         for i in 0..results.len().saturating_sub(1) {
             assert!(results[i].score >= results[i+1].score, "scores should be descending");
