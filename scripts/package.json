@@ -1,0 +1,15 @@
+{
+  "name": "pi-model-catalog-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generator that re-emits the @earendil-works/pi-ai model catalog as the TypeScript that src/models.rs parses, with a pi-local overlay (gh #117). Manual / CI use only; no runtime network and not invoked from build.rs.",
+  "scripts": {
+    "generate": "node gen-model-catalog.mjs",
+    "generate:vendored": "node gen-model-catalog.mjs --out ../legacy_pi_mono_code/pi-mono/packages/ai/src/models.generated.ts",
+    "check": "node gen-model-catalog.mjs --check ../legacy_pi_mono_code/pi-mono/packages/ai/src/models.generated.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.87.1"
+  }
+}

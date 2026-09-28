@@ -1,0 +1,109 @@
+{
+  "schema": "pi.runtime_intelligence.closeout_gate_contract.v1",
+  "decision_gate_schema": "pi.runtime_intelligence.closeout_gate.v1",
+  "purpose": "prompt_to_artifact_runtime_intelligence_closeout_gate_not_source_of_truth",
+  "allowed_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_check_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_decisions": [
+    "close_final_gate_and_parent_epic",
+    "file_follow_up_beads_before_closing_epic"
+  ],
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "parent_epic",
+    "final_gate_bead",
+    "required_checks",
+    "child_artifact_map",
+    "source_boundary_checks",
+    "quality_gate_results",
+    "checklist",
+    "missing_checks",
+    "remaining_follow_ups",
+    "known_limitations",
+    "claim_boundaries",
+    "follow_up_required",
+    "follow_up_beads",
+    "decision",
+    "epic_can_close_after_this_commit"
+  ],
+  "required_child_bead_ids": [
+    "bd-h66tp.1",
+    "bd-h66tp.2",
+    "bd-h66tp.3",
+    "bd-h66tp.4",
+    "bd-h66tp.5",
+    "bd-h66tp.6",
+    "bd-h66tp.7"
+  ],
+  "required_check_ids": [
+    "child_beads_closed",
+    "compaction_admission",
+    "tool_output_artifacts",
+    "provider_routing",
+    "scheduler_fairness",
+    "frame_budget",
+    "cancellation_cleanup",
+    "extension_safety_provenance",
+    "docs_and_evidence",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "required_source_boundary_ids": [
+    "beads_are_source_of_truth",
+    "agent_mail_is_coordination_only",
+    "read_only_gate",
+    "rch_required_for_heavy_cargo",
+    "staged_ubs_required",
+    "beads_ledger_required",
+    "no_release_or_dropin_claims",
+    "closeout_does_not_replace_child_artifacts"
+  ],
+  "required_quality_gate_ids": [
+    "py_compile",
+    "runpack_self_test",
+    "json_contracts",
+    "runtime_intelligence_closeout_gate_contract_rch",
+    "cargo_fmt",
+    "git_diff_check",
+    "cargo_check_all_targets_rch",
+    "cargo_clippy_all_targets_rch",
+    "staged_ubs",
+    "beads_ledger_reconcile"
+  ],
+  "requirements": [
+    {
+      "id": "child_artifact_mapping",
+      "description": "Every third-wave runtime-intelligence implementation child bead maps to committed code paths, test paths, docs or evidence paths, validation commands, close reason, and commit hash."
+    },
+    {
+      "id": "prompt_to_artifact_coverage",
+      "description": "The checklist covers child closure, compaction admission, tool-output artifacts, provider routing, scheduler fairness, TUI frame budgets, cancellation cleanup, extension safety provenance, docs/evidence, source boundaries, pushed refs, and quality gates."
+    },
+    {
+      "id": "safe_close_behavior",
+      "description": "A passing gate may close the final gate and parent epic only after this commit lands and the branch is pushed. A failing gate must emit follow-up Beads instead of optimistic closeout."
+    },
+    {
+      "id": "rch_heavy_gates",
+      "description": "All heavy Cargo validation evidence must prove RCH execution, including the runtime-intelligence closeout contract test plus cargo check and clippy."
+    },
+    {
+      "id": "not_source_of_truth",
+      "description": "The closeout gate is evidence over Beads, git, docs, tests, RCH, Agent Mail, UBS, and source artifacts. It does not replace those sources of truth."
+    },
+    {
+      "id": "claim_boundaries",
+      "description": "The closeout gate must not make release-facing performance, capacity, benchmark, or strict drop-in claims. Runtime-intelligence evidence remains advisory operator evidence."
+    }
+  ]
+}

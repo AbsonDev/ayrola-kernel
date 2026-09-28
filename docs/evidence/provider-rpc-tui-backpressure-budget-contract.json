@@ -1,0 +1,269 @@
+{
+  "claim_boundaries": {
+    "does_not_authorize_release_performance_claims": true,
+    "does_not_duplicate_pressure_tests": true,
+    "does_not_replace_provider_rpc_tui_source_evidence": true,
+    "does_not_run_cargo_or_regenerate_child_evidence": true,
+    "read_only_aggregator": true
+  },
+  "decision": "contract_passed",
+  "failing_surfaces": [],
+  "fairness_stress_gate": {
+    "fail_closed_conditions": [
+      "any required surface status is not pass",
+      "max_starvation_window exceeds the synthetic starvation budget",
+      "any provider stream reports zero chunk progress",
+      "RPC semantic output flush progress is zero",
+      "TUI frame-budget degradation class is starved or critical"
+    ],
+    "fixture_failures": [],
+    "fixture_kind": "synthetic_contract_fixtures_not_release_performance_claims",
+    "fixtures": [
+      {
+        "description": "Provider chunks, RPC flushes, and TUI frames all make progress under balanced fanout.",
+        "expectation_met": true,
+        "expected_verdict": "pass",
+        "fixture_kind": "synthetic_contract_fixture_not_performance_claim",
+        "frame_budget_degradation_class": "normal",
+        "id": "balanced_load",
+        "max_starvation_window": 1,
+        "per_stream_chunk_progress": {
+          "fast_stream": 4,
+          "slow_stream": 3
+        },
+        "rpc_output_flush_progress": 3,
+        "starvation_budget": 3,
+        "surface_statuses": {
+          "provider_streaming": "pass",
+          "rpc_output": "pass",
+          "tui_degradation": "pass"
+        },
+        "verdict": "pass"
+      },
+      {
+        "description": "One slow provider stream cannot starve faster streams or RPC/TUI semantic progress.",
+        "expectation_met": true,
+        "expected_verdict": "pass",
+        "fixture_kind": "synthetic_contract_fixture_not_performance_claim",
+        "frame_budget_degradation_class": "watch",
+        "id": "one_slow_stream",
+        "max_starvation_window": 2,
+        "per_stream_chunk_progress": {
+          "fast_stream": 5,
+          "slow_stream": 1
+        },
+        "rpc_output_flush_progress": 2,
+        "starvation_budget": 3,
+        "surface_statuses": {
+          "provider_streaming": "pass",
+          "rpc_output": "pass",
+          "tui_degradation": "pass"
+        },
+        "verdict": "pass"
+      },
+      {
+        "description": "RPC low-value output flood is coalesced while semantic provider and TUI progress remains visible.",
+        "expectation_met": true,
+        "expected_verdict": "pass",
+        "fixture_kind": "synthetic_contract_fixture_not_performance_claim",
+        "frame_budget_degradation_class": "pressure",
+        "id": "rpc_output_flood",
+        "max_starvation_window": 3,
+        "per_stream_chunk_progress": {
+          "provider_stream": 3,
+          "tool_stream": 2
+        },
+        "rpc_output_flush_progress": 1,
+        "starvation_budget": 3,
+        "surface_statuses": {
+          "provider_streaming": "pass",
+          "rpc_output": "pass",
+          "tui_degradation": "pass"
+        },
+        "verdict": "pass"
+      },
+      {
+        "description": "TUI frame pressure may degrade rendering class but cannot hide provider/RPC semantic progress.",
+        "expectation_met": true,
+        "expected_verdict": "pass",
+        "fixture_kind": "synthetic_contract_fixture_not_performance_claim",
+        "frame_budget_degradation_class": "pressure",
+        "id": "tui_budget_pressure",
+        "max_starvation_window": 3,
+        "per_stream_chunk_progress": {
+          "provider_stream": 2,
+          "tool_stream": 1
+        },
+        "rpc_output_flush_progress": 2,
+        "starvation_budget": 3,
+        "surface_statuses": {
+          "provider_streaming": "pass",
+          "rpc_output": "pass",
+          "tui_degradation": "pass"
+        },
+        "verdict": "pass"
+      }
+    ],
+    "missing_fixtures": [],
+    "negative_control_failures": [],
+    "negative_controls": [
+      {
+        "description": "The gate must fail closed when RPC reports success but TUI semantic progress is starved.",
+        "expectation_met": true,
+        "expected_verdict": "fail",
+        "fixture_kind": "synthetic_contract_fixture_not_performance_claim",
+        "frame_budget_degradation_class": "starved",
+        "id": "rpc_success_tui_starves_fail_closed",
+        "max_starvation_window": 5,
+        "per_stream_chunk_progress": {
+          "provider_stream": 2,
+          "tool_stream": 1
+        },
+        "rpc_output_flush_progress": 3,
+        "starvation_budget": 3,
+        "surface_statuses": {
+          "provider_streaming": "pass",
+          "rpc_output": "pass",
+          "tui_degradation": "pass"
+        },
+        "verdict": "fail"
+      }
+    ],
+    "operator_summary": "Synthetic fairness fixtures verify that provider chunks, RPC flushes, and TUI semantic frames all make progress together; negative controls prove the gate fails closed when one surface succeeds while another starves.",
+    "required_fixture_ids": [
+      "balanced_load",
+      "one_slow_stream",
+      "rpc_output_flood",
+      "tui_budget_pressure"
+    ],
+    "required_metrics": [
+      "max_starvation_window",
+      "per_stream_chunk_progress",
+      "rpc_output_flush_progress",
+      "frame_budget_degradation_class"
+    ],
+    "schema": "pi.swarm.provider_rpc_tui_fairness_stress_gate.v1",
+    "source_evidence_paths": [
+      "tests/provider_streaming.rs",
+      "docs/evidence/rpc-output-pressure.jsonl",
+      "src/interactive/tests.rs"
+    ],
+    "starvation_budget": {
+      "max_starvation_window": 3,
+      "unit": "synthetic_scheduling_steps"
+    },
+    "status": "pass"
+  },
+  "generated_at": "2026-05-18T00:34:00+00:00",
+  "incompatible_surfaces": [],
+  "missing_surfaces": [],
+  "operator_summary": [
+    "Provider, RPC, and TUI pressure surfaces expose compatible event, semantic-preservation, coalescing, pressure-depth, latency/step, and verdict evidence.",
+    "Semantic preservation means lifecycle boundaries, final content, tool boundaries, session notes, and user input remain visible or flushed before semantic events.",
+    "Low-value pressure means provider text/thinking deltas, RPC message/tool updates, and TUI tool-update noise may be coalesced or collapsed under pressure."
+  ],
+  "purpose": "operator_backpressure_budget_contract_not_release_performance_claim",
+  "required_canonical_metrics": [
+    "event_count",
+    "semantic_preservation",
+    "coalesced_low_value_count",
+    "pressure_depth",
+    "latency_or_step",
+    "verdict"
+  ],
+  "required_surface_ids": [
+    "provider_streaming",
+    "rpc_output",
+    "tui_degradation"
+  ],
+  "schema": "pi.swarm.provider_rpc_tui_backpressure_budget_contract.v1",
+  "source_bead": "bd-63x3v.10.5",
+  "status": "pass",
+  "surfaces": [
+    {
+      "evidence_kind": "checked_in_test_evidence_source",
+      "evidence_path": "tests/provider_streaming.rs",
+      "id": "provider_streaming",
+      "low_value_delta_policy": "TextDelta and ThinkingDelta may be coalesced under queue pressure; semantic boundaries, usage, stop reason, and malformed-stream fail-closed behavior must survive.",
+      "metric_compatibility": {
+        "canonical_metric_map": {
+          "coalesced_low_value_count": "coalesced_or_buffered_count",
+          "event_count": "event_count",
+          "latency_or_step": "latency_steps",
+          "pressure_depth": "max_queue_depth",
+          "semantic_preservation": [
+            "semantic_count",
+            "replayed text changed under pressure",
+            "tool-call boundary ordering was lost"
+          ],
+          "verdict": "verdict"
+        },
+        "missing_canonical_metrics": [],
+        "status": "pass"
+      },
+      "operator_summary": "Provider streaming pressure preserves semantic stream boundaries while coalescing low-value deltas into bounded queue pressure.",
+      "schema": "pi.test.provider_stream_backpressure.v1",
+      "semantic_loss_assertions": {
+        "malformed_stream_fail_closed": true,
+        "text_preserved": true,
+        "tool_call_boundary_preserved": true
+      },
+      "status": "pass"
+    },
+    {
+      "evidence_kind": "checked_in_jsonl_evidence",
+      "evidence_path": "docs/evidence/rpc-output-pressure.jsonl",
+      "id": "rpc_output",
+      "low_value_delta_policy": "MessageDelta and ToolUpdate are coalescible; pending updates must flush before semantic events.",
+      "metric_compatibility": {
+        "canonical_metric_map": {
+          "coalesced_low_value_count": "coalesced_message_delta_count+coalesced_tool_update_count",
+          "event_count": "input_events|event_count",
+          "latency_or_step": "p99_us|latency_budget_us",
+          "pressure_depth": "pending_events|pending_class_count_before_semantic",
+          "semantic_preservation": "semantic_events_preserved_by|preserved_semantic_count",
+          "verdict": "verdict"
+        },
+        "missing_canonical_metrics": [],
+        "status": "pass"
+      },
+      "operator_summary": "RPC output pressure evidence bounds low-value updates without blocking, then flushes the latest pending update before semantic output.",
+      "row_count": 1,
+      "schema": "pi.rpc_output_pressure.v1",
+      "semantic_loss_assertions": {
+        "all_checked_in_rows_pass": true,
+        "semantic_events_preserved": true
+      },
+      "status": "pass"
+    },
+    {
+      "evidence_kind": "checked_in_test_evidence_source",
+      "evidence_path": "src/interactive/tests.rs",
+      "id": "tui_degradation",
+      "low_value_delta_policy": "Tool-update noise can collapse under frame pressure; final provider text, final tool output, session notes, and user input must remain visible.",
+      "metric_compatibility": {
+        "canonical_metric_map": {
+          "coalesced_low_value_count": "coalesced_count",
+          "event_count": "event_count",
+          "latency_or_step": "redraw_count",
+          "pressure_depth": "max_frame_budget_pressure",
+          "semantic_preservation": [
+            "semantic_visible_count",
+            "preserved_input_count"
+          ],
+          "verdict": "verdict"
+        },
+        "missing_canonical_metrics": [],
+        "status": "pass"
+      },
+      "operator_summary": "TUI degradation evidence preserves semantic output and user input while collapsing low-value tool-update pressure.",
+      "schema": "pi.tui.degradation_drill.v1",
+      "semantic_loss_assertions": {
+        "dedicated_drill_present": true,
+        "input_preserved": true,
+        "semantic_output_visible": true
+      },
+      "status": "pass"
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "schema": "pi.dropin.certification_verdict.v1",
+  "git_commit": "52e9fbfb24352045985b59df9d7ea63f1f8f2ef8",
+  "generated_at_utc": "2026-05-18T19:37:26Z",
+  "overall_verdict": "CERTIFIED",
+  "hard_gate_results": [
+    {
+      "gate_id": "non_mock_unit",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "docs/non-mock-rubric.json",
+      "bead": "bd-1f42.2.6"
+    },
+    {
+      "gate_id": "e2e_log_contract",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "tests/e2e_results",
+      "bead": "bd-1f42.3.6"
+    },
+    {
+      "gate_id": "ext_must_pass",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/ext_conformance/reports/gate/must_pass_gate_verdict.json",
+      "bead": "bd-1f42.4.4"
+    },
+    {
+      "gate_id": "ext_provider_compat",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "tests/ext_conformance/reports/provider_compat/provider_compat_report.json",
+      "bead": "bd-1f42.4.6"
+    },
+    {
+      "gate_id": "evidence_bundle",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "tests/evidence_bundle/index.json",
+      "bead": "bd-1f42.6.8"
+    },
+    {
+      "gate_id": "cross_platform",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/cross_platform_reports/linux/platform_report.json",
+      "bead": "bd-1f42.6.7"
+    },
+    {
+      "gate_id": "conformance_regression",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/ext_conformance/reports/regression_verdict.json",
+      "bead": "bd-1f42.4"
+    },
+    {
+      "gate_id": "conformance_pass_rate",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/ext_conformance/reports/conformance_summary.json",
+      "bead": "bd-1f42.4"
+    },
+    {
+      "gate_id": "suite_classification",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/suite_classification.toml",
+      "bead": "bd-1f42.6.1"
+    },
+    {
+      "gate_id": "traceability_matrix",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "docs/traceability_matrix.json",
+      "bead": "bd-1f42.6.4"
+    },
+    {
+      "gate_id": "e2e_scenario_matrix",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "docs/e2e_scenario_matrix.json",
+      "bead": "bd-1f42.8.5.1"
+    },
+    {
+      "gate_id": "provider_gap_matrix",
+      "status": "pass",
+      "blocking": false,
+      "detail": null,
+      "artifact_path": "docs/provider-gaps-test-matrix.json",
+      "bead": "bd-3uqg.11.11.5"
+    },
+    {
+      "gate_id": "sec_conformance",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/full_suite_gate/sec_conformance_verdict.json",
+      "bead": "bd-1a2cu"
+    },
+    {
+      "gate_id": "perf3x_bead_coverage",
+      "status": "pass",
+      "blocking": true,
+      "detail": "Validated 7 PERF-3X bead coverage row(s) with complete unit/e2e/log evidence paths",
+      "artifact_path": "tests/full_suite_gate/perf3x_bead_coverage_audit.json",
+      "bead": "bd-3ar8v.6.11"
+    },
+    {
+      "gate_id": "practical_finish_checkpoint",
+      "status": "pass",
+      "blocking": true,
+      "detail": "Practical-finish checkpoint reached: no open PERF-3X issues remain.",
+      "artifact_path": "tests/full_suite_gate/practical_finish_checkpoint.json",
+      "bead": "bd-3ar8v.6.9"
+    },
+    {
+      "gate_id": "extension_remediation_backlog",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/full_suite_gate/extension_remediation_backlog.json",
+      "bead": "bd-3ar8v.6.8"
+    },
+    {
+      "gate_id": "opportunity_matrix_integrity",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/perf/reports/opportunity_matrix.json",
+      "bead": "bd-3ar8v.6.1"
+    },
+    {
+      "gate_id": "parameter_sweeps_integrity",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/perf/reports/parameter_sweeps.json",
+      "bead": "bd-3ar8v.6.2"
+    },
+    {
+      "gate_id": "conformance_stress_lineage",
+      "status": "pass",
+      "blocking": true,
+      "detail": "Conformance+stress lineage coherence validated: both artifacts carry run_id and correlation_id",
+      "artifact_path": "tests/ext_conformance/reports/conformance_summary.json",
+      "bead": "bd-3ar8v.6.3"
+    },
+    {
+      "gate_id": "waiver_lifecycle",
+      "status": "pass",
+      "blocking": true,
+      "detail": null,
+      "artifact_path": "tests/full_suite_gate/waiver_audit.json",
+      "bead": "bd-1f42.8.8.1"
+    },
+    {
+      "gate_id": "G04-cli-parity",
+      "status": "pass",
+      "blocking": true,
+      "detail": "gap-cli-slash-command-surface resolved: tests/dropin_slash_differential.rs now requires real mirrored Rust Pi/pi-mono RPC pass evidence for credential-free slash scenarios, with UI-only, process-exit, invalid parser, and model-dependent compaction scenarios explicitly excluded from pass evidence.",
+      "artifact_path": "docs/evidence/dropin-differential-evidence-suite.json",
+      "bead": "bd-7derw"
+    },
+    {
+      "gate_id": "G10-differential-evidence-suite",
+      "status": "pass",
+      "blocking": true,
+      "detail": "dropin-differential-evidence-suite passes with slash_command_differential backed by real mirrored RPC execution.",
+      "artifact_path": "docs/evidence/dropin-differential-evidence-suite.json",
+      "bead": "bd-7derw"
+    }
+  ],
+  "blocking_reasons": [],
+  "evidence_index": [
+    {
+      "path": "docs/non-mock-rubric.json",
+      "exists": true
+    },
+    {
+      "path": "tests/e2e_results",
+      "exists": true
+    },
+    {
+      "path": "tests/ext_conformance/reports/gate/must_pass_gate_verdict.json",
+      "exists": true
+    },
+    {
+      "path": "tests/ext_conformance/reports/provider_compat/provider_compat_report.json",
+      "exists": true
+    },
+    {
+      "path": "tests/evidence_bundle/index.json",
+      "exists": true
+    },
+    {
+      "path": "tests/cross_platform_reports/linux/platform_report.json",
+      "exists": true
+    },
+    {
+      "path": "tests/ext_conformance/reports/regression_verdict.json",
+      "exists": true
+    },
+    {
+      "path": "tests/ext_conformance/reports/conformance_summary.json",
+      "exists": true
+    },
+    {
+      "path": "tests/suite_classification.toml",
+      "exists": true
+    },
+    {
+      "path": "docs/traceability_matrix.json",
+      "exists": true
+    },
+    {
+      "path": "docs/e2e_scenario_matrix.json",
+      "exists": true
+    },
+    {
+      "path": "docs/provider-gaps-test-matrix.json",
+      "exists": true
+    },
+    {
+      "path": "tests/full_suite_gate/sec_conformance_verdict.json",
+      "exists": true
+    },
+    {
+      "path": "tests/full_suite_gate/perf3x_bead_coverage_audit.json",
+      "exists": true
+    },
+    {
+      "path": "tests/full_suite_gate/practical_finish_checkpoint.json",
+      "exists": true
+    },
+    {
+      "path": "tests/full_suite_gate/extension_remediation_backlog.json",
+      "exists": true
+    },
+    {
+      "path": "tests/perf/reports/opportunity_matrix.json",
+      "exists": true
+    },
+    {
+      "path": "tests/perf/reports/parameter_sweeps.json",
+      "exists": true
+    },
+    {
+      "path": "tests/ext_conformance/reports/conformance_summary.json",
+      "exists": true
+    },
+    {
+      "path": "tests/full_suite_gate/waiver_audit.json",
+      "exists": true
+    },
+    {
+      "path": "docs/evidence/dropin-differential-evidence-suite.json",
+      "exists": true
+    },
+    {
+      "path": "docs/evidence/dropin-parity-gap-ledger.json",
+      "exists": true
+    }
+  ],
+  "source": {
+    "certification_lane_artifact": "tests/full_suite_gate/certification_verdict.json",
+    "lane_verdict": "pass",
+    "lane_generated_at": "2026-05-01T06:00:46.624Z",
+    "claim_integrity_override": "bd-jgnx0 reopened gap-cli-slash-command-surface after detecting that slash_command_differential pass evidence was backed by fail-closed placeholder evidence; bd-7derw restored real mirrored RPC execution and closed the gap."
+  }
+}

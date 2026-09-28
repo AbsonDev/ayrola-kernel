@@ -1,0 +1,70 @@
+{
+  "schema": "pi.completion_audit.enforcement_closeout_gate_contract.v1",
+  "decision_gate_schema": "pi.completion_audit.enforcement_closeout_gate.v1",
+  "purpose": "advisory_completion_audit_enforcement_track_closeout_not_source_of_truth",
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "decision",
+    "source_bead",
+    "parent_bead",
+    "child_map",
+    "pushed_commits",
+    "validation",
+    "negative_controls",
+    "source_boundaries",
+    "claim_boundaries",
+    "limitations",
+    "operator_next_actions"
+  ],
+  "allowed_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_decisions": [
+    "advisory_closeout_ready",
+    "advisory_closeout_blocked"
+  ],
+  "required_child_beads": [
+    "bd-nji8x.1",
+    "bd-nji8x.2",
+    "bd-nji8x.3",
+    "bd-nji8x.4",
+    "bd-nji8x.5"
+  ],
+  "required_negative_controls": [
+    "proxy_only_evidence_blocks",
+    "missing_pushed_ref_blocks",
+    "failed_command_blocks",
+    "missing_artifact_blocks",
+    "unresolved_followup_blocks",
+    "stale_source_blocks",
+    "forbidden_file_deletion_blocks",
+    "release_claim_not_authorized",
+    "strict_dropin_claim_not_authorized"
+  ],
+  "required_true_source_boundaries": [
+    "read_only_advisory_evidence",
+    "does_not_replace_beads",
+    "does_not_replace_git",
+    "does_not_replace_agent_mail",
+    "does_not_replace_rch",
+    "does_not_replace_ubs",
+    "does_not_replace_ci",
+    "does_not_replace_source_artifacts",
+    "does_not_replace_release_evidence",
+    "does_not_replace_dropin_certification"
+  ],
+  "required_false_claim_boundaries": [
+    "authorizes_file_deletion",
+    "authorizes_release_claim",
+    "authorizes_performance_claim",
+    "authorizes_capacity_claim",
+    "authorizes_strict_dropin_claim",
+    "runs_heavy_cargo_without_rch",
+    "mutates_live_agent_mail",
+    "mutates_live_rch"
+  ],
+  "closeout_rule": "The parent epic may close only after the closeout evidence commit lands and both origin/main and origin/master point at or beyond that commit."
+}

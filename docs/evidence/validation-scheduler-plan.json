@@ -1,0 +1,385 @@
+{
+  "change_profile": {
+    "changed_path_count": 2,
+    "changed_paths": [
+      "src/doctor.rs",
+      "scripts/new-tool.py"
+    ],
+    "docs_only": false,
+    "mixed_python_rust": true,
+    "profile_id": "mixed_python_rust",
+    "python_changed": true,
+    "rust_changed": true
+  },
+  "command_groups": [
+    {
+      "action": "would_run",
+      "backoff_reasons": [],
+      "cache_reuse": "not_applicable",
+      "command_class": "fast_script",
+      "dependency_rank": 1,
+      "estimated_cost": "low",
+      "evidence_paths": [
+        "git_state.porcelain_lines",
+        "validation_scheduler_plan.contract"
+      ],
+      "exact_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 -m json.tool docs/contracts/validation-scheduler-plan-contract.json >/dev/null",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ],
+      "id": "fast_script_checks",
+      "local_fallback_rejection_reason": null,
+      "no_local_fallback": false,
+      "required_env": {},
+      "requires_rch": false,
+      "risk": "low",
+      "title": "Fast script and metadata checks"
+    },
+    {
+      "action": "would_run",
+      "backoff_reasons": [],
+      "cache_reuse": "not_applicable",
+      "command_class": "script_self_test",
+      "dependency_rank": 2,
+      "estimated_cost": "medium",
+      "evidence_paths": [
+        "predictive_telemetry_ledger.status",
+        "validation_scheduler_plan.summary"
+      ],
+      "exact_commands": [
+        "python3 scripts/build_swarm_operator_runpack.py --self-test"
+      ],
+      "id": "evidence_regeneration",
+      "local_fallback_rejection_reason": null,
+      "no_local_fallback": false,
+      "required_env": {},
+      "requires_rch": false,
+      "risk": "low",
+      "title": "Runpack evidence regeneration self-test"
+    },
+    {
+      "action": "defer",
+      "backoff_reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "cache_reuse": "target_dir_reuse_if_clean",
+      "command_class": "cargo_test_focused",
+      "dependency_rank": 3,
+      "estimated_cost": "medium",
+      "evidence_paths": [
+        "git_state.porcelain_lines",
+        "rch_admission.queue_forecast"
+      ],
+      "exact_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test conformance"
+      ],
+      "id": "focused_tests",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "no_local_fallback": true,
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true,
+      "risk": "medium",
+      "title": "Focused Rust tests for touched surfaces"
+    },
+    {
+      "action": "defer",
+      "backoff_reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "cache_reuse": "target_dir_reuse_if_clean",
+      "command_class": "cargo_test_e2e_conformance",
+      "dependency_rank": 4,
+      "estimated_cost": "high",
+      "evidence_paths": [
+        "smoke_harness.scenario_statuses",
+        "rch_admission.queue_forecast"
+      ],
+      "exact_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test e2e"
+      ],
+      "id": "e2e_conformance",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "no_local_fallback": true,
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true,
+      "risk": "medium",
+      "title": "E2E and conformance validation"
+    },
+    {
+      "action": "defer",
+      "backoff_reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "cache_reuse": "target_dir_reuse_if_clean",
+      "command_class": "cargo_check_all_targets",
+      "dependency_rank": 5,
+      "estimated_cost": "high",
+      "evidence_paths": [
+        "rch_admission.decision",
+        "remote_validation_proof_ledger.summary"
+      ],
+      "exact_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo check --all-targets"
+      ],
+      "id": "all_targets_check",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "no_local_fallback": true,
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true,
+      "risk": "high",
+      "title": "All-targets compiler check"
+    },
+    {
+      "action": "defer",
+      "backoff_reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "cache_reuse": "target_dir_reuse_if_clean",
+      "command_class": "cargo_clippy_all_targets",
+      "dependency_rank": 6,
+      "estimated_cost": "high",
+      "evidence_paths": [
+        "rch_admission.decision",
+        "remote_validation_proof_ledger.summary"
+      ],
+      "exact_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo clippy --all-targets -- -D warnings"
+      ],
+      "id": "clippy",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "no_local_fallback": true,
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true,
+      "risk": "high",
+      "title": "All-targets clippy"
+    }
+  ],
+  "generated_at": "2026-05-09T09:00:00+00:00",
+  "guards": {
+    "advisory_only": true,
+    "does_not_replace_rch_or_validation_broker": true,
+    "heavy_cargo_requires_rch": true,
+    "local_fallback_rejected": true,
+    "no_agent_mail_mutation": true,
+    "no_beads_mutation": true,
+    "no_command_execution": true,
+    "no_rch_worker_mutation": true,
+    "no_temp_artifact_deletion": true,
+    "not_release_or_capacity_claim_evidence": true,
+    "read_only": true
+  },
+  "local_fallback_rejections": [
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test conformance",
+      "group_id": "focused_tests",
+      "reason": "RCH-required validation must not fail open into a local cargo build."
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test e2e",
+      "group_id": "e2e_conformance",
+      "reason": "RCH-required validation must not fail open into a local cargo build."
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo check --all-targets",
+      "group_id": "all_targets_check",
+      "reason": "RCH-required validation must not fail open into a local cargo build."
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo clippy --all-targets -- -D warnings",
+      "group_id": "clippy",
+      "reason": "RCH-required validation must not fail open into a local cargo build."
+    }
+  ],
+  "predictive_summary": {
+    "coordination_pressure": "blocked",
+    "next_bottleneck_observation": "work_queue_pressure",
+    "schema": "pi.swarm.predictive_telemetry_ledger.v1",
+    "status": "blocked",
+    "validation_pressure": "pressured",
+    "work_queue_pressure": "blocked"
+  },
+  "purpose": "read_only_validation_scheduler_not_execution_or_rch_authority",
+  "rch_posture": {
+    "active_builds": 8,
+    "backoff_reasons": [
+      "decision=backoff",
+      "queue_recommended_action=backoff",
+      "slot_pressure=saturated"
+    ],
+    "decision": "backoff",
+    "heavy_validation_allowed": false,
+    "queue_depth": 4,
+    "queued_builds": 4,
+    "recommended_action": "backoff",
+    "slot_pressure": "saturated",
+    "source_status": "ok",
+    "workers_healthy": 1,
+    "workers_total": 8
+  },
+  "safe_to_defer": [
+    {
+      "action": "defer",
+      "commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test conformance"
+      ],
+      "group_id": "focused_tests",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true
+    },
+    {
+      "action": "defer",
+      "commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test e2e"
+      ],
+      "group_id": "e2e_conformance",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true
+    },
+    {
+      "action": "defer",
+      "commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo check --all-targets"
+      ],
+      "group_id": "all_targets_check",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true
+    },
+    {
+      "action": "defer",
+      "commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo clippy --all-targets -- -D warnings"
+      ],
+      "group_id": "clippy",
+      "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build.",
+      "reasons": [
+        "decision=backoff",
+        "queue_recommended_action=backoff",
+        "slot_pressure=saturated",
+        "stale_target_cache=/data/tmp/pi_agent_rust_cargo/unknown/stale-target"
+      ],
+      "required_env": {
+        "CARGO_TARGET_DIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target",
+        "TMPDIR": "/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp"
+      },
+      "requires_rch": true
+    }
+  ],
+  "schema": "pi.swarm.validation_scheduler_plan.v1",
+  "source_runpack_schema": "pi.swarm.operator_runpack.v1",
+  "status": "degraded",
+  "summary": {
+    "blocked_group_count": 0,
+    "deferred_group_count": 4,
+    "heavy_validation_allowed": false,
+    "local_fallback_rejection_count": 4,
+    "would_run_count": 5
+  },
+  "would_run_order": [
+    {
+      "action": "would_run",
+      "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+      "group_id": "fast_script_checks",
+      "local_fallback_rejection_reason": null,
+      "rank": 1,
+      "rationale": "Fast script and metadata checks is admitted for mixed_python_rust changes.",
+      "required_env": {},
+      "requires_rch": false
+    },
+    {
+      "action": "would_run",
+      "command": "python3 -m json.tool docs/contracts/validation-scheduler-plan-contract.json >/dev/null",
+      "group_id": "fast_script_checks",
+      "local_fallback_rejection_reason": null,
+      "rank": 2,
+      "rationale": "Fast script and metadata checks is admitted for mixed_python_rust changes.",
+      "required_env": {},
+      "requires_rch": false
+    },
+    {
+      "action": "would_run",
+      "command": "git diff --check",
+      "group_id": "fast_script_checks",
+      "local_fallback_rejection_reason": null,
+      "rank": 3,
+      "rationale": "Fast script and metadata checks is admitted for mixed_python_rust changes.",
+      "required_env": {},
+      "requires_rch": false
+    },
+    {
+      "action": "would_run",
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "group_id": "fast_script_checks",
+      "local_fallback_rejection_reason": null,
+      "rank": 4,
+      "rationale": "Fast script and metadata checks is admitted for mixed_python_rust changes.",
+      "required_env": {},
+      "requires_rch": false
+    },
+    {
+      "action": "would_run",
+      "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+      "group_id": "evidence_regeneration",
+      "local_fallback_rejection_reason": null,
+      "rank": 5,
+      "rationale": "Runpack evidence regeneration self-test is admitted for mixed_python_rust changes.",
+      "required_env": {},
+      "requires_rch": false
+    }
+  ]
+}

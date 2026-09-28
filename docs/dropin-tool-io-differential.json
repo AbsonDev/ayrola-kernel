@@ -1,0 +1,117 @@
+{
+  "schema": "pi.dropin.tool_io_differential.v1",
+  "bead_id": "bd-lnmtp.4.3",
+  "gate_id": "G09-integration-io-parity",
+  "generated_at_utc": "2026-04-23T04:15:00Z",
+  "status": "pass",
+  "scenario_fixture": "tests/dropin_tool_io_differential/g09_tool_io_scenarios.json",
+  "test_harness": "tests/dropin_tool_io_differential.rs",
+  "canonicalization_rules": [
+    "Tool outputs compare stable text content and structured details after ignoring elapsed timing, process ids, temporary directory roots, and filesystem-specific absolute paths.",
+    "Bash stdout and stderr are treated as a merged tool output stream because both become model-visible tool-result text in pi-mono and Rust Pi.",
+    "Bash timeout parity is fail-closed: timeout must mark the tool result as an error, include the timeout message, and prevent descendant process output after SIGTERM-to-kill escalation.",
+    "SSE chunk boundaries are not semantically meaningful; parser tests compare parsed event type, data, id, and retry fields across CRLF, split event, multiline data, and carried id/retry cases.",
+    "Truncation parity is validated through structured truncation metadata rather than raw temporary full-output paths."
+  ],
+  "surfaces": [
+    {
+      "surface": "bash",
+      "scenario_count": 10,
+      "coverage": [
+        "stdout capture",
+        "stderr capture",
+        "merged stdio result text",
+        "nonzero exit error marking",
+        "empty output marker",
+        "timeout message",
+        "process-group descendant cleanup",
+        "shell command prefix environment",
+        "line truncation details",
+        "incremental ToolUpdate streaming"
+      ]
+    },
+    {
+      "surface": "file",
+      "scenario_count": 11,
+      "coverage": [
+        "atomic write with parent directory creation",
+        "legacy UTF-16 write-size reporting",
+        "parent traversal rejection",
+        "full text read",
+        "offset and limit read windows",
+        "hashline anchor output",
+        "read truncation metadata",
+        "unicode write/read round trip",
+        "unique edit replacement",
+        "missing edit target rejection"
+      ]
+    },
+    {
+      "surface": "search",
+      "scenario_count": 13,
+      "coverage": [
+        "grep literal matches",
+        "grep context windows",
+        "grep match-limit details",
+        "grep no-match message",
+        "grep traversal rejection",
+        "find glob discovery",
+        "find result-limit details",
+        "find no-match message",
+        "find traversal rejection",
+        "ls deterministic ordering",
+        "ls entry-limit details",
+        "ls empty directory marker",
+        "ls traversal rejection"
+      ]
+    },
+    {
+      "surface": "streaming",
+      "scenario_count": 5,
+      "coverage": [
+        "CRLF-delimited events",
+        "split event boundaries",
+        "multiline data canonicalization",
+        "id and retry carry-forward",
+        "empty event-name defaulting"
+      ]
+    },
+    {
+      "surface": "truncation",
+      "scenario_count": 2,
+      "coverage": [
+        "tail line windows",
+        "UTF-8-safe head byte windows"
+      ]
+    }
+  ],
+  "acceptance_evidence": [
+    {
+      "criterion": "tests/dropin_tool_io_differential/ with at least 30 tool scenarios passing",
+      "status": "pass",
+      "evidence": "41 executable scenarios defined in tests/dropin_tool_io_differential/g09_tool_io_scenarios.json and run by tests/dropin_tool_io_differential.rs"
+    },
+    {
+      "criterion": "Streaming chunk test passing with explicit canonicalization rules",
+      "status": "pass",
+      "evidence": "SSE scenarios cover CRLF, split event, multiline data, id/retry carry-forward, and empty event-name defaulting; canonicalization rules are recorded in this artifact."
+    },
+    {
+      "criterion": "Bash process-tree kill behavior matches pi-mono on SIGTERM-to-SIGKILL escalation",
+      "status": "pass",
+      "evidence": "bash.timeout.process_group starts a descendant writer, times out the process group, waits beyond the descendant delay, and verifies no leaked file is written."
+    },
+    {
+      "criterion": "G09 verdict flips to pass",
+      "status": "pass",
+      "evidence": "docs/evidence/dropin-certification-verdict.json marks G09-integration-io-parity as pass and indexes this artifact."
+    }
+  ],
+  "verification": [
+    {
+      "command": "rch exec -- cargo test --test dropin_tool_io_differential",
+      "status": "pass",
+      "observed": "2 passed; 0 failed"
+    }
+  ]
+}

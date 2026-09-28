@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CLI Surface Diff Schema",
+  "description": "Schema for comparing CLI surface between pi-mono and Rust Pi",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "pi.cli_surface_diff.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "pi_mono_baseline": {
+      "type": "object",
+      "properties": {
+        "commit": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "required": ["commit", "version"]
+    },
+    "rust_pi_version": {
+      "type": "object",
+      "properties": {
+        "commit": { "type": "string" },
+        "version": { "type": "string" }
+      },
+      "required": ["commit", "version"]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/FlagDiff"
+      }
+    },
+    "subcommands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/SubcommandDiff"
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total_flags": { "type": "integer" },
+        "identical": { "type": "integer" },
+        "divergent": { "type": "integer" },
+        "missing_in_rust": { "type": "integer" },
+        "missing_in_mono": { "type": "integer" },
+        "intentionally_removed": { "type": "integer" }
+      },
+      "required": ["total_flags", "identical", "divergent", "missing_in_rust", "missing_in_mono", "intentionally_removed"]
+    }
+  },
+  "required": ["schema", "generated_at", "pi_mono_baseline", "rust_pi_version", "flags", "subcommands", "summary"],
+  "definitions": {
+    "FlagDiff": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "short": { "type": ["string", "null"] },
+        "takes_value": { "type": "boolean" },
+        "optional_value": { "type": "boolean" },
+        "default_value": { "type": ["string", "null"] },
+        "env_var": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "classification": {
+          "type": "string",
+          "enum": ["identical", "divergent", "missing_in_rust", "missing_in_mono", "intentionally_removed"]
+        },
+        "action": {
+          "type": "string",
+          "enum": ["MATCH", "IMPLEMENT", "RETIRE", "DOCUMENT_AS_INTENTIONAL"]
+        },
+        "notes": { "type": ["string", "null"] }
+      },
+      "required": ["name", "takes_value", "classification", "action"]
+    },
+    "SubcommandDiff": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "classification": {
+          "type": "string",
+          "enum": ["identical", "divergent", "missing_in_rust", "missing_in_mono", "intentionally_removed"]
+        },
+        "action": {
+          "type": "string",
+          "enum": ["MATCH", "IMPLEMENT", "RETIRE", "DOCUMENT_AS_INTENTIONAL"]
+        },
+        "notes": { "type": ["string", "null"] }
+      },
+      "required": ["name", "classification", "action"]
+    }
+  }
+}

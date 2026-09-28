@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "generated_for": "bd-lnmtp.4.2",
+  "gate_id": "G08-session-error-parity",
+  "domain": "session-and-errors",
+  "upstream_root": "legacy_pi_mono_code/pi-mono/packages/coding-agent",
+  "rust_root": ".",
+  "summary": {
+    "status": "pass",
+    "scope": [
+      "session JSONL header and entry schema",
+      "session branching and metadata entries",
+      "hostcall error taxonomy codes",
+      "Rust-only Session Store V2 sidecar divergence"
+    ],
+    "intentional_divergences": [
+      {
+        "id": "rust-session-store-v2-sidecar",
+        "classification": "compatible_extension",
+        "reason": "Rust Pi may maintain native_v2 sidecar data for durability/indexing, but JSONL v3 remains the compatibility wire format and fallback source for legacy session replay."
+      },
+      {
+        "id": "hostcall-taxonomy-normalization",
+        "classification": "compatible_normalization",
+        "reason": "Rust Pi normalizes internal error variants into the five hostcall ABI codes required by extension/RPC surfaces: timeout, denied, io, invalid_request, internal."
+      }
+    ]
+  },
+  "session_schema_crosswalk": [
+    {
+      "surface": "header",
+      "upstream": "SessionHeader { type=session, version=3, id, timestamp, cwd, parentSession? }",
+      "rust": "SessionHeader { type=session, version=3, id, timestamp, cwd, parent_session? } with serde alias parentSession and serialized branchedFrom",
+      "status": "pass",
+      "evidence": [
+        "legacy_pi_mono_code/pi-mono/packages/coding-agent/src/core/session-manager.ts",
+        "src/session.rs",
+        "tests/dropin_session_error_parity.rs"
+      ]
+    },
+    {
+      "surface": "entries",
+      "upstream": [
+        "message",
+        "thinking_level_change",
+        "model_change",
+        "compaction",
+        "branch_summary",
+        "custom",
+        "label",
+        "session_info"
+      ],
+      "rust": [
+        "message",
+        "thinking_level_change",
+        "model_change",
+        "compaction",
+        "branch_summary",
+        "custom",
+        "label",
+        "session_info"
+      ],
+      "status": "pass",
+      "evidence": [
+        "legacy_pi_mono_code/pi-mono/packages/coding-agent/src/core/session-manager.ts",
+        "src/session.rs",
+        "tests/dropin_session_error_parity.rs"
+      ]
+    },
+    {
+      "surface": "branching",
+      "upstream": "entry.id + entry.parentId tree, leaf tracked by session manager",
+      "rust": "EntryBase.id + EntryBase.parent_id tree, loaded leaf resolved from current leaf or natural leaf",
+      "status": "pass",
+      "evidence": [
+        "legacy_pi_mono_code/pi-mono/packages/coding-agent/src/core/session-manager.ts",
+        "src/session.rs",
+        "tests/dropin_session_error_parity.rs"
+      ]
+    }
+  ],
+  "error_taxonomy_crosswalk": [
+    {
+      "rust_error_variants": [
+        "Error::Aborted"
+      ],
+      "hostcall_code": "timeout",
+      "status": "pass"
+    },
+    {
+      "rust_error_variants": [
+        "Error::Auth"
+      ],
+      "hostcall_code": "denied",
+      "status": "pass"
+    },
+    {
+      "rust_error_variants": [
+        "Error::Io",
+        "Error::Session",
+        "Error::SessionNotFound",
+        "Error::Sqlite"
+      ],
+      "hostcall_code": "io",
+      "status": "pass"
+    },
+    {
+      "rust_error_variants": [
+        "Error::Validation"
+      ],
+      "hostcall_code": "invalid_request",
+      "status": "pass"
+    },
+    {
+      "rust_error_variants": [
+        "Error::Api",
+        "Error::Config",
+        "Error::Extension",
+        "Error::Json",
+        "Error::Provider",
+        "Error::Tool"
+      ],
+      "hostcall_code": "internal",
+      "status": "pass"
+    }
+  ],
+  "required_evidence": [
+    "tests/dropin_session_error_parity.rs::upstream_session_header_and_entries_parse_with_rust_schema",
+    "tests/dropin_session_error_parity.rs::hostcall_error_taxonomy_matches_g08_crosswalk"
+  ]
+}

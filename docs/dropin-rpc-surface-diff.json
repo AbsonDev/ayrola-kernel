@@ -1,0 +1,749 @@
+{
+  "schema": "pi.dropin.rpc_surface_diff.v1",
+  "bead": "bd-lnmtp.2.1",
+  "generated_at": "2026-04-22",
+  "domain": "G05-json-rpc-parity",
+  "status": "audit_complete",
+  "sources": {
+    "rust": [
+      "src/rpc.rs",
+      "src/agent.rs",
+      "docs/rpc.md",
+      "tests/e2e_rpc.rs",
+      "tests/rpc_edge_cases.rs",
+      "tests/rpc_protocol.rs"
+    ],
+    "legacy": {
+      "available_in_checkout": false,
+      "expected_paths": [
+        "legacy_pi_mono_code/pi-mono/packages/coding-agent/src/modes/rpc/rpc-types.ts",
+        "legacy_pi_mono_code/pi-mono/packages/coding-agent/docs/rpc.md"
+      ],
+      "fallback_sources": [
+        "docs/evidence/dropin-feature-inventory-matrix.json",
+        "docs/rpc.md"
+      ]
+    },
+    "extension_protocol_schema": "docs/schema/extension_protocol.json"
+  },
+  "summary": {
+    "wire_protocol": "stdin JSONL commands, stdout JSONL response/event stream, optional string id correlation",
+    "baseline_command_count": 29,
+    "rust_command_count": 29,
+    "baseline_event_count": 17,
+    "rust_event_count": 17,
+    "match_count": 46,
+    "implement_count": 0,
+    "document_as_intentional_count": 0,
+    "notes": [
+      "docs/evidence/dropin-feature-inventory-matrix.json already classifies rpc.commands.shared, rpc.prompt.streaming_behavior, rpc.extension_ui_contract, json.events.agent_lifecycle, and integration.rpc_wire as provisional_present_both.",
+      "The legacy pi-mono RPC source paths referenced by the inventory are not present in this checkout, so this artifact treats the inventory rows and docs/rpc.md as the available baseline evidence."
+    ]
+  },
+  "commands": [
+    {
+      "name": "prompt",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["message"],
+        "optional": ["id", "images", "streamingBehavior", "streaming_behavior"]
+      },
+      "response": {
+        "success": "acknowledges immediately before async agent execution, or queues steering/follow-up while streaming",
+        "errors": [
+          "Missing message",
+          "Agent is currently streaming; specify streamingBehavior",
+          "Extension commands are not allowed while agent is streaming",
+          "invalid images or streamingBehavior payload"
+        ]
+      }
+    },
+    {
+      "name": "steer",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["message"],
+        "optional": ["id", "images"]
+      },
+      "response": {
+        "success": "queues steering message when streaming",
+        "errors": ["Missing message", "Agent is not currently streaming", "invalid images payload"]
+      }
+    },
+    {
+      "name": "follow_up",
+      "aliases": ["follow-up", "followUp", "queue-follow-up", "queueFollowUp"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["message"],
+        "optional": ["id", "images"]
+      },
+      "response": {
+        "success": "queues follow-up message when streaming",
+        "errors": ["Missing message", "Agent is not currently streaming", "invalid images payload"]
+      }
+    },
+    {
+      "name": "abort",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "aborts active agent stream when present",
+        "errors": []
+      }
+    },
+    {
+      "name": "new_session",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "creates a new session and returns current state",
+        "errors": ["session creation or index update failure"]
+      }
+    },
+    {
+      "name": "switch_session",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["sessionId"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "loads the requested session and returns current state",
+        "errors": ["Missing sessionId", "session load failure"]
+      }
+    },
+    {
+      "name": "set_session_name",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["name"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "renames the active session and returns current state",
+        "errors": ["Missing name", "session rename failure"]
+      }
+    },
+    {
+      "name": "export_html",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id", "path"]
+      },
+      "response": {
+        "success": "exports session HTML and returns the output path",
+        "errors": ["export failure"]
+      }
+    },
+    {
+      "name": "compact",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id", "instructions", "prompt"]
+      },
+      "response": {
+        "success": "runs manual compaction and returns compaction result",
+        "errors": ["agent is already streaming or compacting", "compaction failure"]
+      }
+    },
+    {
+      "name": "fork",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["messageId"],
+        "optional": ["id", "name"]
+      },
+      "response": {
+        "success": "forks the session at the requested message and returns fork metadata",
+        "errors": ["Missing messageId", "fork failure"]
+      }
+    },
+    {
+      "name": "get_fork_messages",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns messages eligible for session forking",
+        "errors": []
+      }
+    },
+    {
+      "name": "get_state",
+      "aliases": ["get-state", "getState"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns active model, thinking level, streaming flags, session identifiers, feature toggles, message counts, and current settings",
+        "errors": []
+      }
+    },
+    {
+      "name": "get_session_stats",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns session statistics",
+        "errors": []
+      }
+    },
+    {
+      "name": "get_messages",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns current session messages",
+        "errors": ["message load failure"]
+      }
+    },
+    {
+      "name": "get_available_models",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns available models for the active provider/configuration",
+        "errors": []
+      }
+    },
+    {
+      "name": "set_model",
+      "aliases": ["set-model", "setModel"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["model"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "switches to requested model and returns current state",
+        "errors": ["Missing model", "Unknown model", "provider/model reconfiguration failure"]
+      }
+    },
+    {
+      "name": "cycle_model",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id", "direction"]
+      },
+      "response": {
+        "success": "cycles active model and returns current state",
+        "errors": ["invalid direction", "provider/model reconfiguration failure"]
+      }
+    },
+    {
+      "name": "set_thinking_level",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["level"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "sets thinking level and returns current state",
+        "errors": ["Missing level", "invalid thinking level"]
+      }
+    },
+    {
+      "name": "cycle_thinking_level",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id", "direction"]
+      },
+      "response": {
+        "success": "cycles thinking level and returns current state",
+        "errors": ["invalid direction"]
+      }
+    },
+    {
+      "name": "set_steering_mode",
+      "aliases": ["set-steering-mode", "setSteeringMode"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["mode"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "sets steering mode and returns current state",
+        "errors": ["Missing mode", "invalid steering mode"]
+      }
+    },
+    {
+      "name": "set_follow_up_mode",
+      "aliases": ["set-follow-up-mode", "setFollowUpMode"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["mode"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "sets follow-up mode and returns current state",
+        "errors": ["Missing mode", "invalid follow-up mode"]
+      }
+    },
+    {
+      "name": "set_auto_compaction",
+      "aliases": ["set-auto-compaction", "setAutoCompaction"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["enabled"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "sets auto-compaction toggle and returns current state",
+        "errors": ["Missing enabled"]
+      }
+    },
+    {
+      "name": "set_auto_retry",
+      "aliases": ["set-auto-retry", "setAutoRetry"],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["enabled"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "sets auto-retry toggle and returns current state",
+        "errors": ["Missing enabled"]
+      }
+    },
+    {
+      "name": "abort_retry",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "requests cancellation of pending retry delay",
+        "errors": []
+      }
+    },
+    {
+      "name": "bash",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["command"],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "starts an extension slash-command style bash execution",
+        "errors": ["Missing command", "Agent is currently streaming"]
+      }
+    },
+    {
+      "name": "abort_bash",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "aborts active bash command when present",
+        "errors": []
+      }
+    },
+    {
+      "name": "get_last_assistant_text",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns last assistant text from current session",
+        "errors": []
+      }
+    },
+    {
+      "name": "get_commands",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": [],
+        "optional": ["id"]
+      },
+      "response": {
+        "success": "returns registered slash commands from resource loading",
+        "errors": []
+      }
+    },
+    {
+      "name": "extension_ui_response",
+      "aliases": [],
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "request": {
+        "required": ["requestId"],
+        "optional": ["id", "value", "confirmed", "cancelled"]
+      },
+      "response": {
+        "success": "resolves an active extension UI request and emits the next queued extension_ui_request when present",
+        "errors": [
+          "Missing requestId (or id) field",
+          "Extension UI bridge unavailable",
+          "No active extension UI request",
+          "Unexpected requestId",
+          "invalid response payload for active UI request"
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "response",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "command", "success"],
+        "optional": ["id", "data", "error", "errorHints"]
+      },
+      "notes": ["Command replies use type=response envelopes with command echo and optional id correlation."]
+    },
+    {
+      "name": "agent_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "sessionId"],
+        "optional": []
+      }
+    },
+    {
+      "name": "agent_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "messages"],
+        "optional": ["error", "errorHints"]
+      },
+      "notes": ["RPC strips sessionId from AgentEvent::AgentEnd for the wire event."]
+    },
+    {
+      "name": "turn_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "sessionId", "turnIndex", "timestamp"],
+        "optional": []
+      }
+    },
+    {
+      "name": "turn_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "sessionId", "turnIndex", "message", "toolResults"],
+        "optional": []
+      }
+    },
+    {
+      "name": "message_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "message"],
+        "optional": []
+      }
+    },
+    {
+      "name": "message_update",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "message", "assistantMessageEvent"],
+        "optional": []
+      },
+      "notes": ["Assistant text/thinking deltas are represented through assistantMessageEvent rather than separate text_delta or thinking_delta top-level events."]
+    },
+    {
+      "name": "message_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "message"],
+        "optional": []
+      }
+    },
+    {
+      "name": "tool_execution_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "toolCallId", "toolName", "args"],
+        "optional": []
+      }
+    },
+    {
+      "name": "tool_execution_update",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "toolCallId", "toolName", "args", "partialResult"],
+        "optional": []
+      }
+    },
+    {
+      "name": "tool_execution_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "toolCallId", "toolName", "result", "isError"],
+        "optional": []
+      }
+    },
+    {
+      "name": "auto_compaction_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "reason"],
+        "optional": []
+      }
+    },
+    {
+      "name": "auto_compaction_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "aborted", "willRetry"],
+        "optional": ["result", "errorMessage"]
+      }
+    },
+    {
+      "name": "auto_retry_start",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "attempt", "maxAttempts", "delayMs", "errorMessage"],
+        "optional": []
+      }
+    },
+    {
+      "name": "auto_retry_end",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "success", "attempt"],
+        "optional": ["finalError"]
+      }
+    },
+    {
+      "name": "extension_error",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "event", "error"],
+        "optional": ["extensionId"]
+      }
+    },
+    {
+      "name": "extension_ui_request",
+      "classification": "shared",
+      "rust_status": "implemented",
+      "baseline_status": "present",
+      "action": "MATCH",
+      "schema": {
+        "required": ["type", "requestId", "request"],
+        "optional": []
+      },
+      "notes": [
+        "Request kinds covered by the current Rust bridge: confirm, select, input, editor, notify, setStatus, setWidget, setTitle, set_editor_text."
+      ]
+    }
+  ],
+  "extension_ui_contract": {
+    "classification": "shared",
+    "action": "MATCH",
+    "request_kinds": [
+      "confirm",
+      "select",
+      "input",
+      "editor",
+      "notify",
+      "setStatus",
+      "setWidget",
+      "setTitle",
+      "set_editor_text"
+    ],
+    "response_fields": ["value", "confirmed", "cancelled"],
+    "schema_alignment": "The RPC UI bridge carries extension UI payloads as ordinary JSON objects; extension process envelopes remain governed by docs/schema/extension_protocol.json."
+  },
+  "divergences": [],
+  "next_actions": [
+    {
+      "bead": "bd-lnmtp.2.2",
+      "action": "MATCH",
+      "items": [
+        "Use this artifact as the command/event manifest for semantic gap closure."
+      ]
+    },
+    {
+      "bead": "bd-lnmtp.2.3",
+      "action": "MATCH",
+      "items": [
+        "Drive the differential harness from commands, events, request fields, and response envelope requirements in this artifact."
+      ]
+    }
+  ]
+}

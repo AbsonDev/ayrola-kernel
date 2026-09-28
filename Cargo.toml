@@ -1,0 +1,639 @@
+[package]
+name = "pi_agent_rust"
+version = "0.6.1"
+edition = "2024"
+rust-version = "1.95"
+description = "Native AI coding agent CLI - Rust port of Pi Agent"
+authors = ["Jeffrey Emanuel"]
+license-file = "LICENSE"
+repository = "https://github.com/Dicklesworthstone/pi_agent_rust"
+homepage = "https://github.com/Dicklesworthstone/pi_agent_rust"
+documentation = "https://docs.rs/pi_agent_rust"
+readme = "README.md"
+keywords = ["ai", "cli", "coding-agent", "llm", "anthropic"]
+categories = ["command-line-utilities", "development-tools"]
+autobins = false
+# Binary organization per bd-uuwgi.1/bd-uuwgi.2 classification:
+# - SHIPPING: src/main.rs (pi) - main CLI binary
+# - INTERNAL/OPT-IN: src/bin/pi_legacy_capture.rs (pending RULE 1 approval)
+# - DEV-ONLY: moved to examples/ (23 files: ext_*, test_*, debug utilities)
+include = [
+    "/docs/extension-artifact-provenance.json",
+    # Compile-time unit-test evidence referenced by src/tools.rs. Keeping it in
+    # the source package lets `cargo test` compile after crates.io extraction.
+    "/docs/evidence/tool-output-context-cache.jsonl",
+    "/docs/wit/extension.wit",
+    "/docs/provider-upstream-model-ids-snapshot.json",
+    "/docs/schema/extension_protocol.json",
+    "/legacy_pi_mono_code/pi-mono/packages/ai/src/models.generated.ts",
+    # Compile-time unit-test fixture referenced by src/doctor.rs.
+    "/tests/fixtures/agent_mail/schema_corrupt_health.json",
+    "/Cargo.toml",
+    "/LICENSE",
+    "/README.md",
+    # Compressed by build.rs and embedded by src/embedded_assets.rs; without it
+    # the `cargo publish --dry-run` verify step cannot build the packaged tarball.
+    "/CHANGELOG.md",
+    "/build.rs",
+    "/src/**",
+]
+
+[lib]
+name = "pi"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pi"
+path = "src/main.rs"
+# The `pi` binary is the interactive terminal front-end; it requires the full
+# TUI stack (crossterm + charmed_rust). `tui` is in the default feature set, so
+# `cargo build` still produces `pi` with no extra flags. A `--no-default-features`
+# build correctly skips the binary while the library still compiles for SDK
+# consumers that do not want the terminal stack.
+required-features = ["tui"]
+
+# RETIRABLE internal conformance utility (pending RULE 1 approval). Keeping it
+# behind a non-default feature prevents an ordinary `cargo install
+# pi_agent_rust` from installing this unsupported executable. Repository gates
+# that exercise it explicitly enable `internal-legacy-capture`; the matching
+# integration test is gated below so CARGO_BIN_EXE_pi_legacy_capture is defined
+# whenever that test is compiled.
+[[bin]]
+name = "pi_legacy_capture"
+path = "src/bin/pi_legacy_capture.rs"
+required-features = ["internal-legacy-capture"]
+
+# DEV-ONLY MCP fixture server (bd-cv653.6.1): speaks the MCP stdio handshake
+# with canned tools for the mcp e2e lanes. Never shipped to end users.
+[[bin]]
+name = "pi_mcp_fixture"
+path = "src/bin/pi_mcp_fixture.rs"
+required-features = ["internal-mcp-fixture"]
+
+# Examples (moved from src/bin/ to examples/)
+# These binaries are accessible via: cargo run --example <name>
+
+[[example]]
+name = "basic_sdk"
+path = "examples/basic_sdk.rs"
+
+[[example]]
+name = "dialect_bench"
+path = "examples/dialect_bench.rs"
+
+[[example]]
+name = "ext_artifact_manifest"
+path = "examples/ext_artifact_manifest.rs"
+
+[[example]]
+name = "ext_conformance_matrix"
+path = "examples/ext_conformance_matrix.rs"
+
+[[example]]
+name = "ext_conformance_report"
+path = "examples/ext_conformance_report.rs"
+
+[[example]]
+name = "ext_full_validation"
+path = "examples/ext_full_validation.rs"
+
+[[example]]
+name = "ext_inclusion_list"
+path = "examples/ext_inclusion_list.rs"
+
+[[example]]
+name = "ext_license_screen"
+path = "examples/ext_license_screen.rs"
+
+[[example]]
+name = "ext_onboarding_queue"
+path = "examples/ext_onboarding_queue.rs"
+
+[[example]]
+name = "ext_popularity_snapshot"
+path = "examples/ext_popularity_snapshot.rs"
+
+[[example]]
+name = "ext_release_binary_e2e"
+path = "examples/ext_release_binary_e2e.rs"
+
+[[example]]
+name = "ext_runtime_risk_ledger"
+path = "examples/ext_runtime_risk_ledger.rs"
+
+[[example]]
+name = "ext_score_candidates"
+path = "examples/ext_score_candidates.rs"
+
+[[example]]
+name = "ext_stress"
+path = "examples/ext_stress.rs"
+
+[[example]]
+name = "ext_tiered_corpus"
+path = "examples/ext_tiered_corpus.rs"
+
+[[example]]
+name = "ext_unvendored_fetch_run"
+path = "examples/ext_unvendored_fetch_run.rs"
+
+[[example]]
+name = "ext_validate_dedup"
+path = "examples/ext_validate_dedup.rs"
+
+[[example]]
+name = "ext_workloads"
+path = "examples/ext_workloads.rs"
+
+[[example]]
+name = "ftui_preview"
+path = "examples/ftui_preview.rs"
+required-features = ["ftui"]
+
+[[example]]
+name = "pi_debug"
+path = "examples/pi_debug.rs"
+
+# Deliberately also declared as a [[bench]] below. Cargo warns on every
+# invocation that this path "is present in multiple build targets"; the warning
+# is expected and neither half is removable. `scripts/bench_extension_workloads.sh`
+# builds it with `--example pijs_workload` and times the binary at
+# `$profile/examples/pijs_workload` with hyperfine, while `tests/bench_schema.rs`
+# asserts the criterion regression gate invokes `cargo bench --bench
+# pijs_workload --profile perf`. Deleting either declaration to silence the
+# warning breaks one of those.
+[[example]]
+name = "pijs_workload"
+path = "examples/pijs_workload.rs"
+
+[[example]]
+name = "nrun_evidence_evaluator"
+path = "examples/nrun_evidence_evaluator.rs"
+
+[[example]]
+name = "release_evidence_ledger"
+path = "examples/release_evidence_ledger.rs"
+
+[[example]]
+name = "sequential_budget_gate"
+path = "examples/sequential_budget_gate.rs"
+
+[[example]]
+name = "perf_drift_watch"
+path = "examples/perf_drift_watch.rs"
+
+[[example]]
+name = "conformal_budget_calibration"
+path = "examples/conformal_budget_calibration.rs"
+
+[[example]]
+name = "startup_benchmark_runner"
+path = "examples/startup_benchmark_runner.rs"
+
+[[example]]
+name = "variance_gate"
+path = "examples/variance_gate.rs"
+
+[[example]]
+name = "session_workload_bench"
+path = "examples/session_workload_bench.rs"
+
+[[example]]
+name = "test_duration"
+path = "examples/test_duration.rs"
+
+[[example]]
+name = "test_infinite_loop"
+path = "examples/test_infinite_loop.rs"
+
+[[example]]
+name = "test_time"
+path = "examples/test_time.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4.5.60", features = ["derive", "env", "string"] }
+clap_complete = "4.5.66"
+
+# Async runtime
+asupersync = { version = "0.5.0", default-features = false, features = ["tls-webpki-roots", "tls-native-roots", "test-internals"] }
+futures = "0.3"
+async-trait = "0.1"
+
+# URL reads (bd-cv653.2.2): HTML reader-mode conversion + PDF text extraction
+# htmd is lean and always on; pdf-extract adds ~6 MiB so it is opt-in
+# (release binary size budget, 22 MiB). `full` includes it.
+htmd = "0.5.5"
+pdf-extract = { version = "0.12", optional = true }
+
+# URL parsing/building
+url = "2"
+
+# Signals
+ctrlc = "3.5.2"
+
+# PTY allocation for isatty-requiring bash commands (bd-cv653.1.7)
+portable-pty = "0.9"
+
+# Serialization
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
+json5 = "1.3.1"
+
+# Error handling
+anyhow = "1.0.104"
+thiserror = "2"
+
+# Terminal output (rich_rust for beautiful TUI).
+# rich_rust is shared by non-TUI code paths (plain styled stdout/markdown
+# rendering in src/tui.rs and elsewhere), so it stays unconditional.
+rich_rust = { version = "0.2.2", features = ["markdown"] }
+# crossterm is the low-level terminal driver used exclusively by the
+# interactive front-end, so it is gated behind the `tui` feature.
+crossterm = { version = "0.29", optional = true }
+enable-ansi-support = "0.2"
+
+# Interactive TUI (charmed_rust - bubbletea/lipgloss/bubbles/glamour).
+# These are used exclusively by the interactive terminal front-end and are
+# gated behind the `tui` feature so SDK/library consumers can build the lib
+# with `--no-default-features` without pulling in the terminal stack.
+bubbletea = { package = "charmed-bubbletea", version = "0.2.0", optional = true }
+lipgloss = { package = "charmed-lipgloss", version = "0.2.0", optional = true }
+bubbles = { package = "charmed-bubbles", version = "0.2.0", optional = true }
+# 0.2.4 is the first release that re-pads table cells truncated at a
+# wide-char boundary (charmed_rust 4150912, GH #195).
+glamour = { package = "charmed-glamour", version = "0.2.4", optional = true }
+# unicode-width / textwrap are TUI-layout helpers consumed only by the
+# interactive render code, so they are gated with the rest of the TUI stack.
+unicode-width = { version = "0.2", optional = true }
+textwrap = { version = "0.16", optional = true }
+arboard = { version = "3.6.1", optional = true }
+
+# FrankenTUI migration target (bd-cv653.9.1). Coexists with the charmed_rust
+# stack behind the default-OFF `ftui` feature while the interactive runtime is
+# ported module by module; the bubbletea stack is deleted at cutover.
+# crossterm backend for now (pi already ships crossterm via `tui`); the Unix
+# native-backend (ftui-tty) switch is a later rollout step per the bead.
+ftui = { version = "0.7", default-features = false, features = ["runtime", "crossterm"], optional = true }
+# Markdown rendering for the ftui conversation view. Direct dep because the
+# facade's `extras` feature enables no ftui-extras features (markdown stays
+# off); default-features off keeps the heavy extras (charts, doom, ...) out.
+ftui-extras = { version = "0.7", default-features = false, features = ["markdown"], optional = true }
+
+# Filesystem
+dirs = "6"
+tempfile = "3.25.0"
+fs4 = "1.1"
+glob = "0.3"
+ignore = "0.4"
+globset = "0.4"
+grep-regex = "0.1"
+grep-searcher = "0.1"
+# Typed subagent results (bd-cv653.5.1): validate child yields against
+# per-task output schemas.
+jsonschema = { version = "0.42.0", default-features = false }
+rustix = { version = "1.1.4", features = ["fs", "process"] }
+crossbeam-queue = "0.3"
+# default-features off: pi's session storage needs only the core engine.
+# Effective since fsqlite 0.3.5 (frankensqlite#356): `native` no longer
+# force-enables the extension vtabs, and serde_json's `preserve_order` no
+# longer leaks into pi's dependency graph (bd-nhm45). Size note: the vtab
+# decoupling reclaimed ~nothing (lto=true had already dead-stripped them);
+# the 26 MiB budget (src/perf_build.rs BINARY_SIZE_RELEASE_BUDGET_MB) stands
+# with darwin-arm64 release at 24.59 MiB (bd-2ohw2).
+# MOVED 0.3.5 -> 0.3.13 -> 0.3.14 on 2026-09-01: 0.3.12/0.3.13 carry the
+# fsqlite GH#399 cross-process WAL corruption-fix wave (reader-slot
+# registration, checkpoint horizon gating, generation-boundary pool drop)
+# plus the 0.3.6-0.3.11 correctness train; 0.3.14 adds the FTS5 stock-compat
+# writer fix (GH#404 — pi uses the fts5 feature), the GH#402 checkpoint
+# backfill watermark (super-linear autocommit cost with schema size), and
+# PRAGMA wal_checkpoint cumulative-nBackfill stock parity.
+fsqlite = { version = "0.3.14", default-features = false, features = ["native", "fts5"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+uuid = { version = "1.21.0", features = ["v4"] }
+memchr = "2.8.0"
+signal-hook = "0.4.4"
+base64 = "0.23"
+flate2 = "1.1.9"
+toml = "1.0.3"
+sha2 = "0.11"
+sha1 = "0.11"
+md-5 = "0.11"
+hmac = "0.13"
+pbkdf2 = { version = "0.13.0", features = ["hmac"] }
+scrypt = { version = "0.12.0", default-features = false }
+getrandom = "0.4.1"
+regex = "1.12.3"
+ring = "0.17.14"
+semver = "1.0.27"
+crc32c = "0.6"
+ast-grep-core = "0.40"
+ast-grep-language = { version = "0.40", default-features = false, features = [
+    "tree-sitter-bash",
+    "tree-sitter-python",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "tree-sitter-ruby",
+    "tree-sitter-rust",
+    "tree-sitter-go",
+] }
+unicode-normalization = "0.1"
+xxhash-rust = { version = "0.8", features = ["xxh32"] }
+similar = "2"
+sysinfo = "0.39.6"
+# BPE token counting tables (bd-cv653.7.2.1); enabled via the `bpe-tokens`
+# feature.
+tiktoken-rs = { version = "0.12.0", optional = true }
+rquickjs = { version = "0.12.2", features = ["futures", "loader"] }
+# Sampling profiler (bd-cv653.7.12.1); opt-in via the `profiler` feature —
+# internal signal handling is wrapped by the crate, keeping this crate's
+# forbid(unsafe_code) intact.
+pprof = { version = "0.14", optional = true, features = ["flamegraph"] }
+swc_common = "26.0.0"
+swc_ecma_codegen = "32.0.0"
+swc_ecma_ast = "29.0.0"
+swc_ecma_parser = "45.0.0"
+swc_ecma_transforms_base = "49.0.0"
+swc_ecma_transforms_typescript = "55.0.0"
+swc_ecma_visit = "29.0.0"
+wasmtime = { version = "47.0.3", features = ["component-model"], optional = true }
+filetime = "0.2.27"
+
+# Image processing (optional). Formats limited to what the read tool
+# actually decodes (jpg/png/gif/webp — see its schema docs) plus rayon for
+# decode parallelism: the default-formats set would pull avif → ravif →
+# rav1e → paste, adding two RUSTSEC inventory warnings (unmaintained
+# `paste`, bd-kytip) and megabytes of AV1 encoder against the size budget.
+image = { version = "0.25", optional = true, default-features = false, features = [
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "rayon",
+] }
+
+[build-dependencies]
+crc32c = "0.6.8"
+flate2 = "1.1.9"
+vergen-gix = { version = "9.1.0", features = ["build", "cargo", "rustc"] }
+
+[dev-dependencies]
+arbitrary = { version = "1", features = ["derive"] }
+pretty_assertions = "1"
+insta = { version = "1", features = ["filters"] }
+tempfile = "3.25.0"
+asupersync = { version = "0.5.0", default-features = false, features = ["test-internals"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
+jsonschema = { version = "0.42.0", default-features = false }
+proptest = "1.10.0"
+wat = "1.255.0"
+toml = "1.0.3"
+# Pinned to the reviewed upstream root-stack configurability change from
+# tokio-rs/loom#412. Loom 0.7.2 hard-codes the model root coroutine to 4 KiB,
+# which overflows before these hostcall models can begin exploring. The exact
+# revision is immutable and remains test-only until upstream publishes it.
+loom = { version = "0.7.2", git = "https://github.com/ongardie-atomix/loom", rev = "2b7c402034cc041b5e325384c67bb43bff93c048" }
+
+[[bench]]
+name = "tools"
+harness = false
+
+[[bench]]
+name = "extensions"
+harness = false
+
+[[bench]]
+name = "extension_budget_inputs"
+harness = false
+
+[[bench]]
+name = "semantic_context"
+harness = false
+
+# The other half of the deliberate duplication; see the [[example]] entry for
+# this same path above before removing either.
+[[bench]]
+name = "pijs_workload"
+path = "examples/pijs_workload.rs"
+harness = false
+
+[[bench]]
+name = "system"
+harness = false
+
+[[bench]]
+name = "tui_perf"
+harness = false
+
+[[bench]]
+name = "search_backends"
+harness = false
+
+# Gap H: jemalloc for 10-20% allocation-heavy path improvement.
+# Keep the global jemalloc override to targets where tikv-jemallocator is a
+# supported allocator choice. BSD-family targets stay on the platform allocator.
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+tikv-jemallocator = { version = "0.6", optional = true }
+
+# FreeBSD: third-party libs live under /usr/local and rquickjs-sys doesn't
+# ship pre-generated bindings for this target, so regenerate at build time
+# via the `bindgen` feature (uses /usr/bin/clang from the base system).
+[target.'cfg(target_os = "freebsd")'.dependencies]
+rquickjs = { version = "0.12.2", features = ["futures", "loader", "bindgen"] }
+
+# Android (including Termux on-device): rquickjs-sys 0.11 ships pre-generated
+# bindings for aarch64-linux-android only for some Cargo versions and not
+# others; the canonical fix is to regenerate via the `bindgen` feature so we
+# stop depending on a missing bindings/aarch64-linux-android.rs in the
+# upstream crate. Termux ships clang under $PREFIX/bin which bindgen picks
+# up automatically.
+[target.'cfg(target_os = "android")'.dependencies]
+rquickjs = { version = "0.12.2", features = ["futures", "loader", "bindgen"] }
+
+# Windows child-tree kill discipline (bd-9jgrt item 1): Job objects close the
+# snapshot-vs-kill race that the parent-chain walk cannot. win32job keeps our
+# crate unsafe-free while encapsulating the Win32 FFI.
+[target.'cfg(windows)'.dependencies]
+win32job = "2.0.3"
+# `GetFileInformationByHandle` without `unsafe`: std's own accessors for the
+# volume serial number and file index are behind the unstable
+# `windows_by_handle` feature, which this crate cannot use because it also has
+# to build on stable. See `src/file_identity.rs`.
+winapi-util = "0.1.11"
+
+[features]
+default = ["sqlite-sessions", "tui", "bpe-tokens", "ftui"]
+full = [
+    "image-resize",
+    "jemalloc",
+    "clipboard",
+    "wasm-host",
+    "sqlite-sessions",
+    "syntax-highlighting",
+    "tui",
+    "url-pdf",
+    "bpe-tokens",
+    "rich_rust/full",
+]
+# BPE token counting (bd-cv653.7.2.1): real O200k/Cl100k tables replace the
+# chars/4 heuristic; default-on, disable for size-critical minimal builds.
+bpe-tokens = ["dep:tiktoken-rs"]
+# PDF extraction for URL reads (bd-cv653.2.2) — opt-in to keep the default
+# release binary inside the 22 MiB size budget.
+url-pdf = ["dep:pdf-extract"]
+# Sampling profiler (bd-cv653.7.12.1) — opt-in; adds pprof + inferno deps.
+profiler = ["dep:pprof"]
+
+# Interactive terminal front-end (crossterm + charmed_rust stack). Enabled by
+# default so CLI users get an identical `pi` binary with no action required.
+# Disabling it (`--no-default-features`) lets SDK/library consumers compile the
+# `pi` library without the terminal UI dependencies.
+tui = [
+    "dep:crossterm",
+    "dep:bubbletea",
+    "dep:lipgloss",
+    "dep:bubbles",
+    "dep:glamour",
+    "dep:unicode-width",
+    "dep:textwrap",
+]
+# FrankenTUI migration stack (bd-cv653.9.1): default-OFF while the interactive
+# runtime is ported. Requires `tui` because the bridge reuses PiMsg and the
+# existing agent-event plumbing during coexistence.
+ftui = ["dep:ftui", "dep:ftui-extras", "tui"]
+image-resize = ["image"]
+clipboard = ["dep:arboard"]
+wasm-host = ["dep:wasmtime"]
+sqlite-sessions = []
+syntax-highlighting = ["rich_rust/syntax"]
+ext-conformance = []
+fuzzing = []
+# Internal-only legacy capture utility. This is deliberately non-default so
+# end-user `cargo install` installs only the supported `pi` executable. The
+# single integration test that executes it is gated at the test-function level
+# so the rest of that target remains in ordinary test runs.
+internal-legacy-capture = []
+# Enables deterministic persistence checkpoints used only by causal fault-injection
+# integration tests. Normal builds ignore the corresponding environment variable.
+internal-persistence-fault-injection = []
+# Internal-only MCP fixture server (bd-cv653.6.1): a tiny stdio JSON-RPC
+# binary used by the MCP client e2e lanes. Non-default so end-user installs
+# only get `pi`.
+internal-mcp-fixture = []
+# Opt-in loom model-checking lane. These tests are excluded from default
+# all-target gates because loom explores scheduler interleavings aggressively.
+loom-tests = []
+# Opt-in wall-clock/process timing regressions. These are intentionally
+# excluded from default test gates because scheduler-sensitive coverage should
+# use deterministic clocks.
+manual-timing-tests = []
+jemalloc = ["dep:tikv-jemallocator"]
+
+[[test]]
+name = "hostcall_queue_loom"
+path = "tests/hostcall_queue_loom.rs"
+required-features = ["loom-tests"]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.test]
+# Full-suite RCH workers have limited artifact storage; keep test binaries
+# debuggable enough for line traces without emitting full debug sections.
+debug = "line-tables-only"
+incremental = false
+
+# Performance benchmarking profile: optimized with bounded remote-build latency.
+[profile.perf]
+inherits = "release"
+opt-level = 3
+lto = "thin"
+codegen-units = 8
+debug = 1
+strip = false
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Allow some common patterns
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+
+# Both of the following arrived with the nightly-2026-08-31 pin (e403485b3),
+# which was a fleet-wide housekeeping change that touched no source and, as
+# rust-toolchain.toml's own comment warns can happen, strengthened the
+# pedantic/nursery groups underneath us. Between them they were 294 of the 296
+# errors blocking `cargo clippy -- -D warnings`, i.e. the entire quality gate.
+# Decided deliberately rather than reverted (bd-39x9z).
+#
+# One deviation from bd-39x9z's acceptance, recorded rather than glossed: that
+# bead asked for per-module suppression rather than crate-wide if this route was
+# taken. The owner chose the allow directly, and per-module would mean an inner
+# attribute in each of the ~78 affected files, which scatters the reasoning
+# across the tree instead of stating it once where the lint policy lives. One
+# documented place is easier to revisit than 78 undocumented ones.
+
+# 288 hits, essentially all in test assertions. The lint wants
+#   assert_eq!(plan_tool_effect_batches(&effect_plan(&cases)), [] as [agent::ToolEffectBatch; 0])
+# in place of
+#   assert!(plan_tool_effect_batches(&effect_plan(&cases)).is_empty())
+# which needs the element type spelled out at every site, is longer, and reads
+# worse. Its real argument — that assert_eq! shows the value on failure — is
+# fair, but not worth 288 rewrites of that shape. Prefer assert_eq! in NEW
+# assertions where the value is cheap to render.
+assert_is_empty = "allow"
+
+# 6 hits. The lint wants f64::mul_add, which is a FUSED multiply-add with no
+# intermediate rounding, so applying it changes results bit-for-bit. The sites
+# are bandit loss/regret accumulation (src/extensions.rs) and risk calibration
+# (src/resource_governor.rs, src/provider.rs), with tests pinning values
+# downstream. Changing risk arithmetic to satisfy a micro-optimisation lint is
+# the wrong trade; a sibling project on the same build fleet allows it too.
+suboptimal_flops = "allow"
+
+# ---------------------------------------------------------------------------
+# Local development with sibling crates
+# ---------------------------------------------------------------------------
+# This project depends on published crates.io versions of asupersync,
+# rich_rust, charmed-*, and fsqlite. CI builds verify this (no sibling
+# repos are checked out).
+#
+# To develop against LOCAL checkouts of these crates, uncomment the
+# [patch.crates-io] section below. Cargo will use the local paths when they
+# satisfy the version requirement and fall back to crates.io otherwise.
+#
+# IMPORTANT: Do NOT commit this section. To prevent accidental commits:
+#   git update-index --skip-worktree Cargo.toml
+# To re-enable tracking:
+#   git update-index --no-skip-worktree Cargo.toml
+#
+# [patch.crates-io]
+# asupersync = { path = "../asupersync" }
+# rich_rust = { path = "../rich_rust" }
+# charmed-bubbletea = { path = "../charmed_rust/crates/bubbletea" }
+# charmed-bubbletea-macros = { path = "../charmed_rust/crates/bubbletea-macros" }
+# charmed-lipgloss = { path = "../charmed_rust/crates/lipgloss" }
+# charmed-bubbles = { path = "../charmed_rust/crates/bubbles" }
+# charmed-glamour = { path = "../charmed_rust/crates/glamour" }
+# charmed-harmonica = { path = "../charmed_rust/crates/harmonica" }
+# fsqlite = { path = "../frankensqlite/crates/fsqlite" }

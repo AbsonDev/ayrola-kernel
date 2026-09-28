@@ -1,0 +1,943 @@
+{
+  "checklist": [
+    {
+      "evidence": [
+        {
+          "child_statuses": {
+            "bd-63x3v.11.1": "closed",
+            "bd-63x3v.11.2": "closed",
+            "bd-63x3v.11.3": "closed",
+            "bd-63x3v.11.4": "closed",
+            "bd-63x3v.11.5": "closed",
+            "bd-63x3v.11.6": "closed"
+          },
+          "close_reasons": {
+            "bd-63x3v.11.1": "Completed predictive swarm telemetry fusion ledger",
+            "bd-63x3v.11.2": "Completed RCH-aware validation scheduler simulator",
+            "bd-63x3v.11.3": "Completed semantic compaction quality differential harness",
+            "bd-63x3v.11.4": "Completed extension hostcall cost-attribution ledger",
+            "bd-63x3v.11.5": "Completed operator-perceived latency trace",
+            "bd-63x3v.11.6": "Completed read-only redundant-agent-work detector"
+          },
+          "path": ".beads/issues.jsonl"
+        }
+      ],
+      "id": "child_beads_closed",
+      "issue": null,
+      "requirement": "All predictive-operations child Beads are closed before closeout.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "artifact_paths_exist": true,
+          "child_artifact_map": [
+            {
+              "bead_id": "bd-63x3v.11.1",
+              "claim_boundary_text": "Predictive telemetry ledger is advisory evidence over captured sources only; it does not sample live runtime state or make capacity/release claims.",
+              "close_reason": "Completed predictive swarm telemetry fusion ledger",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "19021b2c82f9b7fc89778ba9f581576d0bb92092",
+              "docs_or_evidence_paths": [
+                "docs/contracts/predictive-swarm-telemetry-ledger-contract.json",
+                "docs/evidence/predictive-swarm-telemetry-ledger.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "missing_observation_predictive",
+                  "bad_guard_predictive",
+                  "mixed_conflict_predictive"
+                ],
+                "id": "missing_observation_or_disabled_guard_fails_closed"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py",
+                "tests/golden_corpus/swarm_operator_runpack/complete_runpack_projection.json"
+              ],
+              "title": "Add predictive swarm telemetry fusion ledger",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/predictive-swarm-telemetry-ledger-contract.json",
+                "python3 -m json.tool docs/evidence/predictive-swarm-telemetry-ledger.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.11.2",
+              "claim_boundary_text": "Validation scheduler plan is read-only planning evidence; it ranks commands and rejects local fallback without executing cargo or reserving RCH workers.",
+              "close_reason": "Completed RCH-aware validation scheduler simulator",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "9bc9420c67e8569627566a5e5f4f0aaa4960f8d0",
+              "docs_or_evidence_paths": [
+                "docs/contracts/validation-scheduler-plan-contract.json",
+                "docs/evidence/validation-scheduler-plan.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "missing_group_scheduler",
+                  "bad_local_fallback_scheduler",
+                  "critical_rch_pressure"
+                ],
+                "id": "local_fallback_or_missing_group_fails_closed"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py",
+                "tests/golden_corpus/swarm_operator_runpack/complete_runpack_projection.json"
+              ],
+              "title": "Add RCH-aware validation scheduler simulator",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/validation-scheduler-plan-contract.json",
+                "python3 -m json.tool docs/evidence/validation-scheduler-plan.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.11.3",
+              "claim_boundary_text": "Semantic compaction quality compares deterministic marker preservation and fails closed without live model judging or full prompt/body leakage.",
+              "close_reason": "Completed semantic compaction quality differential harness",
+              "code_paths": [
+                "src/compaction.rs"
+              ],
+              "commit": "57455f9f712688553fe4fa30b3acecd307999de1",
+              "docs_or_evidence_paths": [
+                "docs/contracts/semantic-compaction-quality-contract.json",
+                "docs/evidence/semantic-compaction-quality.json"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "semantic_compaction_quality_missing_file_reference_fails_closed",
+                  "semantic_compaction_quality_wrong_branch_marker_fails_closed",
+                  "semantic_compaction_quality_false_positive_controls_do_not_satisfy_missing_marker"
+                ],
+                "id": "critical_marker_loss_or_wrong_branch_fails_closed"
+              },
+              "status": "closed",
+              "test_paths": [
+                "src/compaction.rs",
+                "tests/compaction.rs"
+              ],
+              "title": "Add semantic compaction quality differential harness",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/tmp cargo test semantic_compaction_quality -- --nocapture",
+                "cargo fmt --check",
+                "rch exec -- env ... cargo check --all-targets",
+                "rch exec -- env ... cargo clippy --all-targets -- -D warnings",
+                "timeout 60s ubs --staged --only=rust .",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.11.4",
+              "claim_boundary_text": "Hostcall cost attribution is deterministic stress-test evidence with payload bodies redacted; it does not relax extension capability policy or scheduler decisions.",
+              "close_reason": "Completed extension hostcall cost-attribution ledger",
+              "code_paths": [
+                "tests/extensions_stress.rs"
+              ],
+              "commit": "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+              "docs_or_evidence_paths": [
+                "tests/extensions_stress.rs"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "hostcall_cost_attribution_ledger_rejects_missing_cost_counters",
+                  "payload_body_redacted",
+                  "missing cost counters"
+                ],
+                "id": "missing_queue_occupancy_counter_fails_contract"
+              },
+              "status": "closed",
+              "test_paths": [
+                "tests/extensions_stress.rs"
+              ],
+              "title": "Add extension hostcall cost-attribution ledger",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_bd_63x3v_11_4/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_bd_63x3v_11_4/tmp cargo test --test extensions_stress hostcall_cost_attribution -- --nocapture",
+                "cargo fmt --check",
+                "rch exec -- env ... cargo check --all-targets",
+                "rch exec -- env ... cargo clippy --all-targets -- -D warnings",
+                "git diff --check",
+                "timeout 60s ubs --staged --only=rust .",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.11.5",
+              "claim_boundary_text": "Operator-perceived latency trace is fixture-backed advisory semantic visibility evidence and not benchmark, capacity, or release performance evidence.",
+              "close_reason": "Completed operator-perceived latency trace",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "18ac30178bfa7859bcc9c73530959b758c380758",
+              "docs_or_evidence_paths": [
+                "docs/contracts/operator-perceived-latency-trace-contract.json",
+                "docs/evidence/operator-perceived-latency-trace.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "semantic_visibility_delayed_beyond_budget",
+                  "surface_pass_without_visibility",
+                  "non_monotonic_timeline"
+                ],
+                "id": "delayed_semantic_visibility_or_non_monotonic_timeline_fails"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add operator-perceived latency trace across provider RPC TUI",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 scripts/build_swarm_operator_runpack.py --run-operator-perceived-latency-trace --out-operator-perceived-latency-trace-json docs/evidence/operator-perceived-latency-trace.json",
+                "python3 -m json.tool docs/contracts/operator-perceived-latency-trace-contract.json",
+                "python3 -m json.tool docs/evidence/operator-perceived-latency-trace.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.11.6",
+              "claim_boundary_text": "Redundant-agent-work detector is read-only advisory coordination evidence; it must not mutate Beads, Agent Mail, git, or recommend reverting another agent's work.",
+              "close_reason": "Completed read-only redundant-agent-work detector",
+              "code_paths": [
+                "scripts/report_swarm_claim_readiness.py"
+              ],
+              "commit": "2185da6c1fa3537b7205cb3cfb086a819098e698",
+              "docs_or_evidence_paths": [
+                "scripts/report_swarm_claim_readiness.py"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "mail_unavailable",
+                  "already_closed_duplicate_request",
+                  "do_not_revert_or_delete"
+                ],
+                "id": "mail_unavailable_and_already_closed_duplicate_classified_without_mutation"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/report_swarm_claim_readiness.py"
+              ],
+              "title": "Add redundant-agent-work detector for swarm coordination",
+              "validation_commands": [
+                "python3 -m py_compile scripts/report_swarm_claim_readiness.py",
+                "python3 scripts/report_swarm_claim_readiness.py --self-test",
+                "python3 scripts/report_swarm_claim_readiness.py --json redundant-agent-work projection | jq .",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            }
+          ],
+          "commits_present": true,
+          "weak_child_rows": []
+        }
+      ],
+      "id": "child_artifact_mapping",
+      "issue": null,
+      "requirement": "Every child bead maps to pushed commits, source paths, tests or fixtures, evidence artifacts, validation commands, close reason, and claim-boundary text.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "final_gate_assignee": "Codex",
+          "final_gate_status": "closed",
+          "remaining_follow_ups": []
+        }
+      ],
+      "id": "remaining_follow_ups_tracked",
+      "issue": null,
+      "requirement": "No predictive-operations child follow-up remains unclosed or untracked before closeout.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/predictive-swarm-telemetry-ledger-contract.json"
+        },
+        {
+          "path": "docs/evidence/predictive-swarm-telemetry-ledger.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "predictive_telemetry_ledger",
+      "issue": null,
+      "requirement": "Predictive telemetry ledger contract and evidence cover healthy, RCH-saturated, Agent-Mail-degraded, stale, and mixed-conflict inputs without live sampling.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/validation-scheduler-plan-contract.json"
+        },
+        {
+          "path": "docs/evidence/validation-scheduler-plan.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "validation_scheduler_plan",
+      "issue": null,
+      "requirement": "Validation scheduler plan ranks validation commands, preserves exact RCH env, and fail-closes local fallback when RCH is unavailable.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/compaction.rs"
+        },
+        {
+          "path": "tests/compaction.rs"
+        },
+        {
+          "path": "docs/evidence/semantic-compaction-quality.json"
+        }
+      ],
+      "id": "semantic_compaction_quality",
+      "issue": null,
+      "requirement": "Semantic compaction quality evidence preserves structured markers and fail-closes missing file refs, wrong branch markers, stale Beads handoffs, large tool output loss, and false positives.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "tests/extensions_stress.rs"
+        }
+      ],
+      "id": "hostcall_cost_attribution_ledger",
+      "issue": null,
+      "requirement": "Hostcall cost attribution ledger records cheap-read flooding, large payloads, denied capability churn, steady peer progress, fallback/rollback visibility, and payload redaction.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/operator-perceived-latency-trace-contract.json"
+        },
+        {
+          "path": "docs/evidence/operator-perceived-latency-trace.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "operator_perceived_latency_trace",
+      "issue": null,
+      "requirement": "Operator-perceived latency trace joins provider, RPC, TUI, tool update, and operator-visible semantic milestones with negative controls.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "scripts/report_swarm_claim_readiness.py"
+        }
+      ],
+      "id": "redundant_agent_work_detector",
+      "issue": null,
+      "requirement": "Redundant-agent-work detector classifies clean single-owner, overlapping, stale, Mail-unavailable, and already-closed duplicate work without mutating coordination state.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "boundary": "Beads issue state, dependency edges, comments, and close reasons remain the work ledger.",
+          "evidence": [
+            ".beads/issues.jsonl"
+          ],
+          "id": "beads_are_source_of_truth",
+          "status": "pass"
+        },
+        {
+          "boundary": "Agent Mail is coordination and reservation evidence only; with the mailbox schema corrupt, Beads assignee/status is the explicit soft lock.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "agent_mail_is_coordination_only",
+          "status": "pass"
+        },
+        {
+          "boundary": "The predictive-operations closeout gate summarizes existing evidence and does not mutate runtime, scheduler, Agent Mail, RCH, git refs, or temp state.",
+          "evidence": [
+            "scripts/build_swarm_operator_runpack.py"
+          ],
+          "id": "read_only_gate",
+          "status": "pass"
+        },
+        {
+          "boundary": "Any heavy Cargo validation referenced by child work remains RCH-backed.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "rch_required_for_heavy_cargo",
+          "status": "pass"
+        },
+        {
+          "boundary": "Staged UBS remains mandatory before committing closeout changes.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "staged_ubs_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "Beads ledger reconciliation remains mandatory before closeout commit.",
+          "evidence": [
+            "scripts/reconcile_beads_ledger.sh"
+          ],
+          "id": "beads_ledger_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate does not authorize deleting files, directories, temp artifacts, or generated evidence.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "no_file_deletion_authority",
+          "status": "pass"
+        },
+        {
+          "boundary": "Predictive operations closeout evidence is advisory operator evidence only; it does not authorize release, benchmark, capacity, performance, or strict drop-in claims.",
+          "evidence": [
+            "docs/contracts/dropin-certification-contract.json",
+            "docs/evidence/dropin-certification-verdict.json",
+            "README.md"
+          ],
+          "id": "no_release_performance_capacity_or_dropin_claims",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate must not perform live Agent Mail writes, reserve RCH workers, execute providers, mutate runtime state, or alter scheduler decisions.",
+          "evidence": [
+            "scripts/build_swarm_operator_runpack.py",
+            "scripts/report_swarm_claim_readiness.py"
+          ],
+          "id": "no_mail_rch_or_runtime_mutation",
+          "status": "pass"
+        },
+        {
+          "boundary": "This closeout references prior-wave authority boundaries but must not rewrite sixth- or seventh-wave artifacts.",
+          "evidence": [
+            "docs/evidence/sixth-wave-validation-hardening-closeout-gate.json",
+            "docs/evidence/seventh-wave-runtime-autonomy-closeout-gate.json"
+          ],
+          "id": "no_sixth_or_seventh_wave_rewrite",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate summarizes child evidence and does not replace child tests, contracts, checked-in artifacts, Beads, pushed commits, RCH, UBS, CI, or review.",
+          "evidence": [
+            "docs/evidence/predictive-operations-closeout-gate.json"
+          ],
+          "id": "closeout_does_not_replace_child_artifacts",
+          "status": "pass"
+        }
+      ],
+      "id": "source_boundaries",
+      "issue": null,
+      "requirement": "Closeout source boundaries preserve Beads, Agent Mail, RCH, staged UBS, ledger reconciliation, no-delete policy, prior waves, and release/drop-in authorities.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "child_commits": [
+            "19021b2c82f9b7fc89778ba9f581576d0bb92092",
+            "9bc9420c67e8569627566a5e5f4f0aaa4960f8d0",
+            "57455f9f712688553fe4fa30b3acecd307999de1",
+            "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+            "18ac30178bfa7859bcc9c73530959b758c380758",
+            "2185da6c1fa3537b7205cb3cfb086a819098e698"
+          ],
+          "head_before_closeout_commit": "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+          "origin_legacy_mirror_before_closeout_commit": "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+          "origin_main_before_closeout_commit": "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+          "pushed_remote_refs_equal_head": true
+        }
+      ],
+      "id": "pushed_commits",
+      "issue": null,
+      "requirement": "All child implementation commits are pushed to origin/main and mirrored to legacy origin/master before closeout generation.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "cargo_gate_ids": [],
+          "heavy_cargo_required_for_closeout_script": false,
+          "heavy_cargo_uses_rch": true,
+          "provided_quality_gates": [
+            {
+              "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+              "id": "py_compile",
+              "status": "pass"
+            },
+            {
+              "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+              "id": "runpack_self_test",
+              "status": "pass"
+            },
+            {
+              "command": "python3 -m json.tool docs/contracts/predictive-operations-closeout-gate-contract.json >/dev/null && python3 -m json.tool docs/evidence/predictive-operations-closeout-gate.json >/dev/null",
+              "id": "json_contracts",
+              "status": "pass"
+            },
+            {
+              "command": "git diff --check",
+              "id": "git_diff_check",
+              "status": "pass"
+            },
+            {
+              "command": "timeout 60s ubs --staged --only=rust .",
+              "id": "staged_ubs",
+              "status": "pass"
+            },
+            {
+              "command": "./scripts/reconcile_beads_ledger.sh",
+              "id": "beads_ledger_reconcile",
+              "status": "pass"
+            }
+          ],
+          "required_quality_gates": [
+            "py_compile",
+            "runpack_self_test",
+            "json_contracts",
+            "git_diff_check",
+            "staged_ubs",
+            "beads_ledger_reconcile"
+          ]
+        }
+      ],
+      "id": "quality_gates",
+      "issue": null,
+      "requirement": "Required closeout quality gates passed for Python compilation, runpack self-test, JSON validation, git diff cleanliness, staged UBS, and Beads ledger reconciliation.",
+      "status": "pass"
+    }
+  ],
+  "child_artifact_map": [
+    {
+      "bead_id": "bd-63x3v.11.1",
+      "claim_boundary_text": "Predictive telemetry ledger is advisory evidence over captured sources only; it does not sample live runtime state or make capacity/release claims.",
+      "close_reason": "Completed predictive swarm telemetry fusion ledger",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "19021b2c82f9b7fc89778ba9f581576d0bb92092",
+      "docs_or_evidence_paths": [
+        "docs/contracts/predictive-swarm-telemetry-ledger-contract.json",
+        "docs/evidence/predictive-swarm-telemetry-ledger.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "missing_observation_predictive",
+          "bad_guard_predictive",
+          "mixed_conflict_predictive"
+        ],
+        "id": "missing_observation_or_disabled_guard_fails_closed"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py",
+        "tests/golden_corpus/swarm_operator_runpack/complete_runpack_projection.json"
+      ],
+      "title": "Add predictive swarm telemetry fusion ledger",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/predictive-swarm-telemetry-ledger-contract.json",
+        "python3 -m json.tool docs/evidence/predictive-swarm-telemetry-ledger.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.11.2",
+      "claim_boundary_text": "Validation scheduler plan is read-only planning evidence; it ranks commands and rejects local fallback without executing cargo or reserving RCH workers.",
+      "close_reason": "Completed RCH-aware validation scheduler simulator",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "9bc9420c67e8569627566a5e5f4f0aaa4960f8d0",
+      "docs_or_evidence_paths": [
+        "docs/contracts/validation-scheduler-plan-contract.json",
+        "docs/evidence/validation-scheduler-plan.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "missing_group_scheduler",
+          "bad_local_fallback_scheduler",
+          "critical_rch_pressure"
+        ],
+        "id": "local_fallback_or_missing_group_fails_closed"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py",
+        "tests/golden_corpus/swarm_operator_runpack/complete_runpack_projection.json"
+      ],
+      "title": "Add RCH-aware validation scheduler simulator",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/validation-scheduler-plan-contract.json",
+        "python3 -m json.tool docs/evidence/validation-scheduler-plan.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.11.3",
+      "claim_boundary_text": "Semantic compaction quality compares deterministic marker preservation and fails closed without live model judging or full prompt/body leakage.",
+      "close_reason": "Completed semantic compaction quality differential harness",
+      "code_paths": [
+        "src/compaction.rs"
+      ],
+      "commit": "57455f9f712688553fe4fa30b3acecd307999de1",
+      "docs_or_evidence_paths": [
+        "docs/contracts/semantic-compaction-quality-contract.json",
+        "docs/evidence/semantic-compaction-quality.json"
+      ],
+      "negative_control": {
+        "evidence": [
+          "semantic_compaction_quality_missing_file_reference_fails_closed",
+          "semantic_compaction_quality_wrong_branch_marker_fails_closed",
+          "semantic_compaction_quality_false_positive_controls_do_not_satisfy_missing_marker"
+        ],
+        "id": "critical_marker_loss_or_wrong_branch_fails_closed"
+      },
+      "status": "closed",
+      "test_paths": [
+        "src/compaction.rs",
+        "tests/compaction.rs"
+      ],
+      "title": "Add semantic compaction quality differential harness",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/tmp cargo test semantic_compaction_quality -- --nocapture",
+        "cargo fmt --check",
+        "rch exec -- env ... cargo check --all-targets",
+        "rch exec -- env ... cargo clippy --all-targets -- -D warnings",
+        "timeout 60s ubs --staged --only=rust .",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.11.4",
+      "claim_boundary_text": "Hostcall cost attribution is deterministic stress-test evidence with payload bodies redacted; it does not relax extension capability policy or scheduler decisions.",
+      "close_reason": "Completed extension hostcall cost-attribution ledger",
+      "code_paths": [
+        "tests/extensions_stress.rs"
+      ],
+      "commit": "c802fb2adfb73904559b7c1dd0af257aa5e601c3",
+      "docs_or_evidence_paths": [
+        "tests/extensions_stress.rs"
+      ],
+      "negative_control": {
+        "evidence": [
+          "hostcall_cost_attribution_ledger_rejects_missing_cost_counters",
+          "payload_body_redacted",
+          "missing cost counters"
+        ],
+        "id": "missing_queue_occupancy_counter_fails_contract"
+      },
+      "status": "closed",
+      "test_paths": [
+        "tests/extensions_stress.rs"
+      ],
+      "title": "Add extension hostcall cost-attribution ledger",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_bd_63x3v_11_4/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_bd_63x3v_11_4/tmp cargo test --test extensions_stress hostcall_cost_attribution -- --nocapture",
+        "cargo fmt --check",
+        "rch exec -- env ... cargo check --all-targets",
+        "rch exec -- env ... cargo clippy --all-targets -- -D warnings",
+        "git diff --check",
+        "timeout 60s ubs --staged --only=rust .",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.11.5",
+      "claim_boundary_text": "Operator-perceived latency trace is fixture-backed advisory semantic visibility evidence and not benchmark, capacity, or release performance evidence.",
+      "close_reason": "Completed operator-perceived latency trace",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "18ac30178bfa7859bcc9c73530959b758c380758",
+      "docs_or_evidence_paths": [
+        "docs/contracts/operator-perceived-latency-trace-contract.json",
+        "docs/evidence/operator-perceived-latency-trace.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "semantic_visibility_delayed_beyond_budget",
+          "surface_pass_without_visibility",
+          "non_monotonic_timeline"
+        ],
+        "id": "delayed_semantic_visibility_or_non_monotonic_timeline_fails"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add operator-perceived latency trace across provider RPC TUI",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 scripts/build_swarm_operator_runpack.py --run-operator-perceived-latency-trace --out-operator-perceived-latency-trace-json docs/evidence/operator-perceived-latency-trace.json",
+        "python3 -m json.tool docs/contracts/operator-perceived-latency-trace-contract.json",
+        "python3 -m json.tool docs/evidence/operator-perceived-latency-trace.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.11.6",
+      "claim_boundary_text": "Redundant-agent-work detector is read-only advisory coordination evidence; it must not mutate Beads, Agent Mail, git, or recommend reverting another agent's work.",
+      "close_reason": "Completed read-only redundant-agent-work detector",
+      "code_paths": [
+        "scripts/report_swarm_claim_readiness.py"
+      ],
+      "commit": "2185da6c1fa3537b7205cb3cfb086a819098e698",
+      "docs_or_evidence_paths": [
+        "scripts/report_swarm_claim_readiness.py"
+      ],
+      "negative_control": {
+        "evidence": [
+          "mail_unavailable",
+          "already_closed_duplicate_request",
+          "do_not_revert_or_delete"
+        ],
+        "id": "mail_unavailable_and_already_closed_duplicate_classified_without_mutation"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/report_swarm_claim_readiness.py"
+      ],
+      "title": "Add redundant-agent-work detector for swarm coordination",
+      "validation_commands": [
+        "python3 -m py_compile scripts/report_swarm_claim_readiness.py",
+        "python3 scripts/report_swarm_claim_readiness.py --self-test",
+        "python3 scripts/report_swarm_claim_readiness.py --json redundant-agent-work projection | jq .",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    }
+  ],
+  "claim_boundaries": {
+    "allowed_claim": "advisory eighth-wave predictive operations closeout evidence only",
+    "benchmark_claim_authorized": false,
+    "closeout_authorizes_file_deletion": false,
+    "closeout_mutates_agent_mail_rch_or_runtime": false,
+    "closeout_mutates_sources": false,
+    "closeout_replaces_child_artifacts": false,
+    "closeout_replaces_source_artifacts": false,
+    "closeout_rewrites_sixth_or_seventh_wave_artifacts": false,
+    "closeout_runs_live_provider_or_network_calls": false,
+    "file_deletion_authorized": false,
+    "live_agent_mail_or_rch_mutation_authorized": false,
+    "parent_can_close_before_closeout_commit_is_pushed": false,
+    "performance_or_capacity_claim_authorized": false,
+    "production_network_or_model_calls_authorized": false,
+    "strict_dropin_or_release_claim_authorized": false
+  },
+  "decision": "close_final_gate_and_parent_epic",
+  "epic_can_close_after_this_commit": true,
+  "final_gate_bead": {
+    "assignee": "Codex",
+    "id": "bd-63x3v.11.7",
+    "status": "closed"
+  },
+  "follow_up_beads": [],
+  "follow_up_required": false,
+  "generated_at": "2026-05-18T05:13:49.970220+00:00",
+  "known_limitations": [
+    "Predictive operations closeout evidence is advisory operator evidence only.",
+    "Child tests, checked-in evidence, Beads, pushed commits, RCH, Agent Mail health, staged UBS, and CI remain their own sources of truth.",
+    "Agent Mail was schema-corrupt during closeout; Beads assignment/comments were used as the soft lock and this artifact does not prove reservations were absent.",
+    "This is not release performance evidence, not capacity evidence, not benchmark evidence, and not strict drop-in certification evidence.",
+    "This is not permission to skip RCH, staged UBS, Beads ledger reconciliation, pushed refs, child source artifact inspection, or CI.",
+    "This closeout does not authorize file deletion, production network access, live model calls, live Agent Mail mutation, live RCH worker mutation, runtime mutation, or scheduler mutation."
+  ],
+  "missing_checks": [],
+  "operator_summary": {
+    "claim_boundary": "advisory eighth-wave predictive operations closeout evidence only",
+    "covered_child_beads": [
+      "bd-63x3v.11.1",
+      "bd-63x3v.11.2",
+      "bd-63x3v.11.3",
+      "bd-63x3v.11.4",
+      "bd-63x3v.11.5",
+      "bd-63x3v.11.6"
+    ],
+    "next_action": "close_final_gate_and_parent_epic",
+    "ready_to_close_parent_after_commit": true,
+    "verdict": "pass"
+  },
+  "parent_epic": {
+    "id": "bd-63x3v.11",
+    "status": "closed",
+    "title": "Eighth-wave predictive swarm operations roadmap"
+  },
+  "purpose": "prompt_to_artifact_predictive_operations_closeout_gate_not_source_of_truth",
+  "quality_gate_results": [
+    {
+      "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+      "id": "py_compile",
+      "status": "pass"
+    },
+    {
+      "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+      "id": "runpack_self_test",
+      "status": "pass"
+    },
+    {
+      "command": "python3 -m json.tool docs/contracts/predictive-operations-closeout-gate-contract.json >/dev/null && python3 -m json.tool docs/evidence/predictive-operations-closeout-gate.json >/dev/null",
+      "id": "json_contracts",
+      "status": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "id": "git_diff_check",
+      "status": "pass"
+    },
+    {
+      "command": "timeout 60s ubs --staged --only=rust .",
+      "id": "staged_ubs",
+      "status": "pass"
+    },
+    {
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "id": "beads_ledger_reconcile",
+      "status": "pass"
+    }
+  ],
+  "remaining_follow_ups": [],
+  "required_checks": [
+    "child_beads_closed",
+    "child_artifact_mapping",
+    "remaining_follow_ups_tracked",
+    "predictive_telemetry_ledger",
+    "validation_scheduler_plan",
+    "semantic_compaction_quality",
+    "hostcall_cost_attribution_ledger",
+    "operator_perceived_latency_trace",
+    "redundant_agent_work_detector",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "schema": "pi.swarm.predictive_operations.closeout_gate.v1",
+  "source_boundary_checks": [
+    {
+      "boundary": "Beads issue state, dependency edges, comments, and close reasons remain the work ledger.",
+      "evidence": [
+        ".beads/issues.jsonl"
+      ],
+      "id": "beads_are_source_of_truth",
+      "status": "pass"
+    },
+    {
+      "boundary": "Agent Mail is coordination and reservation evidence only; with the mailbox schema corrupt, Beads assignee/status is the explicit soft lock.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "agent_mail_is_coordination_only",
+      "status": "pass"
+    },
+    {
+      "boundary": "The predictive-operations closeout gate summarizes existing evidence and does not mutate runtime, scheduler, Agent Mail, RCH, git refs, or temp state.",
+      "evidence": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "id": "read_only_gate",
+      "status": "pass"
+    },
+    {
+      "boundary": "Any heavy Cargo validation referenced by child work remains RCH-backed.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "rch_required_for_heavy_cargo",
+      "status": "pass"
+    },
+    {
+      "boundary": "Staged UBS remains mandatory before committing closeout changes.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "staged_ubs_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "Beads ledger reconciliation remains mandatory before closeout commit.",
+      "evidence": [
+        "scripts/reconcile_beads_ledger.sh"
+      ],
+      "id": "beads_ledger_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate does not authorize deleting files, directories, temp artifacts, or generated evidence.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "no_file_deletion_authority",
+      "status": "pass"
+    },
+    {
+      "boundary": "Predictive operations closeout evidence is advisory operator evidence only; it does not authorize release, benchmark, capacity, performance, or strict drop-in claims.",
+      "evidence": [
+        "docs/contracts/dropin-certification-contract.json",
+        "docs/evidence/dropin-certification-verdict.json",
+        "README.md"
+      ],
+      "id": "no_release_performance_capacity_or_dropin_claims",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate must not perform live Agent Mail writes, reserve RCH workers, execute providers, mutate runtime state, or alter scheduler decisions.",
+      "evidence": [
+        "scripts/build_swarm_operator_runpack.py",
+        "scripts/report_swarm_claim_readiness.py"
+      ],
+      "id": "no_mail_rch_or_runtime_mutation",
+      "status": "pass"
+    },
+    {
+      "boundary": "This closeout references prior-wave authority boundaries but must not rewrite sixth- or seventh-wave artifacts.",
+      "evidence": [
+        "docs/evidence/sixth-wave-validation-hardening-closeout-gate.json",
+        "docs/evidence/seventh-wave-runtime-autonomy-closeout-gate.json"
+      ],
+      "id": "no_sixth_or_seventh_wave_rewrite",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate summarizes child evidence and does not replace child tests, contracts, checked-in artifacts, Beads, pushed commits, RCH, UBS, CI, or review.",
+      "evidence": [
+        "docs/evidence/predictive-operations-closeout-gate.json"
+      ],
+      "id": "closeout_does_not_replace_child_artifacts",
+      "status": "pass"
+    }
+  ],
+  "status": "pass"
+}

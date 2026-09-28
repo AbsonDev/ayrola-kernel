@@ -1,0 +1,236 @@
+{
+  "schema": "pi.missing_runtime_api.remediation_inventory.v1",
+  "generated_at": "2026-05-19T05:58:00Z",
+  "source_bead": "bd-oq2q5.3",
+  "status": "inventory_complete_no_new_implementation_beads",
+  "decision": {
+    "new_implementation_beads_created": false,
+    "reason": "The checked-in remediation backlog already maps all MissingRuntimeApi-derived runtime_api_gap and runtime_crash cases to closed tracking beads. No fresh RCH-backed conformance run was performed in this source/evidence-only pass, so this inventory does not assert that the historical failures still reproduce.",
+    "next_action_if_failures_reproduce": "Reopen or create focused implementation beads only after a fresh RCH-backed conformance run proves a current runtime API or runtime parity failure."
+  },
+  "source_paths": [
+    {
+      "path": "src/conformance_shapes.rs",
+      "role": "Defines RemediationBucket::MissingRuntimeApi, NaClassification, and cause/failure classifiers.",
+      "relevant_symbols": [
+        "RemediationBucket::MissingRuntimeApi",
+        "classify_cause_to_bucket",
+        "classify_failure_to_bucket",
+        "NaClassificationSummary"
+      ]
+    },
+    {
+      "path": "tests/qa_certification_dossier.rs",
+      "role": "Builds tests/full_suite_gate/extension_remediation_backlog.json from certification dossier, verdict, and conformance baseline inputs.",
+      "relevant_symbols": [
+        "build_extension_remediation_backlog",
+        "render_extension_remediation_backlog_md"
+      ]
+    },
+    {
+      "path": "tests/full_suite_gate/extension_remediation_backlog.json",
+      "role": "Checked-in machine-readable remediation backlog used by QA/full-suite gates."
+    },
+    {
+      "path": "tests/full_suite_gate/extension_remediation_backlog.md",
+      "role": "Human-readable projection of the remediation backlog."
+    }
+  ],
+  "classification_rules": {
+    "cause_code_to_bucket": {
+      "harness_gap": [
+        "mock_gap",
+        "vcr_stub_gap",
+        "assertion_gap"
+      ],
+      "missing_fixture": [
+        "manifest_mismatch"
+      ],
+      "intentionally_unsupported": [
+        "multi_file_dependency",
+        "test_fixture"
+      ],
+      "missing_runtime_api": [
+        "missing_npm_package",
+        "runtime_error",
+        "unknown_or_other_cause_codes"
+      ]
+    },
+    "failure_class_to_bucket": {
+      "missing_runtime_api": [
+        "LoadError",
+        "RuntimeShimGap"
+      ],
+      "missing_fixture": [
+        "MissingRegistration",
+        "MalformedRegistration"
+      ],
+      "harness_gap": [
+        "InvocationError",
+        "OutputMismatch",
+        "Timeout",
+        "ShutdownError"
+      ],
+      "intentionally_unsupported": [
+        "IncompatibleShape"
+      ]
+    },
+    "negative_control": "multi_file_dependency and test_fixture route to intentionally_unsupported, not MissingRuntimeApi."
+  },
+  "checked_in_backlog_snapshot": {
+    "path": "tests/full_suite_gate/extension_remediation_backlog.json",
+    "schema": "pi.qa.extension_remediation_backlog.v1",
+    "generated_at": "2026-03-12T02:21:56.103Z",
+    "summary": {
+      "total_non_pass_extensions": 14,
+      "missing_runtime_api_derived_entries": 9,
+      "runtime_api_gap_entries": 5,
+      "runtime_crash_entries": 4,
+      "intentionally_unsupported_entries": 5,
+      "actionable_entries": 0,
+      "non_actionable_entries": 14
+    },
+    "source_inputs": {
+      "certification_dossier": "tests/full_suite_gate/certification_dossier.json",
+      "certification_verdict": "tests/full_suite_gate/certification_verdict.json",
+      "conformance_baseline": "tests/ext_conformance/reports/conformance_baseline.json"
+    }
+  },
+  "runtime_api_gap_groups": [
+    {
+      "group": "virtual_module_openai",
+      "root_cause_codes": [
+        "missing_npm_package"
+      ],
+      "extensions": [
+        "npm/pi-search-agent"
+      ],
+      "implementation_surfaces": [
+        "src/extensions_js.rs#virtual_module:openai",
+        "tests/npm_module_stubs.rs#openai_imports"
+      ],
+      "tracking_issue": "bd-8t27h.14.1",
+      "tracking_status": "closed",
+      "tracking_close_reason": "Audited runtime API virtual module stubs, refreshed backlog refs, and proved conformance gates"
+    },
+    {
+      "group": "virtual_module_adm_zip",
+      "root_cause_codes": [
+        "missing_npm_package"
+      ],
+      "extensions": [
+        "npm/pi-wakatime"
+      ],
+      "implementation_surfaces": [
+        "src/extensions_js.rs#virtual_module:adm-zip",
+        "tests/npm_module_stubs.rs#adm_zip_import"
+      ],
+      "tracking_issue": "bd-8t27h.14.1",
+      "tracking_status": "closed",
+      "tracking_close_reason": "Audited runtime API virtual module stubs, refreshed backlog refs, and proved conformance gates"
+    },
+    {
+      "group": "virtual_module_linkedom",
+      "root_cause_codes": [
+        "missing_npm_package"
+      ],
+      "extensions": [
+        "npm/pi-web-access"
+      ],
+      "implementation_surfaces": [
+        "src/extensions_js.rs#virtual_module:linkedom",
+        "tests/npm_module_stubs.rs#linkedom_parse_html"
+      ],
+      "tracking_issue": "bd-8t27h.14.1",
+      "tracking_status": "closed",
+      "tracking_close_reason": "Audited runtime API virtual module stubs, refreshed backlog refs, and proved conformance gates"
+    },
+    {
+      "group": "virtual_module_scip_typescript",
+      "root_cause_codes": [
+        "missing_npm_package"
+      ],
+      "extensions": [
+        "npm/qualisero-pi-agent-scip",
+        "third-party/qualisero-pi-agent-scip"
+      ],
+      "implementation_surfaces": [
+        "src/extensions_js.rs#virtual_module:@sourcegraph/scip-typescript",
+        "tests/npm_module_stubs.rs#scip_typescript_import",
+        "tests/npm_module_stubs.rs#scip_typescript_subpath_import",
+        "tests/npm_module_stubs.rs#scip_typescript_main_import"
+      ],
+      "tracking_issue": "bd-8t27h.14.1",
+      "tracking_status": "closed",
+      "tracking_close_reason": "Audited runtime API virtual module stubs, refreshed backlog refs, and proved conformance gates"
+    }
+  ],
+  "runtime_crash_groups": [
+    {
+      "group": "runtime_crash_parity_cases",
+      "root_cause_codes": [
+        "runtime_error"
+      ],
+      "extensions": [
+        "community/nicobailon-interview-tool",
+        "npm/aliou-pi-guardrails",
+        "npm/aliou-pi-toolchain",
+        "npm/marckrenn-pi-sub-core"
+      ],
+      "implementation_surfaces": [
+        "src/extensions_js.rs",
+        "src/extensions.rs",
+        "extension asset packaging and shim behavior"
+      ],
+      "tracking_issue": "bd-8t27h.14.2",
+      "tracking_status": "closed",
+      "tracking_close_reason": "Restored high-severity runtime-crash parity cases: aliou cases validated, marckrenn detection shim fixed, nicobailon form assets packaged, backlog refs updated."
+    }
+  ],
+  "deduplication": {
+    "br_search_terms_checked": [
+      "extension remediation backlog",
+      "MissingRuntimeApi",
+      "runtime API"
+    ],
+    "existing_tracking_beads": [
+      {
+        "id": "bd-8t27h.14.1",
+        "status": "closed",
+        "scope": "High-severity extension runtime API-gap stubs"
+      },
+      {
+        "id": "bd-8t27h.14.2",
+        "status": "closed",
+        "scope": "High-severity extension runtime-crash parity cases"
+      }
+    ],
+    "duplicate_implementation_beads_avoided": true
+  },
+  "staleness_and_limits": [
+    "The checked-in extension_remediation_backlog.json generated_at timestamp predates the closed tracking beads, so it should not be treated as proof that the historical MissingRuntimeApi failures still reproduce.",
+    "This inventory is a source/evidence pass. It did not run ext-conformance cargo tests or regenerate full-suite artifacts.",
+    "Any fresh conformance validation or artifact regeneration must use rch for cargo-heavy work.",
+    "The inventory does not authorize release readiness, strict drop-in replacement claims, performance claims, capacity claims, live RCH mutation, live Agent Mail mutation, or file deletion."
+  ],
+  "validation": {
+    "commands": [
+      {
+        "command": "jq '{schema,generated_at,summary,source_inputs,entries_count:(.entries|length), families:([.entries[].root_cause_family] | unique)}' tests/full_suite_gate/extension_remediation_backlog.json",
+        "status": "pass"
+      },
+      {
+        "command": "br show bd-8t27h.14.1 --json",
+        "status": "pass"
+      },
+      {
+        "command": "br show bd-8t27h.14.2 --json",
+        "status": "pass"
+      },
+      {
+        "command": "python3 -m json.tool docs/evidence/missing-runtime-api-remediation-inventory.json >/dev/null",
+        "status": "pass"
+      }
+    ]
+  }
+}

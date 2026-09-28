@@ -1,0 +1,434 @@
+{
+  "schema": "pi.validation.semantic_route_inventory.v1",
+  "generated_at": "2026-05-19T03:31:00Z",
+  "status": "pass",
+  "decision": "semantic_route_inventory_ready",
+  "source_bead": "bd-4w2mw.1",
+  "purpose": "design_inventory_for_read_only_semantic_validation_route_planning",
+  "summary": {
+    "problem": "Pi already has advisory validation scheduling, proof-memory, redundant-work detection, and operator recommendations, but agents still lack a single route-level map from touched paths to proof obligations, RCH-only command templates, cache/coalescing hints, and coordination admission risks.",
+    "recommended_track": "Build pi.validation.semantic_route_plan.v1 as a read-only advisory layer above existing scheduler, proof-memory, Beads, Agent Mail, git, and runpack evidence.",
+    "ready_follow_on": "bd-4w2mw.2",
+    "non_goals": [
+      "Do not execute cargo or RCH commands.",
+      "Do not mutate Beads, Agent Mail, git, RCH, source files, temp artifacts, or evidence sources from the planner.",
+      "Do not authorize release performance, capacity, benchmark, or strict drop-in claims."
+    ]
+  },
+  "idea_wizard_phases": {
+    "phase_1_grounding": {
+      "read_files": [
+        "AGENTS.md",
+        "README.md"
+      ],
+      "beads_inventory": {
+        "open_count": 0,
+        "in_progress_count": 0,
+        "deferred_count": 5,
+        "closed_count_sampled": 2717,
+        "ready_before_creation": []
+      },
+      "overlap_check": [
+        "docs/contracts/validation-scheduler-plan-contract.json",
+        "docs/contracts/validation-proof-memory-index-contract.json",
+        "docs/contracts/operator-work-recommendation-contract.json",
+        "scripts/build_swarm_operator_runpack.py",
+        "scripts/report_swarm_claim_readiness.py"
+      ]
+    },
+    "phase_2_top_5": [
+      {
+        "rank": 1,
+        "idea": "Semantic validation route planner",
+        "why": "Maps touched paths to exact proof obligations and RCH-only command templates, reducing validation guesswork without replacing existing authorities."
+      },
+      {
+        "rank": 2,
+        "idea": "RCH cache-heat and validation coalescing advice",
+        "why": "Large swarms lose time when agents independently rebuild overlapping targets; route-level cache hints can improve throughput while remaining advisory."
+      },
+      {
+        "rank": 3,
+        "idea": "Route-level coordination admission",
+        "why": "Combines Beads, Agent Mail, git, and redundant-work signals so agents can avoid collision-prone edit surfaces before claiming."
+      },
+      {
+        "rank": 4,
+        "idea": "No-mock semantic-route evidence tests",
+        "why": "The planner needs fail-closed fixtures for stale proof, RCH pressure, dirty state, and advisory-boundary violations."
+      },
+      {
+        "rank": 5,
+        "idea": "Runpack and operator documentation projection",
+        "why": "Advisory route output is only useful if it appears in the handoff path agents already consult."
+      }
+    ],
+    "phase_3_next_10": [
+      "README/evidence claim freshness cross-checks for route output",
+      "Session-pressure-aware validation deferral hints",
+      "Provider/RPC/TUI route buckets with targeted focused-test suggestions",
+      "Extension-runtime route bucket with policy and hostcall fixtures",
+      "Unknown-path fail-closed classifier",
+      "Dirty-worktree admission denial",
+      "Agent Mail degraded soft-lock guidance",
+      "Proof-memory path-coverage mismatch explanations",
+      "Target/TMPDIR budget requirement rendering",
+      "Closeout evidence registry entry for semantic routing"
+    ],
+    "phase_4_overlap_result": {
+      "existing_surfaces_to_reuse": [
+        "validation_scheduler_plan",
+        "validation_proof_memory_index",
+        "operator_work_recommendation",
+        "redundant_agent_work",
+        "swarm_operator_runpack"
+      ],
+      "new_surface_boundary": "semantic_route_plan should consume and explain these existing sources; it must not duplicate their source-of-truth roles."
+    },
+    "phase_5_created_beads": [
+      "bd-4w2mw",
+      "bd-4w2mw.1",
+      "bd-4w2mw.2",
+      "bd-4w2mw.3",
+      "bd-4w2mw.4",
+      "bd-4w2mw.5",
+      "bd-4w2mw.6",
+      "bd-4w2mw.7"
+    ],
+    "phase_6_refinements": [
+      "Narrowed the first ready item to design/inventory only.",
+      "Added implementation dependencies so planner work waits on this inventory.",
+      "Separated cache/coalescing advice from proof reuse authority.",
+      "Separated coordination admission from Beads and Agent Mail mutation.",
+      "Added explicit no-mock/golden evidence and closeout follow-ons."
+    ]
+  },
+  "source_inventory": [
+    {
+      "id": "git_changed_paths",
+      "path": "git diff --name-only / git status --porcelain",
+      "authority": "working_tree_state",
+      "semantic_route_use": "Primary changed-path classifier input."
+    },
+    {
+      "id": "validation_scheduler_plan",
+      "path": "docs/evidence/validation-scheduler-plan.json",
+      "authority": "advisory_validation_ordering",
+      "semantic_route_use": "Import command groups, RCH posture, exact command shapes, and no-local-fallback language."
+    },
+    {
+      "id": "validation_proof_memory_index",
+      "path": "docs/evidence/validation-proof-memory-index.json",
+      "authority": "advisory_proof_reuse_classification",
+      "semantic_route_use": "Explain reusable, stale, command-mismatch, path-coverage-mismatch, local-fallback, and non-authoritative proof records."
+    },
+    {
+      "id": "operator_work_recommendation",
+      "path": "docs/evidence/operator-work-recommendation.json",
+      "authority": "advisory_operator_next_action",
+      "semantic_route_use": "Reuse safe action names and rejected-alternative patterns for route admission."
+    },
+    {
+      "id": "redundant_agent_work",
+      "path": "scripts/report_swarm_claim_readiness.py",
+      "authority": "advisory_overlap_detection",
+      "semantic_route_use": "Feed collision and duplicate-work risk into route-level admission warnings."
+    },
+    {
+      "id": "agent_mail",
+      "path": "MCP Agent Mail project /data/projects/pi_agent_rust",
+      "authority": "coordination_and_reservation_source",
+      "semantic_route_use": "Optional live source for health, active agents, and reservations; missing or degraded data must fail closed or recommend Beads soft-lock."
+    },
+    {
+      "id": "beads",
+      "path": ".beads/issues.jsonl",
+      "authority": "task_status_and_dependency_source",
+      "semantic_route_use": "Ready/in-progress/stalled state, bead thread IDs, and assignee ownership."
+    },
+    {
+      "id": "agents_and_readme_rules",
+      "path": "AGENTS.md and README.md",
+      "authority": "repo_workflow_policy",
+      "semantic_route_use": "RCH-only heavy validation, no deletion, no local fallback, drop-in claim guardrails, and required closeout gates."
+    }
+  ],
+  "proposed_route_plan_contract": {
+    "schema": "pi.validation.semantic_route_plan.v1",
+    "required_top_level_keys": [
+      "schema",
+      "generated_at",
+      "status",
+      "decision",
+      "purpose",
+      "source_bead",
+      "inputs",
+      "changed_path_classification",
+      "proof_obligations",
+      "proof_memory_assessment",
+      "cache_heat",
+      "coordination_admission",
+      "would_run_order",
+      "deferred_or_blocked",
+      "negative_controls",
+      "summary",
+      "claim_boundaries"
+    ],
+    "allowed_statuses": [
+      "ready",
+      "degraded",
+      "blocked"
+    ],
+    "allowed_decisions": [
+      "route_plan_ready",
+      "route_plan_degraded_use_manual_validation",
+      "route_plan_blocked_refresh_sources"
+    ],
+    "changed_path_buckets": [
+      {
+        "bucket": "provider",
+        "patterns": [
+          "src/providers/**",
+          "src/provider.rs",
+          "src/provider_metadata.rs",
+          "src/sse.rs"
+        ],
+        "default_proof_groups": [
+          "focused_tests",
+          "e2e_conformance",
+          "all_targets_check",
+          "clippy"
+        ]
+      },
+      {
+        "bucket": "tools",
+        "patterns": [
+          "src/tools.rs",
+          "tests/conformance*",
+          "tests/fixtures/**"
+        ],
+        "default_proof_groups": [
+          "focused_tests",
+          "e2e_conformance",
+          "all_targets_check",
+          "clippy"
+        ]
+      },
+      {
+        "bucket": "session",
+        "patterns": [
+          "src/session.rs",
+          "src/session_index.rs",
+          "src/session_sqlite.rs",
+          "docs/session.md"
+        ],
+        "default_proof_groups": [
+          "focused_tests",
+          "all_targets_check",
+          "clippy"
+        ]
+      },
+      {
+        "bucket": "extension",
+        "patterns": [
+          "src/extensions.rs",
+          "src/extensions_js.rs",
+          "src/extension_dispatcher.rs",
+          "tests/ext_conformance/**",
+          "docs/extension-*.md"
+        ],
+        "default_proof_groups": [
+          "focused_tests",
+          "e2e_conformance",
+          "all_targets_check",
+          "clippy"
+        ]
+      },
+      {
+        "bucket": "interactive_rpc",
+        "patterns": [
+          "src/interactive.rs",
+          "src/interactive/**",
+          "src/rpc.rs",
+          "src/main.rs"
+        ],
+        "default_proof_groups": [
+          "focused_tests",
+          "e2e_conformance",
+          "all_targets_check",
+          "clippy"
+        ]
+      },
+      {
+        "bucket": "scripts_docs_evidence",
+        "patterns": [
+          "scripts/**",
+          "docs/**",
+          "tests/golden_corpus/**"
+        ],
+        "default_proof_groups": [
+          "fast_script_checks",
+          "evidence_regeneration"
+        ]
+      },
+      {
+        "bucket": "unknown",
+        "patterns": [
+          "*"
+        ],
+        "default_proof_groups": [
+          "fast_script_checks",
+          "all_targets_check"
+        ],
+        "fail_closed_reason": "unknown_changed_path_bucket"
+      }
+    ],
+    "proof_group_catalog": [
+      {
+        "id": "fast_script_checks",
+        "requires_rch": false,
+        "exact_commands": [
+          "python3 -m json.tool docs/evidence/semantic-validation-route-inventory.json >/dev/null",
+          "git diff --check",
+          "./scripts/reconcile_beads_ledger.sh"
+        ]
+      },
+      {
+        "id": "evidence_regeneration",
+        "requires_rch": false,
+        "exact_commands": [
+          "python3 scripts/build_swarm_operator_runpack.py --self-test"
+        ]
+      },
+      {
+        "id": "focused_tests",
+        "requires_rch": true,
+        "exact_commands": [
+          "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test <focused-target>"
+        ],
+        "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build."
+      },
+      {
+        "id": "e2e_conformance",
+        "requires_rch": true,
+        "exact_commands": [
+          "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test conformance",
+          "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo test e2e"
+        ],
+        "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build."
+      },
+      {
+        "id": "all_targets_check",
+        "requires_rch": true,
+        "exact_commands": [
+          "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo check --all-targets"
+        ],
+        "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build."
+      },
+      {
+        "id": "clippy",
+        "requires_rch": true,
+        "exact_commands": [
+          "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/target TMPDIR=/data/tmp/pi_agent_rust_cargo/${USER:-agent}/tmp cargo clippy --all-targets -- -D warnings"
+        ],
+        "local_fallback_rejection_reason": "RCH-required validation must not fail open into a local cargo build."
+      }
+    ]
+  },
+  "negative_controls": [
+    {
+      "id": "missing_scheduler_plan_fails_closed",
+      "expected_status": "blocked",
+      "reason": "Route output cannot safely preserve exact validation group semantics without scheduler-plan input or a built-in fallback catalog."
+    },
+    {
+      "id": "stale_proof_memory_fails_closed_for_reuse",
+      "expected_status": "degraded",
+      "reason": "Stale proof-memory may inform route ordering but must not authorize proof reuse."
+    },
+    {
+      "id": "local_cargo_fallback_rejected",
+      "expected_status": "blocked",
+      "reason": "Heavy cargo validation must be expressed through rch exec -- and denied when RCH posture is unavailable or saturated."
+    },
+    {
+      "id": "dirty_worktree_mismatch_denies_reuse",
+      "expected_status": "degraded",
+      "reason": "Proof-memory path/git matching is invalid when the current dirty worktree differs from source proof context."
+    },
+    {
+      "id": "agent_mail_degraded_uses_beads_soft_lock",
+      "expected_status": "degraded",
+      "reason": "Missing or degraded Agent Mail must not lead to invisible ownership; planner should recommend Beads soft-lock or stop."
+    },
+    {
+      "id": "advisory_route_as_authority_rejected",
+      "expected_status": "blocked",
+      "reason": "Route plans cannot claim beads, reserve files, launch RCH, close work, delete files, or certify release/drop-in claims."
+    }
+  ],
+  "created_bead_graph": {
+    "epic": "bd-4w2mw",
+    "ready_entrypoint": "bd-4w2mw.1",
+    "dependencies": [
+      {
+        "issue": "bd-4w2mw.2",
+        "depends_on": [
+          "bd-4w2mw.1"
+        ]
+      },
+      {
+        "issue": "bd-4w2mw.3",
+        "depends_on": [
+          "bd-4w2mw.2"
+        ]
+      },
+      {
+        "issue": "bd-4w2mw.4",
+        "depends_on": [
+          "bd-4w2mw.2"
+        ]
+      },
+      {
+        "issue": "bd-4w2mw.5",
+        "depends_on": [
+          "bd-4w2mw.3",
+          "bd-4w2mw.4"
+        ]
+      },
+      {
+        "issue": "bd-4w2mw.6",
+        "depends_on": [
+          "bd-4w2mw.5"
+        ]
+      },
+      {
+        "issue": "bd-4w2mw.7",
+        "depends_on": [
+          "bd-4w2mw.6"
+        ]
+      }
+    ]
+  },
+  "claim_boundaries": {
+    "read_only": true,
+    "operator_evidence_only": true,
+    "does_not_execute_commands": true,
+    "does_not_launch_rch": true,
+    "does_not_mutate_agent_mail": true,
+    "does_not_mutate_beads": true,
+    "does_not_mutate_git": true,
+    "does_not_delete_files": true,
+    "does_not_replace_validation_scheduler": true,
+    "does_not_replace_validation_proof_memory": true,
+    "does_not_replace_beads_or_agent_mail": true,
+    "does_not_authorize_release_performance_claims": true,
+    "does_not_authorize_dropin_claims": true,
+    "beads_mutation_authorized": false,
+    "agent_mail_authority_authorized": false,
+    "rch_authority_authorized": false,
+    "git_mutation_authorized": false,
+    "file_deletion_authorized": false,
+    "advisory_evidence_as_source_of_truth_authorized": false
+  }
+}

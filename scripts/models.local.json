@@ -1,0 +1,225 @@
+{
+  "_README": [
+    "pi-LOCAL model catalog overlay for scripts/gen-model-catalog.mjs (gh #117).",
+    "These entries are layered on top of the upstream @earendil-works/pi-ai MODELS",
+    "artifact with LOCAL PRECEDENCE so a regenerate never drops or mangles pi-local",
+    "data. Shape mirrors the catalog: providers -> { <id>: <Model> }.",
+    "",
+    "Contents:",
+    "  - google-antigravity / google-gemini-cli: pi-only native-adapter providers",
+    "    that upstream does not carry at all (would be DROPPED without this overlay).",
+    "  - zai glm-5.1 / glm-5.2, minimax / minimax-cn MiniMax-M3: the gh #115 curated",
+    "    entries. Upstream DOES ship glm-5.1/5.2 but at 0 cost, and MiniMax-M3 at",
+    "    512k context / 0.6-2.4-0.12 cost; the overlay preserves pi's curated cost,",
+    "    1M context, and the z.ai coding endpoint.",
+    "",
+    "To add a pi-local model or pin a curated value, add/edit it under providers below.",
+    "Run: node scripts/gen-model-catalog.mjs   (writes scripts/models.generated.candidate.ts)."
+  ],
+  "providers": {
+    "google-antigravity": {
+      "claude-opus-4-5-thinking": {
+        "id": "claude-opus-4-5-thinking",
+        "name": "Claude Opus 4.5 Thinking (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 5, "output": 25, "cacheRead": 0.5, "cacheWrite": 6.25 },
+        "contextWindow": 200000,
+        "maxTokens": 64000
+      },
+      "claude-sonnet-4-5": {
+        "id": "claude-sonnet-4-5",
+        "name": "Claude Sonnet 4.5 (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": false,
+        "input": ["text", "image"],
+        "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+        "contextWindow": 200000,
+        "maxTokens": 64000
+      },
+      "claude-sonnet-4-5-thinking": {
+        "id": "claude-sonnet-4-5-thinking",
+        "name": "Claude Sonnet 4.5 Thinking (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+        "contextWindow": 200000,
+        "maxTokens": 64000
+      },
+      "gemini-3-flash": {
+        "id": "gemini-3-flash",
+        "name": "Gemini 3 Flash (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 0.5, "output": 3, "cacheRead": 0.5, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gemini-3-pro-high": {
+        "id": "gemini-3-pro-high",
+        "name": "Gemini 3 Pro High (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 2, "output": 12, "cacheRead": 0.2, "cacheWrite": 2.375 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gemini-3-pro-low": {
+        "id": "gemini-3-pro-low",
+        "name": "Gemini 3 Pro Low (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 2, "output": 12, "cacheRead": 0.2, "cacheWrite": 2.375 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gpt-oss-120b-medium": {
+        "id": "gpt-oss-120b-medium",
+        "name": "GPT-OSS 120B Medium (Antigravity)",
+        "api": "google-gemini-cli",
+        "provider": "google-antigravity",
+        "baseUrl": "https://daily-cloudcode-pa.sandbox.googleapis.com",
+        "reasoning": false,
+        "input": ["text"],
+        "cost": { "input": 0.09, "output": 0.36, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 131072,
+        "maxTokens": 32768
+      }
+    },
+    "google-gemini-cli": {
+      "gemini-2.0-flash": {
+        "id": "gemini-2.0-flash",
+        "name": "Gemini 2.0 Flash (Cloud Code Assist)",
+        "api": "google-gemini-cli",
+        "provider": "google-gemini-cli",
+        "baseUrl": "https://cloudcode-pa.googleapis.com",
+        "reasoning": false,
+        "input": ["text", "image"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 8192
+      },
+      "gemini-2.5-flash": {
+        "id": "gemini-2.5-flash",
+        "name": "Gemini 2.5 Flash (Cloud Code Assist)",
+        "api": "google-gemini-cli",
+        "provider": "google-gemini-cli",
+        "baseUrl": "https://cloudcode-pa.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gemini-2.5-pro": {
+        "id": "gemini-2.5-pro",
+        "name": "Gemini 2.5 Pro (Cloud Code Assist)",
+        "api": "google-gemini-cli",
+        "provider": "google-gemini-cli",
+        "baseUrl": "https://cloudcode-pa.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gemini-3-flash-preview": {
+        "id": "gemini-3-flash-preview",
+        "name": "Gemini 3 Flash Preview (Cloud Code Assist)",
+        "api": "google-gemini-cli",
+        "provider": "google-gemini-cli",
+        "baseUrl": "https://cloudcode-pa.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      },
+      "gemini-3-pro-preview": {
+        "id": "gemini-3-pro-preview",
+        "name": "Gemini 3 Pro Preview (Cloud Code Assist)",
+        "api": "google-gemini-cli",
+        "provider": "google-gemini-cli",
+        "baseUrl": "https://cloudcode-pa.googleapis.com",
+        "reasoning": true,
+        "input": ["text", "image"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 1048576,
+        "maxTokens": 65535
+      }
+    },
+    "zai": {
+      "glm-5.1": {
+        "id": "glm-5.1",
+        "name": "GLM-5.1",
+        "api": "openai-completions",
+        "provider": "zai",
+        "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+        "compat": { "supportsDeveloperRole": false, "thinkingFormat": "zai" },
+        "reasoning": true,
+        "input": ["text"],
+        "cost": { "input": 1.4, "output": 4.4, "cacheRead": 0.26, "cacheWrite": 0 },
+        "contextWindow": 200000,
+        "maxTokens": 131072
+      },
+      "glm-5.2": {
+        "id": "glm-5.2",
+        "name": "GLM-5.2",
+        "api": "openai-completions",
+        "provider": "zai",
+        "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+        "compat": { "supportsDeveloperRole": false, "thinkingFormat": "zai" },
+        "reasoning": true,
+        "input": ["text"],
+        "cost": { "input": 1.4, "output": 4.4, "cacheRead": 0.26, "cacheWrite": 0 },
+        "contextWindow": 1000000,
+        "maxTokens": 131072
+      }
+    },
+    "minimax": {
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "api": "anthropic-messages",
+        "provider": "minimax",
+        "baseUrl": "https://api.minimax.io/anthropic",
+        "reasoning": true,
+        "input": ["text"],
+        "cost": { "input": 0.3, "output": 1.2, "cacheRead": 0.06, "cacheWrite": 0 },
+        "contextWindow": 1000000,
+        "maxTokens": 128000
+      }
+    },
+    "minimax-cn": {
+      "MiniMax-M3": {
+        "id": "MiniMax-M3",
+        "name": "MiniMax-M3",
+        "api": "anthropic-messages",
+        "provider": "minimax-cn",
+        "baseUrl": "https://api.minimaxi.com/anthropic",
+        "reasoning": true,
+        "input": ["text"],
+        "cost": { "input": 0.3, "output": 1.2, "cacheRead": 0.06, "cacheWrite": 0 },
+        "contextWindow": 1000000,
+        "maxTokens": 128000
+      }
+    }
+  }
+}

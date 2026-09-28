@@ -1,0 +1,37 @@
+# Allowlist for no-mock policy gate (CI: .github/workflows/ci.yml).
+#
+# Each non-comment line is "<path>:<identifier>" — every match of
+# /\b(Mock|Fake|Stub)[A-Za-z0-9_]+\b/ in <path> whose identifier equals
+# <identifier> is tolerated. New occurrences in OTHER files, or NEW
+# identifiers in the same file, will fail CI.
+#
+# This file documents audited tech debt. Removing entries here as the
+# corresponding mocks are replaced with VCR fixtures or real deps is the
+# preferred direction of travel. See docs/TEST_COVERAGE_MATRIX.md.
+#
+# Identifier-only patterns (no path) are global allowlist entries — they
+# match anywhere. Used for deterministic-test infra that is reviewed and
+# considered acceptable wherever it appears.
+
+# === Global identifier allowlist (legacy inline regex, preserved) ===
+# Deterministic local TCP server test infra.
+*:MockHttpServer
+*:MockHttpRequest
+*:MockHttpResponse
+# VCR cassette spec validation + conformance interceptor.
+*:MockSpec
+*:MockSpecInterceptor
+# Comment heading in node_http_shim.rs.
+*:Mocked
+# String literal in repair event diagnostics (not a mock type).
+*:Stubs
+
+# === File-scoped allowlist (existing tech debt as of 2026-05-22) ===
+tests/cargo_headroom_admission.rs:MockRch
+tests/e2e_tui_perf.rs:MockRssReader
+tests/extension_flag_passthrough.rs:MockExtensionManager
+tests/full_suite_gate/certification_dossier.json:MockHostActions
+tests/full_suite_gate/certification_dossier.md:MockHostActions
+tests/qa_certification_dossier.rs:MockHostActions
+tests/qa_docs_policy_validation.rs:MockHttp
+tests/tui_state.rs:MockRssReader

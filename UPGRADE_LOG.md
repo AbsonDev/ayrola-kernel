@@ -1,0 +1,160 @@
+# Dependency Upgrade Log
+
+**Date:** 2026-08-14  |  **Project:** pi_agent_rust  |  **Language:** Rust (nightly-2026-07-05)
+
+## Summary
+
+- **Updated:** 13 direct majors/minors + full semver lock refresh (~120 packages)
+- **Deliberately deferred:** 1 (FrankenSQLite cutover — blocked upstream, see below)
+- **Regressions introduced:** 0 (all 29 residual lib-test failures reproduced identically at the pre-upgrade baseline: sandbox lacks `rg`/`fd`; macOS `/var`-symlink TMPDIR; macOS `linkat` semantics)
+
+## Headline updates
+
+### asupersync: 0.3.9 → 0.4.4
+- **Breaking (library-wide):** only `TrackedSender::try_reserve` gained a `&Cx` param (v0.3.10) — pi does not use `channel::session`; zero call-site changes needed.
+- **Behavioral audit performed:** no `JoinError::Cancelled` assertions around aborts (v0.4.4 cancellation-result contract N/A); TLS connectors all use `.with_webpki_roots()` so the new empty-root-store fail-closed hardening is inert; `run_test` logging is now scoped/thread-local (no pi test depended on the old global subscriber); no `io::copy`-under-select usage.
+- **Tests:** full `cargo test --lib` = 7040 passed; failures baseline-identical.
+
+### sqlmodel-sqlite 0.2.2 → 0.3.3, sqlmodel-core 0.2.2 → 0.3.2
+- Additive for pi's synchronous API usage; adds the exact native error-code API for future use.
+- **Note:** sqlmodel-sqlite 0.3.x pins `asupersync =0.3.10`, so the lockfile now carries two asupersync versions (0.3.10 inside sqlmodel, 0.4.4 for pi). pi only calls sqlmodel's *sync* API, so the 0.3.10 copy is dead code; LTO + `codegen-units=1` should strip it, but **verify the 22 MiB release size budget** on the next release build.
+
+### FrankenSQLite (fsqlite): cutover prepared, deliberately deferred
+Goal state is fsqlite (pure-Rust, asupersync-native, MVCC) replacing sqlmodel-sqlite + libsqlite3-sys. Blocked today on three verified facts:
+1. Registry `fsqlite 0.3.1` carries the open P0 **bd-r82et** (false `BusySnapshot` on single-writer multi-statement DDL batches — exactly pi's `INIT_SQL`/schema-bootstrap shape). The fix is merged in the frankensqlite working tree but **not published**; no 0.3.2 release is staged.
+2. pi publishes to crates.io, so a git-pinned fsqlite dep cannot ship; `[patch.crates-io]` would silently ship the buggy registry code in releases.
+3. pi's session index is **multi-process** and would transiently mix engines with older installed pi binaries (libsqlite3) against the same DB file — explicitly unsupported by the fsqlite concurrency contract (multi-process is `partial`; open P0s bd-9inpb/bd-zywqc).
+
+**Unblock path:** publish fsqlite 0.3.2 (fix ≥ `f1c24fab4`), then swap the 6 sqlmodel-consuming files (`session_sqlite.rs`, `session_index.rs`, `session_picker.rs`, `doctor.rs`, `error.rs`, `error_hints.rs`; complete call-site spec captured during this pass), enable `strict_multi_process`, keep the DirLock single-writer discipline, batch statements per `block_on` (754 ns/op re-entry cost), and re-verify the two `Display`-string dependencies (`"no such table: pi_session_meta"`, `"locked"/"busy"`) against fsqlite's error text. Tracked in bead (see .beads).
+
+## Other updates
+
+### RustCrypto digest family → 0.11 generation
+sha2/sha1/md-5 0.10 → 0.11.0, hmac 0.12 → 0.13.0, pbkdf2 0.12.2 → 0.13.0, scrypt 0.11 → 0.12.
+- **Breaking:** digest outputs lost `LowerHex` (generic-array → hybrid-array); ~60 `format!("{:x}")` sites now route through the shared `hex_encode` (byte-identical output — cache keys/hashline tags unchanged); `hmac::KeyInit` import; scrypt `Params::new` dropped the `len` arg (out-of-range keylens now succeed, closer to Node semantics).
+- Known-answer vectors all green (crypto_shim 43/43, auth 367/367).
+
+### rquickjs 0.11 → 0.12.2
+- **Breaking:** `Loader::load`/`Resolver::resolve` gained an `ImportAttributes` param (ignored, preserving 0.11 semantics). Same QuickJS-ng lineage, no engine swap. extensions_js 189/189.
+
+### swc family (TypeScript transpiler) → newest coherent set
+common 18→26, ast 20→29, parser 34→45, codegen 23→32, transforms_base 37→49, transforms_typescript 41→55, visit 20→29.
+- Zero API changes needed (code already on current API shape). `COMPILED_MODULE_CACHE_VERSION` bumped 3→4 so stale transpile-cache entries can never be read back.
+
+### fs4 0.13 → 1.1
+- **Breaking:** `fs4::fs_std::FileExt` → root `fs4::FileExt`; `lock_exclusive()` → `lock()`; `try_lock_exclusive() -> io::Result<bool>` → `try_lock() -> Result<(), TryLockError>` (WouldBlock now a typed variant). 6 src + 3 test call sites migrated.
+
+### base64 0.22 → 0.23
+- No code changes required (Engine API stable across the bump).
+
+### scripts/ (npm): @earendil-works/pi-ai 0.82.1 → 0.84.0
+- Exact-pinned per repo convention; catalog generator verified against 0.84.0 (drift vs the vendored snapshot is the normal post-bump state; catalog refresh is a separate deliberate step).
+
+### Semver lock refresh (`cargo update`)
+~120 packages refreshed (clap 4.6.6, chrono 0.4.45, regex 1.13.1, cc 1.4.3, etc.).
+
+## Not updated (deliberate)
+
+- **wasmtime 47.0.3, sysinfo 0.39.6, crossterm 0.29, image 0.25, crc32c, xxhash-rust, ring 0.17.14** — already at latest stable.
+- **charmed-* 0.2.0, rich_rust 0.2.2** — latest published versions of the sibling TUI stack.
+- **loom git fork pin** — intentional (upstream stack-size limitation), preserved.
+
+## Incidental fix landed during verification
+
+- Pre-existing `ts_multiple_extensions_loaded` e2e failure (verified failing before today's changes): `collect_js_extension_roots` keyed exclusive ownership per parent directory, so two single-file extensions in one `extensions/` dir always collided. Ownership is now per-entry-file inside an independent-extensions root (`e2e_ts_extension_loading` 128/128).
+
+---
+
+# FrankenSQLite Cutover — 2026-08-16 (bd-oc1wu)
+
+**sqlmodel-sqlite 0.3.3 + sqlmodel-core 0.3.2 (libsqlite3-sys C code) → fsqlite 0.3.4 (pure Rust).**
+All three deferral blockers from the 2026-08-14 entry cleared before execution: bd-r82et fixed in
+fsqlite ≥0.3.3 (verified ancestor of the release tag); fsqlite GH#353 (composite-UNIQUE auto-index
+corruption) does not apply because every pi table uses a single-column PRIMARY KEY; deps resolve
+cleanly on crates.io. The cutover also removed the dual-asupersync lockfile state (0.3.10 inert copy
+inside sqlmodel is gone; single asupersync 0.4.4 remains).
+
+## Execution shape (the load-bearing decisions)
+
+- **Dedicated 16 MiB-stack thread per transaction** (`session_sqlite::run_on_sqlite_thread`):
+  fsqlite's engine futures are deeply nested and overflow the 512 KiB default stack of spawned
+  macOS threads (verified empirically — stack overflow abort). A fresh thread also guarantees no
+  ambient asupersync runtime, so `futures::executor::block_on` drives the `!Send` connection
+  futures in fsqlite's detached mode without deadlocking a current-thread consumer runtime.
+- **Sync facade** `session_sqlite::SqliteConnection` (`execute_raw` = `execute_batch`,
+  `execute_sync` = `execute_with_params`, `query_sync` = `query_with_params`, explicit
+  checkpointing `close()`), so `session_index.rs`/call sites kept their shape.
+- **Opens:** writers use `Connection::open_strict_multi_process` + `PRAGMA busy_timeout = 5000`
+  (loud refusal on ambiguous multi-process states); read-only loads use `Connection::open_schema_only`
+  (read-only pager; verified to read a chmod-0444 database).
+- **Sidecar family extended** from `-wal/-shm/-journal` to the full fsqlite set (adds
+  `-fsqlite-ns-gate`, `-fsqlite-ns-use`, `-wal-cert`, `-wal-cert-head`) in the 0600-permission
+  sweep, preflight access checks, deletion/trash paths, and session-index file stats. fsqlite
+  namespace sidecars persist across connections by design and need read-write access even for
+  read-only opens.
+- **Typed errors:** `Error::Sqlite` now wraps `fsqlite::FrankenError`; the
+  `"no such table: pi_session_meta"` Display match became `FrankenError::NoSuchTable`, and the
+  locked/busy + corrupt hint classifiers match typed variants.
+
+## Verification (all on this darwin host, published fsqlite 0.3.4)
+
+- Standalone probe: INIT_SQL batch under strict_multi_process, BEGIN IMMEDIATE + 400-param insert,
+  positional read-back, typed NoSuchTable, WAL header bytes (2,2) after close, 0444 read-only load.
+- Multi-process probe: 6 worker processes × 25 `BEGIN IMMEDIATE` transactions against one shared
+  database (busy-retry loop, no external lock) → 150/150 rows, zero lost writes, and **stock
+  `sqlite3` reports `integrity_check = ok`** on the fsqlite-written file.
+- Reader-swarm probe (pi's exact load shape): 1 writer process + 5 concurrent read-only
+  (`open_schema_only`) reader processes → all readers observe committed rows, no failures.
+- `cargo test --lib`: 7144/7144. Session e2e suites (persistence incl. multi-process chaos harness,
+  conformance, index, picker): green. `cargo clippy --all-targets -- -D warnings`: clean.
+- **Known engine bound (honest):** fsqlite's own `swarm-multiprocess` harness (unserialized
+  mixed-write workers, run here at 2 and 8 workers × 120–300 s) FAILS liveness on this darwin host
+  — workers exhaust bounded busy-retry budgets on snapshot conflicts. No corruption (JSONL reports
+  validate; stock `integrity_check` = ok on probe DBs); this is the upstream "multi-process
+  multi-writer = partial" contract state. Pi never produces that shape: every session-file and
+  session-index writer (and every index reader) is serialized behind `DirLock`, and lock-free
+  readers are read-only opens — both shapes verified green above. Do NOT relax the DirLock
+  discipline while this upstream bound stands.
+
+## Binary size: budget raised 22 → 26 MiB
+
+The pure-Rust engine costs ~5.6 MiB of compiled core that LTO cannot remove
+(parser/planner/VDBE/MVCC/pager): release `pi` on darwin-arm64 measured
+**24.48 MiB** (25,667,648 bytes) vs 18.85 MiB before the cutover. Disabling
+fsqlite's default `json`/`fts5`/`rtree` extension features changed nothing
+(LTO had already stripped them; they stay disabled anyway). All budget
+encodings were raised in lockstep (src/perf_build.rs, bench.yml, release.yml,
+perf report fixtures, AGENTS.md/README/docs) and a follow-up bead tracks
+reclaiming the size before any tightening.
+
+## Behavioral deltas (deliberate)
+
+- WAL/SHM/namespace sidecars persist after close instead of being unlinked; tests asserting
+  "no sidecars after close" were updated to the fsqlite reality.
+- A read-only open of a database missing any runtime sidecar requires a writable parent directory
+  (fsqlite recreates the missing sidecar) — previously only WAL-mode databases without WAL/SHM did.
+- Old pi binaries (libsqlite3) and new binaries (fsqlite) must not open the same session database
+  concurrently; sequential hand-off is supported (checkpointed files are format-compatible both
+  ways — verified via stock sqlite3 read-back).
+
+## Follow-up — 2026-08-17: fsqlite 0.3.4 → 0.3.5 (frankensqlite#356, bd-nhm45)
+
+fsqlite 0.3.5 decouples `extensions` from the `native` feature and scopes
+serde_json's `preserve_order` to fsqlite-ext-json, so pi's
+`default-features = false, features = ["native"]` spec finally takes effect:
+
+- The five `fsqlite-ext-*` vtab crates left pi's lockfile entirely;
+  `fsqlite-core` resolves as `diagnostic-pragmas,native`.
+- The runtime serde_json feature set is back to `default,raw_value,std` —
+  the `preserve_order` leak that flipped every serialized JSON map to
+  insertion order (bd-nhm45) is gone. (`preserve_order` still appears in the
+  HOST/build-dep universe via tree-sitter's build script; resolver v2 keeps
+  that out of the shipped artifact.) The order-agnostic golden normalizer
+  from 14a57a4e stays, as it is correct under either ordering.
+- **Size: no reclaim.** Release `pi` measured 24.56 MiB (25,751,280 bytes)
+  vs 24.48 MiB on 0.3.4 — confirming LTO had already stripped the unused
+  extension vtab code and the ~5.6 MiB cutover cost is the engine core
+  (VDBE/btree/pager/planner/parser). The 26 MiB budget stands; any future
+  diet is upstream engine work, not a downstream feature toggle.
+- Gates: 7183/7183 lib tests, session e2e suites green, clippy `-D warnings`
+  clean, fmt clean.

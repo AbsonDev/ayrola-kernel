@@ -1,0 +1,165 @@
+{
+  "generated_at_utc": "2026-05-18T19:37:26Z",
+  "git_commit": "52e9fbfb24352045985b59df9d7ea63f1f8f2ef8",
+  "metrics": {
+    "beads": {
+      "by_status": {
+        "closed": 2693,
+        "deferred": 4,
+        "tombstone": 10
+      },
+      "in_progress_count": 0,
+      "open_by_priority": {},
+      "open_by_type": {},
+      "open_count": 0,
+      "open_high_priority": [],
+      "total_count": 2707
+    },
+    "hard_gates": {
+      "blocking_not_pass": [],
+      "generated_at_utc": "2026-05-18T19:37:26Z",
+      "git_commit": "52e9fbfb24352045985b59df9d7ea63f1f8f2ef8",
+      "hard_gate_count": 22,
+      "hard_gate_status_counts": {
+        "pass": 22
+      },
+      "overall_verdict": "CERTIFIED"
+    },
+    "ledger": {
+      "open_by_area": {},
+      "open_by_severity": {},
+      "open_critical_high_count": 0,
+      "open_gaps": []
+    },
+    "rch_artifact_retrieval_drift": {
+      "by_drift_class": {
+        "evidence_retrieval_drift": 12373,
+        "infrastructure_drift": 19
+      },
+      "categories": {
+        "artifact_retrieval_warning_after_success": {
+          "blocks": "specific_evidence_refresh",
+          "count": 4,
+          "drift_class": "evidence_retrieval_drift",
+          "first_example": {
+            "after_success": true,
+            "line": "2026-02-17T03:13:47.339264Z WARN rch::transfer: No artifacts retrieved from vmi1152480 - build may have failed or artifact patterns may be misconfigured",
+            "line_number": 59,
+            "path": "tests/e2e_results/20260217T031217Z/build.log"
+          },
+          "id": "artifact_retrieval_warning_after_success",
+          "last_example": {
+            "after_success": true,
+            "line": "2026-02-17T03:25:37.876257Z WARN rch::transfer: No artifacts retrieved from vmi1227854 - build may have failed or artifact patterns may be misconfigured",
+            "line_number": 2709,
+            "path": "tests/e2e_results/20260217T031217Z/build.log"
+          },
+          "release_blocking": false,
+          "remediation": "Treat the remote command as inconclusive for evidence until artifact retrieval is clean or the expected artifacts are regenerated locally.",
+          "source_count": 1
+        },
+        "disk_pressure": {
+          "blocks": "release_gate_until_retried",
+          "count": 19,
+          "drift_class": "infrastructure_drift",
+          "first_example": {
+            "after_success": false,
+            "line": "No space left on device (os error 28)",
+            "line_number": 46,
+            "path": "tests/e2e_results/20260208T074117Z/build.log"
+          },
+          "id": "disk_pressure",
+          "last_example": {
+            "after_success": false,
+            "line": "No space left on device (os error 28)",
+            "line_number": 123,
+            "path": "tests/e2e_results/20260208T074117Z/build.log"
+          },
+          "release_blocking": true,
+          "remediation": "Move CARGO_TARGET_DIR and TMPDIR to high-capacity scratch, clear disposable build pressure with approved cleanup, then rerun the gate.",
+          "source_count": 1
+        },
+        "rsync_mkstemp_no_such_file": {
+          "blocks": "specific_evidence_refresh",
+          "count": 12369,
+          "drift_class": "evidence_retrieval_drift",
+          "first_example": {
+            "after_success": true,
+            "line": "rsync: [receiver] mkstemp \"/data/tmp/pi_agent_rust/pane4/debug/.pi_legacy_capture.r9D83z\" failed: No such file or directory (2)",
+            "line_number": 165,
+            "path": "tests/e2e_results/20260423T034437Z/build.log"
+          },
+          "id": "rsync_mkstemp_no_such_file",
+          "last_example": {
+            "after_success": true,
+            "line": "rsync: [receiver] mkstemp \"/data/tmp/pi_agent_rust/pane4/debug/deps/.nom-5676fbe6b109c4f5.d.BzN4DI\" failed: No such file or directory (2)",
+            "line_number": 12533,
+            "path": "tests/e2e_results/20260423T034437Z/build.log"
+          },
+          "release_blocking": false,
+          "remediation": "Fix RCH artifact retrieval/writeback path creation or rerun with worker-local output paths.",
+          "source_count": 1
+        }
+      },
+      "release_blocking_categories": [
+        "disk_pressure"
+      ],
+      "scan_limits": {
+        "max_bytes_per_file": 2097152,
+        "max_files": 64,
+        "patterns": [
+          "tests/e2e_results/*/build.log"
+        ]
+      },
+      "scanned_bytes": 4931496,
+      "scanned_file_count": 47,
+      "status": "degraded",
+      "total_match_count": 12392,
+      "truncated_files": [
+        "tests/e2e_results/20260423T034437Z/build.log",
+        "tests/e2e_results/20260423T034907Z/build.log"
+      ]
+    }
+  },
+  "schema": "pi.operations.maintenance_dashboard.v1",
+  "source_files": {
+    "beads": ".beads/issues.jsonl",
+    "ledger": "docs/evidence/dropin-parity-gap-ledger.json",
+    "rch_artifact_logs": [
+      "tests/e2e_results/*/build.log"
+    ],
+    "verdict": "docs/evidence/dropin-certification-verdict.json"
+  },
+  "trend_history": [
+    {
+      "date_utc": "2026-05-01",
+      "hard_gate_status_counts": {
+        "pass": 20
+      },
+      "in_progress_beads": 4,
+      "open_beads": 12,
+      "open_critical_high_ledger_gaps": 1,
+      "overall_verdict": "CERTIFIED"
+    },
+    {
+      "date_utc": "2026-05-15",
+      "hard_gate_status_counts": {
+        "pass": 20
+      },
+      "in_progress_beads": 0,
+      "open_beads": 1,
+      "open_critical_high_ledger_gaps": 0,
+      "overall_verdict": "CERTIFIED"
+    },
+    {
+      "date_utc": "2026-05-18",
+      "hard_gate_status_counts": {
+        "pass": 22
+      },
+      "in_progress_beads": 0,
+      "open_beads": 0,
+      "open_critical_high_ledger_gaps": 0,
+      "overall_verdict": "CERTIFIED"
+    }
+  ]
+}

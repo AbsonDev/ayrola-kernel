@@ -1,0 +1,509 @@
+{
+  "schema": "pi.completion_audit.closeout_admission_inventory.v1",
+  "generated_at": "2026-05-19T05:01:53Z",
+  "status": "pass",
+  "decision": "completion_audit_closeout_admission_inventory_ready",
+  "source_bead": "bd-nji8x.1",
+  "purpose": "Define the closeout-admission evidence contract that later completion-audit beads can implement without relying on planning-context memory.",
+  "summary": {
+    "problem": "Pi Rust has a completion-audit builder that can compare objective requirements to direct evidence, but closeout admission is not yet documented as a first-class machine-readable contract.",
+    "recommended_track": "Keep the audit advisory at first, then add direct Beads/git evidence adapters, no-mock integration coverage, runpack and handoff projections, and a lightweight closeout gate.",
+    "ready_follow_on": "bd-nji8x.2",
+    "non_goals": [
+      "Do not mutate live Agent Mail state from the audit adapter.",
+      "Do not mutate RCH state or require heavyweight cargo validation for docs-only inventory work.",
+      "Do not delete files or directories.",
+      "Do not make release, capacity, performance, or strict drop-in replacement claims."
+    ]
+  },
+  "idea_wizard_phases": {
+    "phase_1_grounding": {
+      "open_beads_at_start": 0,
+      "existing_completion_audit_script": "scripts/build_completion_audit.py",
+      "existing_operator_handoff_script": "scripts/summarize_operator_handoff.py",
+      "existing_inventory_pattern": "docs/evidence/semantic-validation-route-inventory.json",
+      "overlap_result": "A closeout-freshness idea overlapped existing closed or deferred work, so this track was scoped to completion-audit closeout admission instead."
+    },
+    "selected_top_idea": {
+      "id": "CA",
+      "title": "Completion-audit closeout enforcement",
+      "reason": "It turns an existing prompt-to-evidence evaluator into a reusable closeout admission surface for multi-agent work."
+    },
+    "created_beads": [
+      "bd-nji8x",
+      "bd-nji8x.1",
+      "bd-nji8x.2",
+      "bd-nji8x.3",
+      "bd-nji8x.4",
+      "bd-nji8x.5",
+      "bd-nji8x.6"
+    ],
+    "next_ready_bead_after_this_inventory": "bd-nji8x.2"
+  },
+  "source_inventory": {
+    "objective_markdown": {
+      "required": true,
+      "source": "operator prompt, Beads issue descriptions, or closeout runpack objectives",
+      "consumer": "scripts/build_completion_audit.py",
+      "notes": "The current builder extracts requirement-like bullets and command/file/artifact claims from markdown objective text."
+    },
+    "evidence_json": {
+      "required": true,
+      "source": "closeout evidence bundle assembled by later adapter work",
+      "consumer": "scripts/build_completion_audit.py",
+      "notes": "Evidence must include command results, artifact paths, git state, pushed-ref state, unresolved gaps, and optional human-readable summaries."
+    },
+    "git_state": {
+      "required": true,
+      "minimum_fields": [
+        "changed_files",
+        "latest_commit",
+        "branch",
+        "upstream",
+        "is_pushed",
+        "ahead_by",
+        "behind_by",
+        "dirty_files"
+      ],
+      "source": "direct git commands from the workspace",
+      "blockers": [
+        "missing commit evidence for code or evidence changes",
+        "unpushed closeout commit",
+        "dirty files that are part of the claimed work"
+      ]
+    },
+    "beads_state": {
+      "required": true,
+      "minimum_fields": [
+        "source_bead",
+        "title",
+        "status",
+        "assignee",
+        "dependencies",
+        "dependents",
+        "close_reason",
+        "ready_successor"
+      ],
+      "source": "br show, br ready, and br sync evidence",
+      "blockers": [
+        "source bead is not closed for a final closeout audit",
+        "closed bead lacks a close reason tied to direct evidence",
+        "required dependent follow-up is neither complete nor tracked"
+      ]
+    },
+    "agent_mail_coordination": {
+      "required": "optional_for_advisory_gate",
+      "minimum_fields": [
+        "agent_name",
+        "reservation_ids",
+        "reservation_paths",
+        "thread_id",
+        "start_message_id",
+        "completion_message_id"
+      ],
+      "source": "Agent Mail tool outputs when available",
+      "blockers": [
+        "claimed exclusive edit surface conflicts with another active reservation",
+        "completion claims cite coordination that is absent from the evidence bundle"
+      ],
+      "mutation_policy": "The audit reads supplied evidence only; it must not acquire or release reservations by itself."
+    },
+    "rch_validation_posture": {
+      "required": "when cargo or heavyweight validation is part of the objective",
+      "minimum_fields": [
+        "command",
+        "offload_used",
+        "exit_code",
+        "duration_seconds",
+        "failure_text"
+      ],
+      "source": "explicit validation transcript",
+      "blockers": [
+        "heavy cargo command was required but no rch or equivalent proof was supplied",
+        "command failed and no follow-up bead or blocker was recorded"
+      ]
+    },
+    "ubs_staged_gate": {
+      "required": true,
+      "minimum_fields": [
+        "command",
+        "exit_code",
+        "scope",
+        "baseline_noise_policy"
+      ],
+      "accepted_commands": [
+        "ubs --staged --only=rust .",
+        "python3 scripts/check_ubs_staged_delta.py"
+      ],
+      "blockers": [
+        "changed-line UBS warning is unresolved",
+        "staged Rust files were changed without a staged UBS proof"
+      ]
+    },
+    "beads_ledger_reconciliation": {
+      "required": true,
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "blockers": [
+        "orphan critical or high drop-in gap",
+        "stale active bead references a non-active critical or high gap"
+      ]
+    },
+    "closeout_gates": {
+      "required": "track_specific",
+      "source_examples": [
+        "docs/contracts/semantic-validation-route-closeout-gate-contract.json",
+        "docs/evidence/semantic-validation-route-closeout-gate.json"
+      ],
+      "notes": "Completion audit should be able to cite existing closeout gates as artifacts, but those gates cannot replace command, git, Beads, and pushed-ref evidence."
+    },
+    "runpack_operator_handoff": {
+      "required": "optional_projection",
+      "source_examples": [
+        "scripts/build_swarm_operator_runpack.py",
+        "scripts/summarize_operator_handoff.py"
+      ],
+      "notes": "Later projection work should surface completion-audit status in runpacks and handoff summaries without changing the source audit decision."
+    }
+  },
+  "current_completion_audit_surface": {
+    "script": "scripts/build_completion_audit.py",
+    "current_schema": "pi.completion_audit.v1",
+    "detected_requirement_classes": [
+      "command",
+      "file",
+      "commit",
+      "push",
+      "artifact_bundle",
+      "validation",
+      "deliverable",
+      "generic"
+    ],
+    "status_states": [
+      "pass",
+      "fail",
+      "missing",
+      "uncertain"
+    ],
+    "completion_allowed_rule": "Completion is allowed only when no evaluated requirement is failed, missing, contradiction-bearing, proxy-only, or uncertain in a way that blocks the objective.",
+    "existing_direct_evidence": [
+      "command outputs supplied in evidence JSON",
+      "artifact paths supplied in evidence JSON",
+      "latest commit and pushed status captured from git",
+      "unresolved gaps supplied in evidence JSON"
+    ],
+    "current_gaps": [
+      "No standard adapter assembles Beads issue state into completion-audit evidence.",
+      "No standard adapter records branch push state, dirty file state, and close reason in the same evidence object.",
+      "No no-mock integration test proves the closeout path against a temporary git and Beads workspace.",
+      "Runpack and handoff scripts do not yet project completion-audit status.",
+      "CI and runbook guidance do not yet include a lightweight advisory completion-audit gate."
+    ]
+  },
+  "proposed_closeout_admission_contract": {
+    "schema": "pi.completion_audit.closeout_admission.v1",
+    "required_top_level_keys": [
+      "schema",
+      "generated_at",
+      "status",
+      "decision",
+      "source_bead",
+      "objective",
+      "evidence_sources",
+      "direct_evidence_requirements",
+      "evaluated_requirements",
+      "blocked_requirements",
+      "operator_next_actions",
+      "source_boundaries",
+      "negative_controls",
+      "claim_boundaries",
+      "summary"
+    ],
+    "allowed_status_values": [
+      "pass",
+      "fail",
+      "blocked"
+    ],
+    "allowed_decisions": [
+      "closeout_admitted",
+      "closeout_blocked",
+      "advisory_only"
+    ],
+    "direct_evidence_requirements": [
+      "source bead state and close reason",
+      "git commit evidence for touched files",
+      "pushed-ref evidence when the workflow requires a push",
+      "validation command transcript with exit codes",
+      "artifact existence and JSON parse evidence for claimed JSON artifacts",
+      "UBS staged or changed-line proof for staged Rust changes",
+      "beads ledger reconciliation proof",
+      "explicit blocker or follow-up bead for unfinished required work"
+    ],
+    "proxy_only_blockers": [
+      "Natural-language summary without command, git, or artifact evidence.",
+      "Agent Mail note that claims completion but lacks workspace evidence.",
+      "RCH or cargo claim without command transcript and exit code.",
+      "Artifact path listed without existence or parse proof.",
+      "Close reason that does not reference direct evidence."
+    ]
+  },
+  "required_evidence_classes": {
+    "commands": {
+      "required_fields": [
+        "command",
+        "cwd",
+        "exit_code",
+        "stdout_excerpt",
+        "stderr_excerpt",
+        "started_at",
+        "finished_at"
+      ],
+      "block_on_nonzero_exit": true
+    },
+    "artifacts": {
+      "required_fields": [
+        "path",
+        "kind",
+        "exists",
+        "parse_check",
+        "producer"
+      ],
+      "block_on_missing_or_unparseable": true
+    },
+    "files_changed": {
+      "required_fields": [
+        "path",
+        "change_type",
+        "reason",
+        "associated_requirement"
+      ],
+      "block_on_untracked_claimed_file": true
+    },
+    "commits": {
+      "required_fields": [
+        "sha",
+        "subject",
+        "contains_claimed_paths",
+        "created_after_validation"
+      ],
+      "block_on_missing_claimed_commit": true
+    },
+    "pushes": {
+      "required_fields": [
+        "branch",
+        "upstream",
+        "head_sha",
+        "upstream_sha",
+        "is_pushed"
+      ],
+      "block_on_unpushed_required_commit": true
+    },
+    "requirement_statuses": {
+      "required_fields": [
+        "requirement_id",
+        "class",
+        "status",
+        "evidence_refs",
+        "blocker"
+      ],
+      "block_on_failed_missing_or_uncertain": true
+    },
+    "unresolved_gaps": {
+      "required_fields": [
+        "gap_id",
+        "severity",
+        "owner_bead",
+        "status"
+      ],
+      "block_on_unowned_required_gap": true
+    }
+  },
+  "adapter_requirements_for_bd_nji8x_2": {
+    "owned_surfaces": [
+      "scripts/build_completion_audit.py",
+      "docs/contracts",
+      "docs/evidence"
+    ],
+    "inputs": [
+      "objective markdown",
+      "br show source bead JSON",
+      "br ready JSON",
+      "git status porcelain",
+      "git rev-parse HEAD and upstream",
+      "validation command transcript JSON",
+      "artifact path list"
+    ],
+    "outputs": [
+      "completion audit evidence object",
+      "closeout admission decision",
+      "blocked requirement list",
+      "operator next actions"
+    ],
+    "negative_controls": [
+      "proxy-only evidence remains blocked",
+      "unpushed required commit remains blocked",
+      "failed required command remains blocked",
+      "missing JSON artifact remains blocked",
+      "stale or absent Beads close reason remains blocked"
+    ],
+    "minimum_validation": [
+      "python3 -m py_compile scripts/build_completion_audit.py",
+      "python3 scripts/build_completion_audit.py --self-test",
+      "python3 -m json.tool <new_contract_or_evidence_json> >/dev/null",
+      "git diff --check",
+      "./scripts/reconcile_beads_ledger.sh",
+      "ubs --staged --only=rust ."
+    ]
+  },
+  "test_requirements_for_bd_nji8x_3": {
+    "owned_surfaces": [
+      "tests/golden_corpus/completion_audit",
+      "scripts/build_completion_audit.py"
+    ],
+    "requirements": [
+      "Use a temporary real git repository instead of mocks for commit and push-state evidence.",
+      "Use real Beads command output or fixture files generated from real Beads JSON shape.",
+      "Exercise pass, missing artifact, failed command, unpushed commit, and proxy-only evidence scenarios.",
+      "Keep golden updates explicit and reviewable."
+    ],
+    "minimum_validation": [
+      "python3 scripts/build_completion_audit.py --self-test",
+      "git diff --check",
+      "./scripts/reconcile_beads_ledger.sh",
+      "ubs --staged --only=rust ."
+    ]
+  },
+  "projection_requirements_for_bd_nji8x_4": {
+    "owned_surfaces": [
+      "scripts/build_swarm_operator_runpack.py",
+      "scripts/summarize_operator_handoff.py",
+      "docs/evidence"
+    ],
+    "requirements": [
+      "Project audit status, decision, blocked requirement count, and next actions into runpacks.",
+      "Project the same status into operator handoff summaries without changing the canonical audit decision.",
+      "Preserve redaction boundaries and safe-next-action structure."
+    ]
+  },
+  "ci_docs_requirements_for_bd_nji8x_5": {
+    "owned_surfaces": [
+      ".github/workflows",
+      "docs/contracts",
+      "docs/evidence",
+      "README.md"
+    ],
+    "requirements": [
+      "Wire an advisory lightweight gate only after CA-2 through CA-4 are implemented.",
+      "Document how operators interpret closeout-admitted, closeout-blocked, and advisory-only decisions.",
+      "Keep claims bounded to closeout evidence quality, not product completeness."
+    ]
+  },
+  "closeout_requirements_for_bd_nji8x_6": {
+    "owned_surfaces": [
+      "docs/contracts",
+      "docs/evidence",
+      ".beads"
+    ],
+    "requirements": [
+      "Publish a closeout evidence bundle for the completion-audit enforcement track.",
+      "Prove all child beads are closed or intentionally tracked.",
+      "Prove final audit state and Beads graph state with direct command evidence.",
+      "Leave the parent epic closed only after the advisory gate has current evidence."
+    ]
+  },
+  "source_boundaries": {
+    "reads_workspace_state": true,
+    "mutates_workspace_state": false,
+    "requires_network": false,
+    "requires_live_agent_mail": false,
+    "requires_live_rch": false,
+    "requires_cargo": false,
+    "status": "pass"
+  },
+  "negative_controls": [
+    {
+      "name": "proxy_only_evidence",
+      "expected_result": "blocked",
+      "reason": "Closeout cannot be admitted from narrative summary alone."
+    },
+    {
+      "name": "missing_pushed_ref",
+      "expected_result": "blocked",
+      "reason": "The session workflow requires pushed commits before work is complete."
+    },
+    {
+      "name": "failed_command",
+      "expected_result": "blocked",
+      "reason": "A required validation command with nonzero exit cannot be treated as passing."
+    },
+    {
+      "name": "missing_artifact",
+      "expected_result": "blocked",
+      "reason": "Claimed JSON evidence must exist and parse."
+    },
+    {
+      "name": "unresolved_followup",
+      "expected_result": "blocked_or_tracked",
+      "reason": "Required unfinished work must have an owner bead or explicit blocker."
+    },
+    {
+      "name": "stale_beads_status",
+      "expected_result": "blocked",
+      "reason": "Closeout must reflect current Beads state, not stale planning text."
+    },
+    {
+      "name": "forbidden_claims",
+      "expected_result": "blocked",
+      "reason": "Deletion, release, capacity, performance, and strict drop-in claims are outside this bead."
+    }
+  ],
+  "claim_boundaries": {
+    "authorizes_file_deletion": false,
+    "authorizes_live_agent_mail_mutation": false,
+    "authorizes_rch_mutation": false,
+    "authorizes_local_heavy_cargo_fallback": false,
+    "authorizes_release_claim": false,
+    "authorizes_performance_claim": false,
+    "authorizes_capacity_claim": false,
+    "authorizes_strict_dropin_claim": false
+  },
+  "validation_plan": [
+    "python3 -m json.tool docs/evidence/completion-audit-closeout-admission-inventory.json >/dev/null",
+    "git diff --check",
+    "./scripts/reconcile_beads_ledger.sh",
+    "ubs --staged --only=rust ."
+  ],
+  "follow_on_beads": [
+    {
+      "id": "bd-nji8x.2",
+      "role": "Implement Beads/git evidence adapter",
+      "expected_ready_after": "bd-nji8x.1"
+    },
+    {
+      "id": "bd-nji8x.3",
+      "role": "Add no-mock integration coverage",
+      "expected_ready_after": "bd-nji8x.2"
+    },
+    {
+      "id": "bd-nji8x.4",
+      "role": "Project audit status into runpacks and handoff summaries",
+      "expected_ready_after": "bd-nji8x.2"
+    },
+    {
+      "id": "bd-nji8x.5",
+      "role": "Wire lightweight advisory gate into CI and runbooks",
+      "expected_ready_after": "bd-nji8x.3 and bd-nji8x.4"
+    },
+    {
+      "id": "bd-nji8x.6",
+      "role": "Close out completion-audit enforcement with advisory evidence gate",
+      "expected_ready_after": "bd-nji8x.5"
+    }
+  ],
+  "acceptance": {
+    "machine_readable": true,
+    "downstream_children_actionable": true,
+    "source_boundaries_explicit": true,
+    "negative_controls_explicit": true,
+    "status": "pass"
+  }
+}

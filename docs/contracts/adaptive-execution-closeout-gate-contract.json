@@ -1,0 +1,99 @@
+{
+  "schema": "pi.swarm.adaptive_execution.closeout_gate_contract.v1",
+  "decision_gate_schema": "pi.swarm.adaptive_execution.closeout_gate.v1",
+  "purpose": "prompt_to_artifact_adaptive_execution_closeout_gate_not_source_of_truth",
+  "allowed_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_check_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_decisions": [
+    "close_final_gate_and_parent_epic",
+    "file_follow_up_beads_before_closing_epic"
+  ],
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "parent_epic",
+    "final_gate_bead",
+    "required_checks",
+    "child_artifact_map",
+    "source_boundary_checks",
+    "quality_gate_results",
+    "checklist",
+    "missing_checks",
+    "remaining_follow_ups",
+    "known_limitations",
+    "claim_boundaries",
+    "follow_up_required",
+    "follow_up_beads",
+    "decision",
+    "epic_can_close_after_this_commit"
+  ],
+  "required_child_bead_ids": [
+    "bd-63x3v.8.1",
+    "bd-63x3v.8.2",
+    "bd-63x3v.8.3",
+    "bd-63x3v.8.4",
+    "bd-63x3v.8.5",
+    "bd-63x3v.8.6"
+  ],
+  "required_check_ids": [
+    "child_beads_closed",
+    "child_artifact_mapping",
+    "provider_streaming_backpressure",
+    "tool_artifact_lifecycle",
+    "branch_replay_minimization",
+    "tui_degradation_drill",
+    "permission_drift_detector",
+    "validation_refresh_scheduler",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "required_source_boundary_ids": [
+    "beads_are_source_of_truth",
+    "agent_mail_is_coordination_only",
+    "read_only_gate",
+    "rch_required_for_heavy_cargo",
+    "staged_ubs_required",
+    "beads_ledger_required",
+    "no_release_or_dropin_claims",
+    "closeout_does_not_replace_child_artifacts"
+  ],
+  "required_quality_gate_ids": [
+    "py_compile",
+    "runpack_self_test",
+    "json_contracts",
+    "git_diff_check",
+    "staged_ubs",
+    "beads_ledger_reconcile"
+  ],
+  "requirements": [
+    {
+      "id": "child_artifact_mapping",
+      "description": "Every fifth-wave child bead maps to a pushed commit, source paths, test or fixture paths, docs or evidence paths, validation commands, close reason, and claim-boundary text."
+    },
+    {
+      "id": "prompt_to_artifact_coverage",
+      "description": "The checklist covers provider streaming backpressure, tool artifact lifecycle, branch-heavy replay minimization, TUI degradation, extension permission drift, validation refresh scheduling, source boundaries, pushed refs, and quality gates."
+    },
+    {
+      "id": "safe_close_behavior",
+      "description": "A passing gate may close the final gate and parent epic only after the closeout commit lands and the branch is pushed. A failing gate must emit follow-up beads instead of optimistic closeout."
+    },
+    {
+      "id": "not_source_of_truth",
+      "description": "The closeout gate is evidence over Beads, git, source files, tests, RCH, Agent Mail posture, UBS, and child artifacts. It does not replace those sources of truth."
+    },
+    {
+      "id": "claim_boundaries",
+      "description": "The closeout gate must not mutate coordination state, regenerate evidence, enforce runtime throttles, or make release-facing performance, capacity, benchmark, or strict drop-in claims."
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "schema": "pi.completion_audit.enforcement_closeout_gate.v1",
+  "generated_at": "2026-05-19T05:32:04Z",
+  "status": "pass",
+  "decision": "advisory_closeout_ready",
+  "source_bead": "bd-nji8x.6",
+  "parent_bead": "bd-nji8x",
+  "summary": {
+    "track": "completion-audit closeout enforcement",
+    "child_count": 5,
+    "closed_child_count": 5,
+    "ready_for_parent_close_after_this_commit_is_pushed": true,
+    "heavy_validation_posture": "No heavy Cargo validation was added by this track. Future heavy validation referenced by completion-audit evidence remains RCH-only."
+  },
+  "child_map": [
+    {
+      "id": "bd-nji8x.1",
+      "title": "Inventory completion-audit closeout admission contract",
+      "status": "closed",
+      "commit": "df4f26f92",
+      "primary_paths": [
+        "docs/evidence/completion-audit-closeout-admission-inventory.json"
+      ],
+      "validation": [
+        "python3 -m json.tool docs/evidence/completion-audit-closeout-admission-inventory.json >/dev/null",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ],
+      "negative_controls": [
+        "proxy-only evidence cannot admit closeout",
+        "missing pushed ref or failed command evidence blocks closeout",
+        "live Agent Mail/RCH mutation and file deletion are not authorized"
+      ]
+    },
+    {
+      "id": "bd-nji8x.2",
+      "title": "Add Beads/git evidence adapter for completion audit",
+      "status": "closed",
+      "commit": "cfe98175b",
+      "primary_paths": [
+        "scripts/build_completion_audit.py",
+        "tests/golden_corpus/completion_audit/closeout_admission_projection.json"
+      ],
+      "validation": [
+        "python3 -m py_compile scripts/build_completion_audit.py",
+        "python3 scripts/build_completion_audit.py --self-test",
+        "python3 -m json.tool tests/golden_corpus/completion_audit/closeout_admission_projection.json >/dev/null"
+      ],
+      "negative_controls": [
+        "missing pushed ref",
+        "failed command",
+        "proxy-only command",
+        "missing artifact",
+        "stale close reason",
+        "dirty worktree when clean state is required"
+      ]
+    },
+    {
+      "id": "bd-nji8x.3",
+      "title": "Add no-mock completion-audit closeout integration coverage",
+      "status": "closed",
+      "commit": "e32af1431",
+      "primary_paths": [
+        "scripts/build_completion_audit.py",
+        "tests/golden_corpus/completion_audit/no_mock_closeout_projection.json"
+      ],
+      "validation": [
+        "python3 -m py_compile scripts/build_completion_audit.py",
+        "python3 scripts/build_completion_audit.py --self-test",
+        "python3 -m json.tool tests/golden_corpus/completion_audit/no_mock_closeout_projection.json >/dev/null"
+      ],
+      "negative_controls": [
+        "missing push",
+        "failed command",
+        "proxy-only command",
+        "missing artifact",
+        "stale Beads status",
+        "unresolved follow-up",
+        "forbidden file-deletion authority"
+      ]
+    },
+    {
+      "id": "bd-nji8x.4",
+      "title": "Project completion-audit status into operator handoff summaries",
+      "status": "closed",
+      "commit": "9fbb7b558",
+      "primary_paths": [
+        "scripts/summarize_operator_handoff.py",
+        "docs/contracts/operator-handoff-summary-contract.json",
+        "tests/fixtures/operator_handoff_summary/scenarios.json",
+        "tests/fixtures/operator_handoff_summary/goldens"
+      ],
+      "validation": [
+        "python3 -m py_compile scripts/summarize_operator_handoff.py",
+        "python3 scripts/summarize_operator_handoff.py --self-test --generated-at 2026-01-02T03:04:05+00:00 --json >/dev/null",
+        "python3 -m json.tool docs/contracts/operator-handoff-summary-contract.json >/dev/null",
+        "python3 -m json.tool tests/fixtures/operator_handoff_summary/scenarios.json >/dev/null"
+      ],
+      "negative_controls": [
+        "blocked missing-push audit projects into handoff",
+        "missing-source audit projects as watch",
+        "proxy-only audit projects as block",
+        "file-deletion claim boundary adds must-not-touch guidance"
+      ]
+    },
+    {
+      "id": "bd-nji8x.5",
+      "title": "Wire lightweight completion-audit gate into CI and runbooks",
+      "status": "closed",
+      "commit": "ebe449727",
+      "primary_paths": [
+        "scripts/check_completion_audit_gate.py",
+        "tests/fixtures/completion_audit_gate/scenarios.json",
+        "tests/fixtures/completion_audit_gate/goldens",
+        ".github/workflows/ci.yml",
+        "docs/ci-operator-runbook.md"
+      ],
+      "validation": [
+        "python3 -m py_compile scripts/check_completion_audit_gate.py",
+        "python3 scripts/check_completion_audit_gate.py --self-test --generated-at 2026-01-02T03:04:05+00:00 >/dev/null",
+        "python3 scripts/check_completion_audit_gate.py --fixture-id pass --generated-at 2026-01-02T03:04:05+00:00 >/dev/null",
+        "python3 scripts/check_completion_audit_gate.py --fixture-id missing_push --generated-at 2026-01-02T03:04:05+00:00 returns exit 1",
+        "ruby -e \"require 'yaml'; YAML.load_file('.github/workflows/ci.yml')\""
+      ],
+      "negative_controls": [
+        "missing push",
+        "failed command",
+        "proxy-only evidence",
+        "missing artifact",
+        "unresolved gap"
+      ]
+    }
+  ],
+  "pushed_commits": [
+    {
+      "commit": "df4f26f92",
+      "subject": "bd-nji8x.1 add completion audit inventory",
+      "pushed_to": [
+        "origin/main",
+        "origin/master"
+      ]
+    },
+    {
+      "commit": "cfe98175b",
+      "subject": "bd-nji8x.2 add completion audit adapter",
+      "pushed_to": [
+        "origin/main",
+        "origin/master"
+      ]
+    },
+    {
+      "commit": "e32af1431",
+      "subject": "bd-nji8x.3 add no-mock completion audit coverage",
+      "pushed_to": [
+        "origin/main",
+        "origin/master"
+      ]
+    },
+    {
+      "commit": "9fbb7b558",
+      "subject": "bd-nji8x.4 project completion audit in handoff",
+      "pushed_to": [
+        "origin/main",
+        "origin/master"
+      ]
+    },
+    {
+      "commit": "ebe449727",
+      "subject": "bd-nji8x.5 add completion audit closeout gate",
+      "pushed_to": [
+        "origin/main",
+        "origin/master"
+      ]
+    }
+  ],
+  "validation": {
+    "focused_script_checks": [
+      {
+        "command": "python3 -m py_compile scripts/build_completion_audit.py scripts/summarize_operator_handoff.py scripts/check_completion_audit_gate.py",
+        "status": "pass"
+      },
+      {
+        "command": "python3 scripts/build_completion_audit.py --self-test",
+        "status": "pass"
+      },
+      {
+        "command": "python3 scripts/summarize_operator_handoff.py --self-test --generated-at 2026-01-02T03:04:05+00:00 --json >/dev/null",
+        "status": "pass"
+      },
+      {
+        "command": "python3 scripts/check_completion_audit_gate.py --self-test --generated-at 2026-01-02T03:04:05+00:00 >/dev/null",
+        "status": "pass"
+      },
+      {
+        "command": "python3 -m json.tool docs/contracts/completion-audit-enforcement-closeout-gate-contract.json >/dev/null",
+        "status": "pass"
+      },
+      {
+        "command": "python3 -m json.tool docs/evidence/completion-audit-enforcement-closeout-gate.json >/dev/null",
+        "status": "pass"
+      }
+    ],
+    "required_closeout_checks": [
+      {
+        "command": "git diff --check",
+        "status": "pass"
+      },
+      {
+        "command": "ubs --staged --only=rust .",
+        "status": "pass"
+      },
+      {
+        "command": "./scripts/reconcile_beads_ledger.sh",
+        "status": "pass"
+      },
+      {
+        "command": "br ready --json",
+        "status": "expected_empty_after_child_and_parent_close"
+      },
+      {
+        "command": "bv --robot-insights",
+        "status": "no_dependency_cycles"
+      }
+    ]
+  },
+  "negative_controls": {
+    "proxy_only_evidence_blocks": true,
+    "missing_pushed_ref_blocks": true,
+    "failed_command_blocks": true,
+    "missing_artifact_blocks": true,
+    "unresolved_followup_blocks": true,
+    "stale_source_blocks": true,
+    "forbidden_file_deletion_blocks": true,
+    "release_claim_not_authorized": true,
+    "strict_dropin_claim_not_authorized": true
+  },
+  "source_boundaries": {
+    "read_only_advisory_evidence": true,
+    "does_not_replace_beads": true,
+    "does_not_replace_git": true,
+    "does_not_replace_agent_mail": true,
+    "does_not_replace_rch": true,
+    "does_not_replace_ubs": true,
+    "does_not_replace_ci": true,
+    "does_not_replace_source_artifacts": true,
+    "does_not_replace_release_evidence": true,
+    "does_not_replace_dropin_certification": true
+  },
+  "claim_boundaries": {
+    "authorizes_file_deletion": false,
+    "authorizes_release_claim": false,
+    "authorizes_performance_claim": false,
+    "authorizes_capacity_claim": false,
+    "authorizes_strict_dropin_claim": false,
+    "runs_heavy_cargo_without_rch": false,
+    "mutates_live_agent_mail": false,
+    "mutates_live_rch": false
+  },
+  "limitations": [
+    "The closeout gate is advisory evidence over artifacts produced by this track.",
+    "It does not certify product completeness, release readiness, performance, capacity, or strict drop-in replacement status.",
+    "It does not replace Beads status, git refs, Agent Mail coordination, RCH execution proof, UBS, CI, source artifacts, release evidence, or docs/evidence/dropin-certification-verdict.json.",
+    "The closeout evidence commit itself must be pushed before closing bd-nji8x.6 and the bd-nji8x parent epic."
+  ],
+  "operator_next_actions": [
+    "Commit and push this closeout contract/evidence artifact to origin/main and origin/master.",
+    "After the push succeeds, close bd-nji8x.6 and parent bd-nji8x with close reasons that cite the pushed closeout evidence commit.",
+    "Run br sync --flush-only and commit/push the Beads closure."
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "schema": "pi.ubs.extension_runtime_noise_baseline.v1",
+  "bead_id": "bd-wv10l",
+  "purpose": "Classify the known whole-file UBS signal in the large extension runtime modules so future reviews can separate guarded or test-only baseline noise from new production defects.",
+  "generated_from": {
+    "repository_commit": "ee443c7b9b6e1b199b79f678c21a888077ddd01a",
+    "generated_at": "2026-05-10T12:05:18Z",
+    "tools": [
+      "UBS Meta-Runner v5.2.75",
+      "ubs-rust module 3.0.1"
+    ],
+    "commands": [
+      "ubs --only=rust --format=json --ci --files src/extensions.rs,src/pi_wasm.rs --report-json=/data/tmp/pi_agent_rust_ubs/ext_runtime_ubs_report.json .",
+      "/home/ubuntu/.local/share/ubs/modules/ubs-rust.sh --ci --no-cargo --format=json --emit-findings-json=/data/tmp/pi_agent_rust_ubs/ext_runtime_findings_full.json /data/tmp/pi_agent_rust_ubs/ext_runtime_scope"
+    ],
+    "scanned_files": [
+      "src/extensions.rs",
+      "src/pi_wasm.rs"
+    ]
+  },
+  "raw_ubs_summary": {
+    "files": 2,
+    "critical": 206,
+    "warning": 5179,
+    "info": 1591
+  },
+  "rust_module_no_cargo_summary": {
+    "files": 2,
+    "critical": 206,
+    "warning": 5179,
+    "info": 1593,
+    "note": "The Rust module JSON category inventory preserves all critical and warning counts. Info rows are advisory and differ by two between the meta-runner and direct module path."
+  },
+  "changed_line_gate": {
+    "script": "scripts/check_ubs_staged_delta.py",
+    "unchanged": true,
+    "policy": "Critical or warning UBS findings on staged added or modified Rust lines remain blocking. This baseline only classifies whole-file findings that UBS reports on unchanged lines in the two large runtime modules."
+  },
+  "finding_categories": [
+    {
+      "severity": "warning",
+      "count": 2322,
+      "category": "Ownership & Error Handling",
+      "title": "Potential panics via unwrap/expect",
+      "disposition": "mixed_test_and_baseline_inventory",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Samples are dominated by test helpers and explicit invariant checks in the WASM and extension conformance suites. Treat new production unwrap/expect additions in these files as actionable."
+    },
+    {
+      "severity": "critical",
+      "count": 53,
+      "category": "Ownership & Error Handling",
+      "title": "panic! macro(s) present",
+      "disposition": "test_only",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Sample locations are in test modules that intentionally panic when an async worker must surface a test failure to the harness."
+    },
+    {
+      "severity": "warning",
+      "count": 56,
+      "category": "Ownership & Error Handling",
+      "title": "unreachable! may panic if reached",
+      "disposition": "test_only",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Current samples are expectation guards in extension hostcall tests. New production unreachable! remains actionable."
+    },
+    {
+      "severity": "warning",
+      "count": 3,
+      "category": "Concurrency & Async Pitfalls",
+      "title": "Rc<RefCell<..>> borrow panics possible",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "QuickJS and WASM bridge state is intentionally single-threaded. New shared-runtime RefCell use still needs review."
+    },
+    {
+      "severity": "warning",
+      "count": 9,
+      "category": "Concurrency & Async Pitfalls",
+      "title": "Poisoned lock handling via unwrap/expect",
+      "disposition": "baseline_inventory",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Whole-file lock findings are retained as review inventory; changed-line additions continue to fail the delta gate."
+    },
+    {
+      "severity": "warning",
+      "count": 3,
+      "category": "Concurrency & Async Pitfalls",
+      "title": "thread::sleep in async",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Current samples are inside blocking worker threads spawned to drain extension exec streams, not executor-thread sleeps."
+    },
+    {
+      "severity": "warning",
+      "count": 7,
+      "category": "Concurrency & Async Pitfalls",
+      "title": "std::thread::spawn inside async fn",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Current samples are deliberate blocking bridge workers for process I/O and QuickJS runtime isolation. New spawns need explicit lifecycle review."
+    },
+    {
+      "severity": "warning",
+      "count": 147,
+      "category": "Collections & Iterators",
+      "title": "clone() inside loops - potential perf hit",
+      "disposition": "optimization_inventory",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Perf noise is tracked separately from safety findings. Treat hot-path additions as optimization work, not as a blocker for unrelated changed lines."
+    },
+    {
+      "severity": "critical",
+      "count": 1,
+      "category": "Security Findings",
+      "title": "Security token generated with non-cryptographic randomness",
+      "disposition": "heuristic_false_positive",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "The sampled line is Instant::now() measuring warm-reset latency, not token, nonce, salt, key, or signature generation."
+    },
+    {
+      "severity": "critical",
+      "count": 150,
+      "category": "Security Findings",
+      "title": "Secret, signature, or token compared with ==/!=",
+      "disposition": "heuristic_false_positive",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Samples include path normalization, ASCII escaping, and structural comparisons rather than secret material. New comparisons involving credentials remain actionable."
+    },
+    {
+      "severity": "critical",
+      "count": 2,
+      "category": "Security Findings",
+      "title": "Command executable from untrusted-looking value",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "The two Command::new(&cmd) sinks are reached after exec capability policy and evaluate_exec_mediation() classify or deny dangerous commands before dispatch_hostcall_exec_ref()."
+    },
+    {
+      "severity": "warning",
+      "count": 24,
+      "category": "Security Findings",
+      "title": "Path join/push with untrusted-looking segment",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Samples are source enumeration and extension entry discovery paths that resolve through safe_canonicalize/entry filtering. New filesystem writes or extraction paths remain actionable."
+    },
+    {
+      "severity": "warning",
+      "count": 21,
+      "category": "Security Findings",
+      "title": "Archive entry path traversal risk",
+      "disposition": "heuristic_false_positive",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Samples are recursive directory enumeration vectors, not archive extraction or unpacking. New archive handling must use enclosed-name or containment checks."
+    },
+    {
+      "severity": "warning",
+      "count": 2143,
+      "category": "Panic Surfaces & Unwinding",
+      "title": "assert! macros present (panic surface)",
+      "disposition": "test_only",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "The largest cluster is from #[cfg(test)] conformance and WASM tests. Runtime assertions outside tests should be converted to explicit errors."
+    },
+    {
+      "severity": "warning",
+      "count": 99,
+      "category": "Panic Surfaces & Unwinding",
+      "title": "Direct indexing/slicing may panic",
+      "disposition": "guarded_runtime_pattern",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Representative WASM memory indexing is preceded by checked_memory_range/caller_read_bytes. New unchecked indexing from external offsets remains actionable."
+    },
+    {
+      "severity": "warning",
+      "count": 42,
+      "category": "Parsing & Validation Robustness",
+      "title": "serde/toml deserialization unwrap/expect",
+      "disposition": "test_only",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Samples are round-trip serialization tests for host stream chunks, runtime risk models, and quota configs."
+    },
+    {
+      "severity": "warning",
+      "count": 303,
+      "category": "Perf/DoS Hotspots",
+      "title": "String allocation inside loop",
+      "disposition": "optimization_inventory",
+      "changed_line_policy": "fail_on_new_or_modified_lines",
+      "review_note": "Tracked as performance inventory for future focused optimization work; changed-line additions remain visible."
+    }
+  ],
+  "classification_totals": {
+    "critical_classified": 206,
+    "warning_classified": 5179,
+    "test_only_critical": 53,
+    "test_only_warning": 2241,
+    "guarded_runtime_warning": 166,
+    "guarded_runtime_critical": 2,
+    "heuristic_false_positive_critical": 151,
+    "heuristic_false_positive_warning": 21,
+    "optimization_inventory_warning": 450,
+    "baseline_inventory_warning": 9
+  }
+}

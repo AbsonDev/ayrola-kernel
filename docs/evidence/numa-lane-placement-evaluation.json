@@ -1,0 +1,115 @@
+{
+  "schema": "pi.resource_governor.numa_lane_placement_evaluation.v1",
+  "bead_id": "bd-2zcs5.9",
+  "generated_at": "2026-05-08T21:40:00Z",
+  "host": {
+    "logical_cpus": 64,
+    "model": "AMD EPYC 7282 16-Core Processor",
+    "numa_nodes": 2,
+    "numa_node_cpus": {
+      "0": "0-15,32-47",
+      "1": "16-31,48-63"
+    },
+    "numactl_available": true
+  },
+  "harness_changes": {
+    "file": "examples/ext_stress.rs",
+    "added_flags": [
+      "--reactor-core-ids",
+      "--synthetic-hostcall-extensions"
+    ],
+    "added_report_fields": [
+      "config.reactor_core_ids",
+      "config.synthetic_hostcall_extensions",
+      "reactor.numa_pool_active",
+      "reactor.affinity_advisory_count"
+    ]
+  },
+  "raw_artifacts": {
+    "agent_start_baseline": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/numa-baseline.json",
+    "agent_start_candidate": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/numa-candidate.json",
+    "tool_call_baseline": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/toolcall-baseline.json",
+    "tool_call_candidate": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/toolcall-candidate.json",
+    "synthetic_hostcall_baseline": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-baseline.json",
+    "synthetic_hostcall_candidate": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-candidate.json"
+  },
+  "primary_comparison": {
+    "workload": "16 synthetic agent_start handlers; each handler calls pi.session(\"getSessionName\")",
+    "duration_secs": 10,
+    "warmup_secs": 2,
+    "events_per_sec": 100,
+    "reactor_shards": 4,
+    "reactor_lane_capacity": 512,
+    "baseline": {
+      "reactor_core_ids": null,
+      "numa_pool_active": false,
+      "affinity_advisory_count": 0,
+      "events": 1000,
+      "errors": 0,
+      "latency_us": {
+        "p95": 4499,
+        "p99": 5166,
+        "p999": 6986
+      },
+      "rss_growth_ratio": 0.008589589417625838,
+      "cpu_mean_pct": 91.60001220703126,
+      "reactor_total_enqueued_by_shard": [0, 0, 0, 0],
+      "reactor_total_dispatched": 0,
+      "reactor_rejected_enqueues": 0
+    },
+    "candidate": {
+      "reactor_core_ids": [0, 16, 32, 48],
+      "numa_pool_active": true,
+      "affinity_advisory_count": 4,
+      "events": 1000,
+      "errors": 0,
+      "latency_us": {
+        "p95": 4454,
+        "p99": 5121,
+        "p999": 6688
+      },
+      "rss_growth_ratio": 0.01895322552599548,
+      "cpu_mean_pct": 91.55589447021484,
+      "reactor_total_enqueued_by_shard": [0, 0, 0, 0],
+      "reactor_total_dispatched": 0,
+      "reactor_rejected_enqueues": 0
+    },
+    "delta": {
+      "p95_us": -45,
+      "p99_us": -45,
+      "p999_us": -298,
+      "cpu_mean_pct": -0.04411773681641762,
+      "rss_growth_ratio": 0.010363636108369642
+    }
+  },
+  "supporting_comparisons": [
+    {
+      "workload": "official-pi-mono agent_start, 10 extensions",
+      "events": 1000,
+      "baseline_reactor_enqueues": [0, 0, 0, 0],
+      "candidate_reactor_enqueues": [0, 0, 0, 0],
+      "candidate_numa_pool_active": true,
+      "p99_delta_us": -133,
+      "p999_delta_us": 32
+    },
+    {
+      "workload": "official-pi-mono tool_call, 40 extensions",
+      "events": 500,
+      "baseline_reactor_enqueues": [0, 0, 0, 0],
+      "candidate_reactor_enqueues": [0, 0, 0, 0],
+      "candidate_numa_pool_active": true,
+      "p99_delta_us": -532,
+      "p999_delta_us": -401
+    }
+  ],
+  "decision": {
+    "worth_implementation_now": false,
+    "follow_up_implementation_bead_created": false,
+    "reason": "The candidate activates NUMA advisory metadata but all measured workloads report zero reactor enqueues and zero reactor dispatches, so the latency deltas cannot be attributed to lane placement. The current code also exposes affinity advice rather than enforcing OS thread affinity. This does not clear the evidence threshold for a NUMA placement implementation bead."
+  },
+  "validation_commands": [
+    "CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/target TMPDIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/tmp PI_CARGO_RUNNER=local cargo test --example ext_stress -- --nocapture",
+    "CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/target TMPDIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/tmp PI_CARGO_RUNNER=local cargo run --example ext_stress -- --duration-secs 10 --warmup-secs 2 --rss-interval-secs 1 --events-per-sec 100 --event agent_start --synthetic-hostcall-extensions 16 --reactor-enabled=true --reactor-shards 4 --reactor-lane-capacity 512 --reactor-drain-budget 128 --dispatch-timeout-ms 100 --report-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-baseline.json --events-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-baseline-events.jsonl --run-id bd-2zcs5.9-synthetic-baseline --correlation-id bd-2zcs5.9-numa-eval",
+    "CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/target TMPDIR=/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-18/tmp PI_CARGO_RUNNER=local cargo run --example ext_stress -- --duration-secs 10 --warmup-secs 2 --rss-interval-secs 1 --events-per-sec 100 --event agent_start --synthetic-hostcall-extensions 16 --reactor-enabled=true --reactor-shards 4 --reactor-lane-capacity 512 --reactor-core-ids 0,16,32,48 --reactor-drain-budget 128 --dispatch-timeout-ms 100 --report-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-candidate.json --events-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-9/evidence/synthetic-hostcall-candidate-events.jsonl --run-id bd-2zcs5.9-synthetic-candidate --correlation-id bd-2zcs5.9-numa-eval"
+  ]
+}

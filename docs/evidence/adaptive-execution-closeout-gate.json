@@ -1,0 +1,646 @@
+{
+  "checklist": [
+    {
+      "evidence": [
+        {
+          "child_statuses": {
+            "bd-63x3v.8.1": "closed",
+            "bd-63x3v.8.2": "closed",
+            "bd-63x3v.8.3": "closed",
+            "bd-63x3v.8.4": "closed",
+            "bd-63x3v.8.5": "closed",
+            "bd-63x3v.8.6": "closed"
+          },
+          "close_reasons": {
+            "bd-63x3v.8.1": "Completed: added deterministic provider streaming backpressure replay coverage and JSONL evidence artifact across native provider fixtures.",
+            "bd-63x3v.8.2": "Completed tool artifact lifecycle quota and redaction gate",
+            "bd-63x3v.8.3": "Completed branch-heavy session replay minimization gate",
+            "bd-63x3v.8.4": "Completed deterministic TUI degradation drill.",
+            "bd-63x3v.8.5": "Added deterministic extension permission drift detector with provenance and policy evidence",
+            "bd-63x3v.8.6": "Completed validation evidence refresh scheduler."
+          },
+          "path": ".beads/issues.jsonl"
+        }
+      ],
+      "id": "child_beads_closed",
+      "issue": null,
+      "requirement": "All fifth-wave adaptive-execution child Beads are closed before closeout.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "artifact_paths_exist": true,
+          "child_artifact_map": [
+            {
+              "bead_id": "bd-63x3v.8.1",
+              "claim_boundary_text": "Provider backpressure replay evidence does not cover RPC, TUI, or session pressure surfaces.",
+              "close_reason": "Completed: added deterministic provider streaming backpressure replay coverage and JSONL evidence artifact across native provider fixtures.",
+              "code_paths": [
+                "tests/provider_streaming.rs"
+              ],
+              "commit": "cb28654244cd3dc7041c30d1787361d667e8f952",
+              "docs_or_evidence_paths": [
+                "tests/provider_streaming.rs"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "tests/provider_streaming.rs"
+              ],
+              "title": "Replay provider streaming backpressure across native providers",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test provider_streaming -- --nocapture",
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo check --all-targets"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.8.2",
+              "claim_boundary_text": "Tool artifact lifecycle evidence does not delete user files or authorize cleanup without operator confirmation.",
+              "close_reason": "Completed tool artifact lifecycle quota and redaction gate",
+              "code_paths": [
+                "src/tools.rs"
+              ],
+              "commit": "8341d6873e425e147ad3ff00c085fbaa13b8b05e",
+              "docs_or_evidence_paths": [
+                "src/tools.rs"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "src/tools.rs"
+              ],
+              "title": "Gate tool artifact lifecycle quotas and redaction",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test tools::tests conformance::test_read conformance::test_grep conformance::test_bash"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.8.3",
+              "claim_boundary_text": "Branch-heavy replay minimization evidence does not replace session persistence correctness tests.",
+              "close_reason": "Completed branch-heavy session replay minimization gate",
+              "code_paths": [
+                "src/session.rs"
+              ],
+              "commit": "f8699c73461d8a0838c643362a34ba283ac8e134",
+              "docs_or_evidence_paths": [
+                "src/session.rs"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "src/session.rs"
+              ],
+              "title": "Add branch-heavy session replay minimization gate",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test session::tests session_index::tests"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.8.4",
+              "claim_boundary_text": "TUI degradation drill evidence does not claim visual perfection for every terminal or bypass accessibility review.",
+              "close_reason": "Completed deterministic TUI degradation drill.",
+              "code_paths": [
+                "src/interactive/tests.rs"
+              ],
+              "commit": "5662cb8ba4a7fc4c2f9ba75483f8b78c4534f618",
+              "docs_or_evidence_paths": [
+                "src/interactive/tests.rs"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "src/interactive/tests.rs"
+              ],
+              "title": "Drill TUI degradation under sustained event pressure",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test interactive tui -- --nocapture"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.8.5",
+              "claim_boundary_text": "Permission drift detection does not mutate installed extensions, manifests, user config, or vendored artifacts.",
+              "close_reason": "Added deterministic extension permission drift detector with provenance and policy evidence",
+              "code_paths": [
+                "src/extensions.rs"
+              ],
+              "commit": "190cd9993f6335efb1c0a57022afccafbd8ba295",
+              "docs_or_evidence_paths": [
+                "src/extensions.rs"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "src/extensions.rs"
+              ],
+              "title": "Detect extension permission drift against provenance manifests",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test extension_policy ext_conformance"
+              ]
+            },
+            {
+              "bead_id": "bd-63x3v.8.6",
+              "claim_boundary_text": "Validation refresh scheduling does not run cargo, overwrite evidence, or weaken strict drop-in claim gates.",
+              "close_reason": "Completed validation evidence refresh scheduler.",
+              "code_paths": [
+                "scripts/schedule_validation_evidence_refresh.py"
+              ],
+              "commit": "f9fdfc063ee0e94002f491b4f4c499d7c788cc49",
+              "docs_or_evidence_paths": [
+                "scripts/schedule_validation_evidence_refresh.py"
+              ],
+              "status": "closed",
+              "test_paths": [
+                "scripts/schedule_validation_evidence_refresh.py"
+              ],
+              "title": "Schedule validation evidence refresh by value and pressure",
+              "validation_commands": [
+                "python3 scripts/schedule_validation_evidence_refresh.py --self-test"
+              ]
+            }
+          ],
+          "commits_present": true,
+          "weak_child_rows": []
+        }
+      ],
+      "id": "child_artifact_mapping",
+      "issue": null,
+      "requirement": "Every fifth-wave child bead maps to pushed commits, source paths, validation commands, and claim-boundary text.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "tests/provider_streaming.rs"
+        }
+      ],
+      "id": "provider_streaming_backpressure",
+      "issue": null,
+      "requirement": "Provider streaming replay preserves semantic chunks while bounding low-value backpressure deltas.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/tools.rs"
+        }
+      ],
+      "id": "tool_artifact_lifecycle",
+      "issue": null,
+      "requirement": "Tool output artifacts have bounded lifecycle metadata, redaction, retention, and safe-delete classification.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/session.rs"
+        }
+      ],
+      "id": "branch_replay_minimization",
+      "issue": null,
+      "requirement": "Branch-heavy session replay emits bounded selected-branch evidence and explicit fallback behavior.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/interactive/tests.rs"
+        }
+      ],
+      "id": "tui_degradation_drill",
+      "issue": null,
+      "requirement": "TUI degradation drill preserves semantic output and user input under sustained event pressure.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/extensions.rs"
+        }
+      ],
+      "id": "permission_drift_detector",
+      "issue": null,
+      "requirement": "Extension permission drift detector fails closed on capability expansion without trustworthy provenance.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "scripts/schedule_validation_evidence_refresh.py"
+        }
+      ],
+      "id": "validation_refresh_scheduler",
+      "issue": null,
+      "requirement": "Validation refresh scheduler ranks stale evidence by value, cost, duplicate coverage, headroom, and dirty state without running validation.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "boundary": "Beads issue state and close reasons remain the work ledger.",
+          "evidence": [
+            ".beads/issues.jsonl"
+          ],
+          "id": "beads_are_source_of_truth",
+          "status": "pass"
+        },
+        {
+          "boundary": "Agent Mail coordinates ownership but does not replace Beads, git, source inspection, or validation evidence.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "agent_mail_is_coordination_only",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate summarizes existing evidence and does not mutate runtime sources.",
+          "evidence": [
+            "scripts/build_swarm_operator_runpack.py"
+          ],
+          "id": "read_only_gate",
+          "status": "pass"
+        },
+        {
+          "boundary": "Heavy Cargo validation evidence for child work must prove RCH execution.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "rch_required_for_heavy_cargo",
+          "status": "pass"
+        },
+        {
+          "boundary": "Staged UBS remains mandatory before closeout commit.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "staged_ubs_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "Beads ledger reconciliation remains mandatory before closeout commit.",
+          "evidence": [
+            "scripts/reconcile_beads_ledger.sh"
+          ],
+          "id": "beads_ledger_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "Fifth-wave adaptive execution closeout evidence is advisory and does not authorize release, benchmark, capacity, performance, or strict drop-in claims.",
+          "evidence": [
+            "docs/contracts/dropin-certification-contract.json",
+            "docs/evidence/dropin-certification-verdict.json"
+          ],
+          "id": "no_release_or_dropin_claims",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate summarizes child evidence and does not replace source tests, contracts, Beads, pushed commits, RCH, UBS, or CI.",
+          "evidence": [
+            "docs/evidence/adaptive-execution-closeout-gate.json"
+          ],
+          "id": "closeout_does_not_replace_child_artifacts",
+          "status": "pass"
+        }
+      ],
+      "id": "source_boundaries",
+      "issue": null,
+      "requirement": "Closeout source boundaries preserve Beads, Agent Mail, RCH, UBS, ledger, child-artifact, and release-claim authorities.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "child_commits": [
+            "cb28654244cd3dc7041c30d1787361d667e8f952",
+            "8341d6873e425e147ad3ff00c085fbaa13b8b05e",
+            "f8699c73461d8a0838c643362a34ba283ac8e134",
+            "5662cb8ba4a7fc4c2f9ba75483f8b78c4534f618",
+            "190cd9993f6335efb1c0a57022afccafbd8ba295",
+            "f9fdfc063ee0e94002f491b4f4c499d7c788cc49"
+          ],
+          "head_before_closeout_commit": "776e60465fd3aafeedc664f4d001a473540c9934",
+          "origin_legacy_mirror_before_closeout_commit": "776e60465fd3aafeedc664f4d001a473540c9934",
+          "origin_main_before_closeout_commit": "776e60465fd3aafeedc664f4d001a473540c9934",
+          "pushed_remote_refs_equal_head": true
+        }
+      ],
+      "id": "pushed_commits",
+      "issue": null,
+      "requirement": "All prerequisite child commits are pushed to origin/main and legacy origin/master before final closeout generation.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "heavy_cargo_required_for_closeout_script": false,
+          "provided_quality_gates": [
+            {
+              "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+              "id": "py_compile",
+              "status": "pass"
+            },
+            {
+              "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+              "id": "runpack_self_test",
+              "status": "pass"
+            },
+            {
+              "command": "python3 -m json.tool docs/contracts/adaptive-execution-closeout-gate-contract.json",
+              "id": "json_contracts",
+              "status": "pass"
+            },
+            {
+              "command": "git diff --check",
+              "id": "git_diff_check",
+              "status": "pass"
+            },
+            {
+              "command": "timeout 120s ubs --staged --only=rust .",
+              "id": "staged_ubs",
+              "status": "pass"
+            },
+            {
+              "command": "./scripts/reconcile_beads_ledger.sh",
+              "id": "beads_ledger_reconcile",
+              "status": "pass"
+            }
+          ],
+          "required_quality_gates": [
+            "py_compile",
+            "runpack_self_test",
+            "json_contracts",
+            "git_diff_check",
+            "staged_ubs",
+            "beads_ledger_reconcile"
+          ]
+        }
+      ],
+      "id": "quality_gates",
+      "issue": null,
+      "requirement": "Required closeout quality gates passed for the script, contract, UBS, and Beads ledger.",
+      "status": "pass"
+    }
+  ],
+  "child_artifact_map": [
+    {
+      "bead_id": "bd-63x3v.8.1",
+      "claim_boundary_text": "Provider backpressure replay evidence does not cover RPC, TUI, or session pressure surfaces.",
+      "close_reason": "Completed: added deterministic provider streaming backpressure replay coverage and JSONL evidence artifact across native provider fixtures.",
+      "code_paths": [
+        "tests/provider_streaming.rs"
+      ],
+      "commit": "cb28654244cd3dc7041c30d1787361d667e8f952",
+      "docs_or_evidence_paths": [
+        "tests/provider_streaming.rs"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "tests/provider_streaming.rs"
+      ],
+      "title": "Replay provider streaming backpressure across native providers",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test provider_streaming -- --nocapture",
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo check --all-targets"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.8.2",
+      "claim_boundary_text": "Tool artifact lifecycle evidence does not delete user files or authorize cleanup without operator confirmation.",
+      "close_reason": "Completed tool artifact lifecycle quota and redaction gate",
+      "code_paths": [
+        "src/tools.rs"
+      ],
+      "commit": "8341d6873e425e147ad3ff00c085fbaa13b8b05e",
+      "docs_or_evidence_paths": [
+        "src/tools.rs"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/tools.rs"
+      ],
+      "title": "Gate tool artifact lifecycle quotas and redaction",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test tools::tests conformance::test_read conformance::test_grep conformance::test_bash"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.8.3",
+      "claim_boundary_text": "Branch-heavy replay minimization evidence does not replace session persistence correctness tests.",
+      "close_reason": "Completed branch-heavy session replay minimization gate",
+      "code_paths": [
+        "src/session.rs"
+      ],
+      "commit": "f8699c73461d8a0838c643362a34ba283ac8e134",
+      "docs_or_evidence_paths": [
+        "src/session.rs"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/session.rs"
+      ],
+      "title": "Add branch-heavy session replay minimization gate",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test session::tests session_index::tests"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.8.4",
+      "claim_boundary_text": "TUI degradation drill evidence does not claim visual perfection for every terminal or bypass accessibility review.",
+      "close_reason": "Completed deterministic TUI degradation drill.",
+      "code_paths": [
+        "src/interactive/tests.rs"
+      ],
+      "commit": "5662cb8ba4a7fc4c2f9ba75483f8b78c4534f618",
+      "docs_or_evidence_paths": [
+        "src/interactive/tests.rs"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/interactive/tests.rs"
+      ],
+      "title": "Drill TUI degradation under sustained event pressure",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test interactive tui -- --nocapture"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.8.5",
+      "claim_boundary_text": "Permission drift detection does not mutate installed extensions, manifests, user config, or vendored artifacts.",
+      "close_reason": "Added deterministic extension permission drift detector with provenance and policy evidence",
+      "code_paths": [
+        "src/extensions.rs"
+      ],
+      "commit": "190cd9993f6335efb1c0a57022afccafbd8ba295",
+      "docs_or_evidence_paths": [
+        "src/extensions.rs"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/extensions.rs"
+      ],
+      "title": "Detect extension permission drift against provenance manifests",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/<agent>/target TMPDIR=/data/tmp/pi_agent_rust_cargo/<agent>/tmp cargo test extension_policy ext_conformance"
+      ]
+    },
+    {
+      "bead_id": "bd-63x3v.8.6",
+      "claim_boundary_text": "Validation refresh scheduling does not run cargo, overwrite evidence, or weaken strict drop-in claim gates.",
+      "close_reason": "Completed validation evidence refresh scheduler.",
+      "code_paths": [
+        "scripts/schedule_validation_evidence_refresh.py"
+      ],
+      "commit": "f9fdfc063ee0e94002f491b4f4c499d7c788cc49",
+      "docs_or_evidence_paths": [
+        "scripts/schedule_validation_evidence_refresh.py"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "scripts/schedule_validation_evidence_refresh.py"
+      ],
+      "title": "Schedule validation evidence refresh by value and pressure",
+      "validation_commands": [
+        "python3 scripts/schedule_validation_evidence_refresh.py --self-test"
+      ]
+    }
+  ],
+  "claim_boundaries": {
+    "allowed_claim": "advisory fifth-wave adaptive execution closeout evidence only",
+    "closeout_mutates_sources": false,
+    "closeout_replaces_child_artifacts": false,
+    "performance_or_capacity_claim_authorized": false,
+    "strict_dropin_or_release_claim_authorized": false
+  },
+  "decision": "close_final_gate_and_parent_epic",
+  "epic_can_close_after_this_commit": true,
+  "final_gate_bead": {
+    "assignee": "AmberStone",
+    "id": "bd-63x3v.8.7",
+    "status": "in_progress"
+  },
+  "follow_up_beads": [],
+  "follow_up_required": false,
+  "generated_at": "2026-05-17T04:10:13.346461+00:00",
+  "known_limitations": [
+    "Fifth-wave adaptive execution closeout evidence is advisory operator evidence only.",
+    "Provider, tool, session, TUI, extension, and validation-refresh proofs remain their own sources of truth.",
+    "This closeout does not authorize release, benchmark, capacity, performance, or strict drop-in claims."
+  ],
+  "missing_checks": [],
+  "parent_epic": {
+    "id": "bd-63x3v.8",
+    "status": "deferred",
+    "title": "Swarm adaptive execution fifth-wave roadmap"
+  },
+  "purpose": "prompt_to_artifact_adaptive_execution_closeout_gate_not_source_of_truth",
+  "quality_gate_results": [
+    {
+      "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+      "id": "py_compile",
+      "status": "pass"
+    },
+    {
+      "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+      "id": "runpack_self_test",
+      "status": "pass"
+    },
+    {
+      "command": "python3 -m json.tool docs/contracts/adaptive-execution-closeout-gate-contract.json",
+      "id": "json_contracts",
+      "status": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "id": "git_diff_check",
+      "status": "pass"
+    },
+    {
+      "command": "timeout 120s ubs --staged --only=rust .",
+      "id": "staged_ubs",
+      "status": "pass"
+    },
+    {
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "id": "beads_ledger_reconcile",
+      "status": "pass"
+    }
+  ],
+  "remaining_follow_ups": [],
+  "required_checks": [
+    "child_beads_closed",
+    "child_artifact_mapping",
+    "provider_streaming_backpressure",
+    "tool_artifact_lifecycle",
+    "branch_replay_minimization",
+    "tui_degradation_drill",
+    "permission_drift_detector",
+    "validation_refresh_scheduler",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "schema": "pi.swarm.adaptive_execution.closeout_gate.v1",
+  "source_boundary_checks": [
+    {
+      "boundary": "Beads issue state and close reasons remain the work ledger.",
+      "evidence": [
+        ".beads/issues.jsonl"
+      ],
+      "id": "beads_are_source_of_truth",
+      "status": "pass"
+    },
+    {
+      "boundary": "Agent Mail coordinates ownership but does not replace Beads, git, source inspection, or validation evidence.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "agent_mail_is_coordination_only",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate summarizes existing evidence and does not mutate runtime sources.",
+      "evidence": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "id": "read_only_gate",
+      "status": "pass"
+    },
+    {
+      "boundary": "Heavy Cargo validation evidence for child work must prove RCH execution.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "rch_required_for_heavy_cargo",
+      "status": "pass"
+    },
+    {
+      "boundary": "Staged UBS remains mandatory before closeout commit.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "staged_ubs_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "Beads ledger reconciliation remains mandatory before closeout commit.",
+      "evidence": [
+        "scripts/reconcile_beads_ledger.sh"
+      ],
+      "id": "beads_ledger_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "Fifth-wave adaptive execution closeout evidence is advisory and does not authorize release, benchmark, capacity, performance, or strict drop-in claims.",
+      "evidence": [
+        "docs/contracts/dropin-certification-contract.json",
+        "docs/evidence/dropin-certification-verdict.json"
+      ],
+      "id": "no_release_or_dropin_claims",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate summarizes child evidence and does not replace source tests, contracts, Beads, pushed commits, RCH, UBS, or CI.",
+      "evidence": [
+        "docs/evidence/adaptive-execution-closeout-gate.json"
+      ],
+      "id": "closeout_does_not_replace_child_artifacts",
+      "status": "pass"
+    }
+  ],
+  "status": "pass"
+}

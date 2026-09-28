@@ -1,0 +1,1276 @@
+//! GitHub Copilot provider implementation.
+//!
+//! Copilot uses a two-step authentication flow:
+//! 1. Exchange a GitHub OAuth/PAT token for a short-lived Copilot session token
+//!    via `https://api.github.com/copilot_internal/v2/token`.
+//! 2. Use the session token to make OpenAI-compatible chat completion requests
+//!    to the Copilot proxy endpoint.
+//!
+//! The session token is cached and automatically refreshed when it expires
+//! or the proxy explicitly rejects it before a stream starts. Established
+//! streams and ambiguous transport failures are never replayed here.
+//! GitHub Enterprise Server is supported via a configurable base URL.
+
+use crate::error::{Error, Result};
+use crate::http::client::Client;
+use crate::models::CompatConfig;
+use crate::provider::{Context, Provider, StreamEvent, StreamOptions};
+use async_trait::async_trait;
+use futures::Stream;
+use serde::Deserialize;
+use std::pin::Pin;
+use std::sync::Mutex;
+
+use super::openai::OpenAIProvider;
+
+// ── Constants ────────────────────────────────────────────────────
+
+/// Default GitHub API base for token exchange.
+const GITHUB_API_BASE: &str = "https://api.github.com";
+
+/// Editor version header value (required by Copilot API).
+/// Override via `PI_COPILOT_EDITOR_VERSION`.
+const EDITOR_VERSION: &str = "vscode/1.96.2";
+
+/// User-Agent header value (required by Copilot API).
+/// Override via `PI_COPILOT_USER_AGENT`.
+const COPILOT_USER_AGENT: &str = "GitHubCopilotChat/0.26.7";
+
+/// GitHub API version header.
+/// Override via `PI_GITHUB_API_VERSION`.
+const GITHUB_API_VERSION: &str = "2025-04-01";
+
+/// Safety margin: refresh the session token this many seconds before expiry.
+const TOKEN_REFRESH_MARGIN_SECS: i64 = 60;
+
+/// Token responses are small control-plane messages, not model output.
+const MAX_TOKEN_RESPONSE_BYTES: usize = 64 * 1024;
+
+fn copilot_editor_version() -> String {
+    std::env::var("PI_COPILOT_EDITOR_VERSION")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| EDITOR_VERSION.to_string())
+}
+
+fn copilot_user_agent() -> String {
+    std::env::var("PI_COPILOT_USER_AGENT")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| COPILOT_USER_AGENT.to_string())
+}
+
+fn github_api_version() -> String {
+    std::env::var("PI_GITHUB_API_VERSION")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| GITHUB_API_VERSION.to_string())
+}
+
+/// Resolve the GitHub REST API base used for the OAuth token exchange.
+///
+/// Defaults to `https://api.github.com`. GitHub Enterprise / data-residency
+/// deployments can point the exchange elsewhere via
+/// `PI_COPILOT_GITHUB_API_BASE` (e.g. `https://github.example.com/api/v3`).
+/// This is deliberately separate from the model catalog's `base_url`, which
+/// is a chat-completions endpoint hint and must never steer the token
+/// exchange (gh #191).
+fn github_api_base_from_env(value: Option<&str>) -> String {
+    match value.map(str::trim) {
+        Some(v) if !v.is_empty() => v.to_string(),
+        _ => GITHUB_API_BASE.to_string(),
+    }
+}
+
+/// The effective GitHub REST API base for Copilot OAuth/usage calls
+/// (`PI_COPILOT_GITHUB_API_BASE` or the `api.github.com` default).
+pub(crate) fn github_api_base() -> String {
+    github_api_base_from_env(std::env::var("PI_COPILOT_GITHUB_API_BASE").ok().as_deref())
+}
+
+/// Ensure a chat-completions URL ends with `/chat/completions` exactly once.
+fn ensure_chat_completions_path(base: &str) -> String {
+    let trimmed = base.trim_end_matches('/');
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}/chat/completions")
+    }
+}
+
+// ── Token exchange types ─────────────────────────────────────────
+
+/// Response from the Copilot token exchange endpoint.
+#[derive(Deserialize)]
+struct CopilotTokenResponse {
+    /// The short-lived session token.
+    token: String,
+    /// Unix timestamp (seconds) when the token expires.
+    expires_at: i64,
+    /// Endpoints returned by the API.
+    #[serde(default)]
+    endpoints: CopilotEndpoints,
+}
+
+impl std::fmt::Debug for CopilotTokenResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CopilotTokenResponse")
+            .field("token", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Endpoint URLs returned alongside the session token.
+#[derive(Debug, Default, Deserialize)]
+struct CopilotEndpoints {
+    /// The API endpoint for chat completions.
+    #[serde(default)]
+    api: String,
+}
+
+/// Cached session token with expiry.
+#[derive(Clone)]
+struct CachedToken {
+    token: String,
+    expires_at: i64,
+    api_endpoint: String,
+}
+
+impl std::fmt::Debug for CachedToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CachedToken")
+            .field("token", &"[REDACTED]")
+            .field("expires_at", &self.expires_at)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Treat all response content as secret-bearing, including parser errors:
+/// serde diagnostics can otherwise quote an unexpected credential value.
+fn parse_session_token_response(text: &str, now: i64) -> Result<CopilotTokenResponse> {
+    if text.len() > MAX_TOKEN_RESPONSE_BYTES {
+        return Err(Error::auth(
+            "Copilot token response exceeded the size limit",
+        ));
+    }
+    let response: CopilotTokenResponse =
+        serde_json::from_str(text).map_err(|_| Error::auth("Invalid Copilot token response"))?;
+    // Do not trim or otherwise rewrite an opaque credential. Reject values
+    // that cannot safely form a single HTTP Authorization header instead.
+    if response.token.is_empty() || !response.token.bytes().all(|byte| byte.is_ascii_graphic()) {
+        return Err(Error::auth("Copilot returned an unusable session token"));
+    }
+    if response.expires_at <= now {
+        return Err(Error::auth("Copilot returned an expired session token"));
+    }
+    Ok(response)
+}
+
+// ── Provider ─────────────────────────────────────────────────────
+
+/// GitHub Copilot provider that wraps OpenAI-compatible streaming.
+pub struct CopilotProvider {
+    /// HTTP client for token exchange and API requests.
+    client: Client,
+    /// The GitHub OAuth token or PAT used for token exchange.
+    github_token: String,
+    /// The model ID to request (e.g., "gpt-4o", "claude-3.5-sonnet").
+    model: String,
+    /// GitHub API base URL for the OAuth token exchange only (supports
+    /// Enterprise: `https://github.example.com/api/v3`). Never used for
+    /// chat completions.
+    github_api_base: String,
+    /// Optional chat-completions endpoint override. When set, it takes
+    /// precedence over the endpoint the token-exchange response supplies.
+    chat_completions_override: Option<String>,
+    /// Provider name for event attribution.
+    provider_name: String,
+    /// Compatibility overrides passed to the underlying OpenAI provider.
+    compat: Option<CompatConfig>,
+    /// Cached session token (refreshed automatically).
+    cached_token: Mutex<Option<CachedToken>>,
+}
+
+impl CopilotProvider {
+    /// Create a new Copilot provider.
+    pub fn new(model: impl Into<String>, github_token: impl Into<String>) -> Self {
+        Self {
+            client: Client::new(),
+            github_token: github_token.into(),
+            model: model.into(),
+            github_api_base: github_api_base(),
+            chat_completions_override: None,
+            provider_name: "github-copilot".to_string(),
+            compat: None,
+            cached_token: Mutex::new(None),
+        }
+    }
+
+    /// Set the GitHub API base URL used for the OAuth token exchange (for
+    /// Enterprise / data-residency deployments). This must be a GitHub REST
+    /// API host — never a chat-completions endpoint; for that, use
+    /// [`Self::with_chat_completions_endpoint`] (gh #191).
+    #[must_use]
+    pub fn with_github_api_base(mut self, base: impl Into<String>) -> Self {
+        self.github_api_base = base.into();
+        self
+    }
+
+    /// Pin the chat-completions endpoint, overriding whatever endpoint the
+    /// token-exchange response supplies. This is what a configured catalog
+    /// `base_url` means for Copilot (a chat endpoint hint, like every other
+    /// provider); it never affects where the OAuth token exchange goes
+    /// (gh #191).
+    #[must_use]
+    pub fn with_chat_completions_endpoint(mut self, endpoint: impl Into<String>) -> Self {
+        self.chat_completions_override = Some(endpoint.into());
+        self
+    }
+
+    /// Set the provider name for event attribution.
+    #[must_use]
+    pub fn with_provider_name(mut self, name: impl Into<String>) -> Self {
+        self.provider_name = name.into();
+        self
+    }
+
+    /// Attach compatibility overrides.
+    #[must_use]
+    pub fn with_compat(mut self, compat: Option<CompatConfig>) -> Self {
+        self.compat = compat;
+        self
+    }
+
+    /// Inject a custom HTTP client (for testing / VCR).
+    #[must_use]
+    pub fn with_client(mut self, client: Client) -> Self {
+        self.client = client;
+        self
+    }
+
+    /// Get a valid session token, refreshing if necessary.
+    async fn ensure_session_token(&self) -> Result<CachedToken> {
+        // Check cache first.
+        {
+            let guard = self
+                .cached_token
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(cached) = &*guard {
+                let now = chrono::Utc::now().timestamp();
+                if cached.expires_at > now + TOKEN_REFRESH_MARGIN_SECS {
+                    return Ok(cached.clone());
+                }
+            }
+        }
+
+        // Exchange GitHub token for a Copilot session token.
+        let token_url = format!(
+            "{}/copilot_internal/v2/token",
+            self.github_api_base.trim_end_matches('/')
+        );
+
+        let request = self
+            .client
+            .get(&token_url)
+            .header("Authorization", format!("token {}", self.github_token))
+            .header("Accept", "application/json")
+            .header("Editor-Version", copilot_editor_version())
+            .header("User-Agent", copilot_user_agent())
+            .header("X-Github-Api-Version", github_api_version());
+
+        let response = Box::pin(request.send()).await.map_err(|_| {
+            // Transport diagnostics can contain a request URL or headers.
+            Error::auth("Copilot token exchange failed before a response was received")
+        })?;
+
+        let status = response.status();
+        if !(200..300).contains(&status) {
+            // Never copy an authentication response into user-visible
+            // errors. Do not drain a potentially unbounded error body.
+            return Err(Error::auth(format!(
+                "Copilot token exchange failed (HTTP {status}). \
+                 Verify your GitHub token has Copilot access."
+            )));
+        }
+
+        let text = response
+            .text_limited(MAX_TOKEN_RESPONSE_BYTES)
+            .await
+            .map_err(|_| Error::auth("Failed to read Copilot token response"))?;
+        let token_response = parse_session_token_response(&text, chrono::Utc::now().timestamp())?;
+
+        // Determine the chat-completions endpoint. A configured override
+        // (catalog `base_url`) wins over the endpoint the token-exchange
+        // response supplied; with neither, fall back to the standard
+        // Copilot proxy URL.
+        let api_endpoint = if let Some(configured) = &self.chat_completions_override {
+            ensure_chat_completions_path(configured)
+        } else if token_response.endpoints.api.is_empty() {
+            "https://api.githubcopilot.com/chat/completions".to_string()
+        } else {
+            ensure_chat_completions_path(&token_response.endpoints.api)
+        };
+
+        let cached = CachedToken {
+            token: token_response.token,
+            expires_at: token_response.expires_at,
+            api_endpoint,
+        };
+
+        // Store only a fully read, parsed, and validated credential.
+        {
+            let mut guard = self
+                .cached_token
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *guard = Some(cached.clone());
+        }
+
+        Ok(cached)
+    }
+
+    /// A late rejection must not evict a different request's refreshed token.
+    fn invalidate_session_token(&self, rejected: &str) {
+        let mut cached = self
+            .cached_token
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if cached.as_ref().is_some_and(|token| token.token == rejected) {
+            *cached = None;
+        }
+    }
+
+    /// Only the inner adapter's explicit HTTP rejection authorizes a retry.
+    /// Permission failures, response bodies mentioning 401, and I/O failures
+    /// do not prove that it is safe to submit the completion again.
+    fn session_token_rejected(&self, error: &Error) -> bool {
+        matches!(error, Error::Provider { provider, message }
+            if provider == &self.provider_name
+                && message.starts_with("OpenAI API error (HTTP 401):"))
+    }
+
+    fn session_options(session: &CachedToken, options: &StreamOptions) -> StreamOptions {
+        // Preserve request hooks and generation settings, but never let a
+        // generic GitHub credential override the exchanged session bearer.
+        let mut options = options.clone();
+        options.api_key = Some(session.token.clone());
+        options
+            .headers
+            .retain(|name, _| !name.eq_ignore_ascii_case("authorization"));
+        options.headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", session.token),
+        );
+        options
+            .headers
+            .insert("Editor-Version".to_string(), copilot_editor_version());
+        options
+            .headers
+            .insert("User-Agent".to_string(), copilot_user_agent());
+        options
+            .headers
+            .insert("X-Github-Api-Version".to_string(), github_api_version());
+        options.headers.insert(
+            "Copilot-Integration-Id".to_string(),
+            "vscode-chat".to_string(),
+        );
+        options
+    }
+
+    async fn stream_with_session(
+        &self,
+        session: &CachedToken,
+        context: &Context<'_>,
+        options: &StreamOptions,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent>> + Send>>> {
+        let mut compat = self.compat.clone();
+        if let Some(headers) = compat
+            .as_mut()
+            .and_then(|compat| compat.custom_headers.as_mut())
+        {
+            headers.retain(|name, _| !name.eq_ignore_ascii_case("authorization"));
+        }
+        let inner = OpenAIProvider::new(&self.model)
+            .with_provider_name(&self.provider_name)
+            .with_base_url(&session.api_endpoint)
+            .with_compat(compat)
+            .with_client(self.client.clone());
+        inner
+            .stream(context, &Self::session_options(session, options))
+            .await
+    }
+}
+
+#[async_trait]
+impl Provider for CopilotProvider {
+    fn name(&self) -> &str {
+        &self.provider_name
+    }
+
+    fn api(&self) -> &'static str {
+        "openai-completions"
+    }
+
+    fn model_id(&self) -> &str {
+        &self.model
+    }
+
+    async fn stream(
+        &self,
+        context: &Context<'_>,
+        options: &StreamOptions,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent>> + Send>>> {
+        let session = self.ensure_session_token().await?;
+        match self.stream_with_session(&session, context, options).await {
+            Err(error) if self.session_token_rejected(&error) => {
+                self.invalidate_session_token(&session.token);
+                let refreshed = self.ensure_session_token().await?;
+                // Exactly one recovery attempt. Do not wrap the returned
+                // stream: once accepted, even a later auth-shaped stream
+                // error must not replay a potentially billable completion.
+                let result = self.stream_with_session(&refreshed, context, options).await;
+                if let Err(error) = &result
+                    && self.session_token_rejected(error)
+                {
+                    self.invalidate_session_token(&refreshed.token);
+                }
+                result
+            }
+            result => result,
+        }
+    }
+}
+
+// ── Tests ────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vcr::{
+        Cassette, Interaction, RecordedRequest, RecordedResponse, VcrMode, VcrRecorder,
+    };
+    use futures::StreamExt;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[test]
+    fn test_copilot_provider_defaults() {
+        let p = CopilotProvider::new("gpt-4o", "ghp_test123");
+        assert_eq!(p.name(), "github-copilot");
+        assert_eq!(p.api(), "openai-completions");
+        assert_eq!(p.model_id(), "gpt-4o");
+        assert_eq!(p.github_api_base, GITHUB_API_BASE);
+    }
+
+    #[test]
+    fn test_copilot_provider_builder() {
+        let p = CopilotProvider::new("gpt-4o", "ghp_test")
+            .with_provider_name("copilot-enterprise")
+            .with_github_api_base("https://github.example.com/api/v3");
+
+        assert_eq!(p.name(), "copilot-enterprise");
+        assert_eq!(p.github_api_base, "https://github.example.com/api/v3");
+    }
+
+    #[test]
+    fn test_chat_completions_endpoint_does_not_touch_github_api_base() {
+        // A catalog `base_url` (e.g. https://api.individual.githubcopilot.com)
+        // is a chat-completions hint; the OAuth exchange host must stay put.
+        let p = CopilotProvider::new("gpt-4o", "ghp_test")
+            .with_chat_completions_endpoint("https://api.individual.githubcopilot.com");
+        assert_eq!(p.github_api_base, GITHUB_API_BASE);
+        assert_eq!(
+            p.chat_completions_override.as_deref(),
+            Some("https://api.individual.githubcopilot.com")
+        );
+    }
+
+    #[test]
+    fn test_github_api_base_from_env_resolution() {
+        // Default: api.github.com.
+        assert_eq!(github_api_base_from_env(None), GITHUB_API_BASE);
+        assert_eq!(github_api_base_from_env(Some("")), GITHUB_API_BASE);
+        assert_eq!(github_api_base_from_env(Some("  ")), GITHUB_API_BASE);
+        // GHE escape hatch.
+        assert_eq!(
+            github_api_base_from_env(Some("https://github.example.com/api/v3")),
+            "https://github.example.com/api/v3"
+        );
+    }
+
+    #[test]
+    fn test_ensure_chat_completions_path() {
+        assert_eq!(
+            ensure_chat_completions_path("https://proxy.example.com/v1"),
+            "https://proxy.example.com/v1/chat/completions"
+        );
+        assert_eq!(
+            ensure_chat_completions_path("https://proxy.example.com/v1/"),
+            "https://proxy.example.com/v1/chat/completions"
+        );
+        assert_eq!(
+            ensure_chat_completions_path("https://proxy.example.com/chat/completions"),
+            "https://proxy.example.com/chat/completions"
+        );
+    }
+
+    #[test]
+    fn test_copilot_token_response_deserialization() {
+        let json = r#"{
+            "token": "ghu_session_abc123",
+            "expires_at": 1700000000,
+            "endpoints": {
+                "api": "https://copilot-proxy.githubusercontent.com/v1",
+                "proxy": "https://copilot-proxy.githubusercontent.com"
+            }
+        }"#;
+
+        let resp: CopilotTokenResponse = serde_json::from_str(json).expect("parse");
+        assert_eq!(resp.token, "ghu_session_abc123");
+        assert_eq!(resp.expires_at, 1_700_000_000);
+        assert_eq!(
+            resp.endpoints.api,
+            "https://copilot-proxy.githubusercontent.com/v1"
+        );
+    }
+
+    #[test]
+    fn test_copilot_token_response_missing_endpoints() {
+        let json = r#"{"token": "ghu_abc", "expires_at": 1700000000}"#;
+
+        let resp: CopilotTokenResponse = serde_json::from_str(json).expect("parse");
+        assert_eq!(resp.token, "ghu_abc");
+        assert!(resp.endpoints.api.is_empty());
+    }
+
+    #[test]
+    fn test_copilot_token_exchange_url_construction() {
+        // Standard GitHub
+        let p = CopilotProvider::new("gpt-4o", "ghp_test");
+        let expected = "https://api.github.com/copilot_internal/v2/token";
+        let actual = format!(
+            "{}/copilot_internal/v2/token",
+            p.github_api_base.trim_end_matches('/')
+        );
+        assert_eq!(actual, expected);
+
+        // Enterprise with trailing slash
+        let p = CopilotProvider::new("gpt-4o", "ghp_test")
+            .with_github_api_base("https://github.example.com/api/v3/");
+        let actual = format!(
+            "{}/copilot_internal/v2/token",
+            p.github_api_base.trim_end_matches('/')
+        );
+        assert_eq!(
+            actual,
+            "https://github.example.com/api/v3/copilot_internal/v2/token"
+        );
+    }
+
+    #[test]
+    fn test_cached_token_clone() {
+        let cloned = CachedToken {
+            token: "session-tok".to_string(),
+            expires_at: 99999,
+            api_endpoint: "https://example.com/chat/completions".to_string(),
+        };
+        assert_eq!(cloned.token, "session-tok");
+        assert_eq!(cloned.expires_at, 99999);
+    }
+
+    fn vcr_raw_token_client(
+        test_name: &str,
+        status: u16,
+        response_body: String,
+    ) -> (Client, tempfile::TempDir) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let cassette = Cassette {
+            version: "1.0".to_string(),
+            test_name: test_name.to_string(),
+            recorded_at: "2025-01-01T00:00:00Z".to_string(),
+            interactions: vec![Interaction {
+                request: RecordedRequest {
+                    method: "GET".to_string(),
+                    url: "https://api.github.com/copilot_internal/v2/token".to_string(),
+                    headers: vec![],
+                    body: None,
+                    body_text: None,
+                },
+                response: RecordedResponse {
+                    status,
+                    headers: vec![],
+                    body_chunks: vec![response_body],
+                    body_chunks_base64: None,
+                },
+            }],
+        };
+        let serialized = serde_json::to_string_pretty(&cassette).expect("serialize");
+        std::fs::write(temp.path().join(format!("{test_name}.json")), serialized)
+            .expect("write cassette");
+        let recorder = VcrRecorder::new_with(test_name, VcrMode::Playback, temp.path());
+        let client = Client::new().with_vcr(recorder);
+        (client, temp)
+    }
+
+    /// Build a VCR client that returns a successful token exchange response.
+    fn vcr_token_exchange_client(
+        test_name: &str,
+        token: &str,
+        expires_at: i64,
+        api_endpoint: &str,
+    ) -> (Client, tempfile::TempDir) {
+        let response_body = serde_json::json!({
+            "token": token,
+            "expires_at": expires_at,
+            "endpoints": {
+                "api": api_endpoint
+            }
+        })
+        .to_string();
+        vcr_raw_token_client(test_name, 200, response_body)
+    }
+
+    #[test]
+    fn test_token_exchange_success_via_vcr() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let far_future = chrono::Utc::now().timestamp() + 3600;
+            let (client, _temp) = vcr_token_exchange_client(
+                "copilot_token_success",
+                "ghu_session_test",
+                far_future,
+                "https://copilot-proxy.example.com/v1",
+            );
+            let provider = CopilotProvider::new("gpt-4o", "ghp_dummy_token").with_client(client);
+            let cached = provider
+                .ensure_session_token()
+                .await
+                .expect("token exchange");
+            assert_eq!(cached.token, "ghu_session_test");
+            assert_eq!(cached.expires_at, far_future);
+            assert_eq!(
+                cached.api_endpoint,
+                "https://copilot-proxy.example.com/v1/chat/completions"
+            );
+        });
+    }
+
+    #[test]
+    fn test_token_exchange_caches_on_second_call() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let far_future = chrono::Utc::now().timestamp() + 3600;
+            let (client, _temp) =
+                vcr_token_exchange_client("copilot_token_cache", "ghu_cached", far_future, "");
+            let provider = CopilotProvider::new("gpt-4o", "ghp_dummy").with_client(client);
+            // First call populates the cache.
+            let first = provider.ensure_session_token().await.expect("first call");
+            assert_eq!(first.token, "ghu_cached");
+            // Second call should use the cache (no VCR interaction needed).
+            let second = provider.ensure_session_token().await.expect("second call");
+            assert_eq!(second.token, "ghu_cached");
+        });
+    }
+
+    #[test]
+    fn test_token_exchange_error_returns_auth_error() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let test_name = "copilot_token_error";
+        let cassette = Cassette {
+            version: "1.0".to_string(),
+            test_name: test_name.to_string(),
+            recorded_at: "2025-01-01T00:00:00Z".to_string(),
+            interactions: vec![Interaction {
+                request: RecordedRequest {
+                    method: "GET".to_string(),
+                    url: "https://api.github.com/copilot_internal/v2/token".to_string(),
+                    headers: vec![],
+                    body: None,
+                    body_text: None,
+                },
+                response: RecordedResponse {
+                    status: 401,
+                    headers: vec![],
+                    body_chunks: vec![r#"{"message":"Bad credentials"}"#.to_string()],
+                    body_chunks_base64: None,
+                },
+            }],
+        };
+        let serialized = serde_json::to_string_pretty(&cassette).expect("serialize");
+        std::fs::write(temp.path().join(format!("{test_name}.json")), serialized)
+            .expect("write cassette");
+        let recorder = VcrRecorder::new_with(test_name, VcrMode::Playback, temp.path());
+        let client = Client::new().with_vcr(recorder);
+
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let provider = CopilotProvider::new("gpt-4o", "ghp_bad_token").with_client(client);
+            let result = provider.ensure_session_token().await;
+            assert!(result.is_err());
+            let msg = result.unwrap_err().to_string();
+            assert!(
+                msg.contains("401") || msg.contains("Bad credentials"),
+                "expected auth error, got: {msg}"
+            );
+        });
+    }
+
+    #[test]
+    fn test_token_exchange_fallback_endpoint() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let far_future = chrono::Utc::now().timestamp() + 3600;
+            // Empty api endpoint → should fall back to default.
+            let (client, _temp) =
+                vcr_token_exchange_client("copilot_token_fallback", "ghu_fallback", far_future, "");
+            let provider = CopilotProvider::new("gpt-4o", "ghp_dummy").with_client(client);
+            let cached = provider.ensure_session_token().await.expect("fallback");
+            assert_eq!(
+                cached.api_endpoint,
+                "https://api.githubcopilot.com/chat/completions"
+            );
+        });
+    }
+
+    #[test]
+    fn test_configured_endpoint_never_routes_token_exchange() {
+        // Tripwire: the cassette only answers a GET to
+        // https://api.github.com/copilot_internal/v2/token. If a configured
+        // chat endpoint ever leaked into the token-exchange URL again
+        // (gh #191), VCR playback would find no matching interaction and
+        // this test would fail. The override must still win for the
+        // chat-completions endpoint over the server-supplied one.
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let far_future = chrono::Utc::now().timestamp() + 3600;
+            let (client, _temp) = vcr_token_exchange_client(
+                "copilot_token_chat_override",
+                "ghu_override",
+                far_future,
+                "https://server-supplied.example.com/v1",
+            );
+            let provider = CopilotProvider::new("gpt-4o", "ghp_dummy")
+                .with_client(client)
+                .with_chat_completions_endpoint("https://api.individual.githubcopilot.com");
+            let cached = provider
+                .ensure_session_token()
+                .await
+                .expect("token exchange must target api.github.com");
+            assert_eq!(
+                cached.api_endpoint,
+                "https://api.individual.githubcopilot.com/chat/completions"
+            );
+        });
+    }
+
+    #[test]
+    fn test_token_exchange_endpoint_already_has_path() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let far_future = chrono::Utc::now().timestamp() + 3600;
+            let (client, _temp) = vcr_token_exchange_client(
+                "copilot_token_full_endpoint",
+                "ghu_full",
+                far_future,
+                "https://custom.proxy.com/chat/completions",
+            );
+            let provider = CopilotProvider::new("gpt-4o", "ghp_dummy").with_client(client);
+            let cached = provider
+                .ensure_session_token()
+                .await
+                .expect("full endpoint");
+            // Endpoint already includes /chat/completions; should not be duplicated.
+            assert_eq!(
+                cached.api_endpoint,
+                "https://custom.proxy.com/chat/completions"
+            );
+        });
+    }
+
+    fn cached_session(token: &str) -> CachedToken {
+        CachedToken {
+            token: token.to_string(),
+            expires_at: chrono::Utc::now().timestamp() + 3600,
+            api_endpoint: "https://copilot-proxy.example.com/v1/chat/completions".to_string(),
+        }
+    }
+
+    #[test]
+    fn session_rejection_requires_exact_proxy_status() {
+        let provider = CopilotProvider::new("gpt-4o", "github-secret")
+            .with_provider_name("copilot-enterprise");
+        assert!(provider.session_token_rejected(&Error::provider(
+            "copilot-enterprise",
+            "OpenAI API error (HTTP 401): rejected"
+        )));
+        for error in [
+            Error::provider("other", "OpenAI API error (HTTP 401): rejected"),
+            Error::provider("copilot-enterprise", "OpenAI API error (HTTP 403): 401"),
+            Error::provider("copilot-enterprise", "OpenAI API error (HTTP 429): 401"),
+            Error::provider("copilot-enterprise", "OpenAI API error (HTTP 500): 401"),
+            Error::provider("copilot-enterprise", "SSE error: HTTP 401"),
+            Error::api("OpenAI API error (HTTP 401): rejected"),
+            Error::Aborted,
+        ] {
+            assert!(!provider.session_token_rejected(&error), "{error}");
+        }
+    }
+
+    #[test]
+    fn rejection_does_not_evict_a_concurrent_replacement() {
+        let provider = CopilotProvider::new("gpt-4o", "github-secret");
+        *provider.cached_token.lock().expect("cache") = Some(cached_session("new-token"));
+        provider.invalidate_session_token("old-token");
+        assert_eq!(
+            provider
+                .cached_token
+                .lock()
+                .expect("cache")
+                .as_ref()
+                .expect("retained")
+                .token,
+            "new-token"
+        );
+        provider.invalidate_session_token("new-token");
+        assert!(provider.cached_token.lock().expect("cache").is_none());
+        provider.invalidate_session_token("new-token");
+        assert!(provider.cached_token.lock().expect("cache").is_none());
+    }
+
+    #[test]
+    fn session_bearer_replaces_all_authorization_spellings() {
+        let original = StreamOptions {
+            api_key: Some("github-secret".to_string()),
+            max_tokens: Some(123),
+            headers: [
+                (
+                    "authorization".to_string(),
+                    "Bearer github-secret".to_string(),
+                ),
+                ("AUTHORIZATION".to_string(), "stale-session".to_string()),
+                ("X-Request-Id".to_string(), "request-1".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+        let options =
+            CopilotProvider::session_options(&cached_session("session-secret"), &original);
+        let auth: Vec<_> = options
+            .headers
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+            .collect();
+        assert_eq!(auth.len(), 1);
+        assert_eq!(auth[0].1, "Bearer session-secret");
+        assert_eq!(options.api_key.as_deref(), Some("session-secret"));
+        assert_eq!(options.max_tokens, Some(123));
+        assert_eq!(
+            options.headers.get("X-Request-Id").map(String::as_str),
+            Some("request-1")
+        );
+        assert_eq!(original.api_key.as_deref(), Some("github-secret"));
+        assert_eq!(original.headers.len(), 3);
+    }
+
+    fn recovery_request_body() -> serde_json::Value {
+        serde_json::json!({"model": "gpt-4o", "messages": [], "stream": true})
+    }
+
+    /// Start with a cached token. A second proxy response requires exactly
+    /// one intervening GitHub exchange; no live HTTP fallback is permitted.
+    fn recovery_fixture(
+        test_name: &str,
+        responses: &[(u16, &str)],
+    ) -> (
+        CopilotProvider,
+        StreamOptions,
+        Arc<AtomicUsize>,
+        tempfile::TempDir,
+    ) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let mut interactions = Vec::new();
+        for (index, &(status, body)) in responses.iter().enumerate() {
+            if index == 1 {
+                interactions.push(Interaction {
+                    request: RecordedRequest {
+                        method: "GET".to_string(),
+                        url: "https://api.github.com/copilot_internal/v2/token".to_string(),
+                        headers: vec![],
+                        body: None,
+                        body_text: None,
+                    },
+                    response: RecordedResponse {
+                        status: 200,
+                        headers: vec![],
+                        body_chunks: vec![
+                            serde_json::json!({
+                                "token": "fresh-session",
+                                "expires_at": chrono::Utc::now().timestamp() + 3600,
+                                "endpoints": {"api": "https://copilot-proxy.example.com/v1"}
+                            })
+                            .to_string(),
+                        ],
+                        body_chunks_base64: None,
+                    },
+                });
+            }
+            interactions.push(Interaction {
+                request: RecordedRequest {
+                    method: "POST".to_string(),
+                    url: "https://copilot-proxy.example.com/v1/chat/completions".to_string(),
+                    headers: vec![],
+                    body: Some(recovery_request_body()),
+                    body_text: None,
+                },
+                response: RecordedResponse {
+                    status,
+                    headers: vec![("Content-Type".to_string(), "text/event-stream".to_string())],
+                    body_chunks: vec![body.to_string()],
+                    body_chunks_base64: None,
+                },
+            });
+        }
+        let cassette = Cassette {
+            version: "1.0".to_string(),
+            test_name: test_name.to_string(),
+            recorded_at: "2025-01-01T00:00:00Z".to_string(),
+            interactions,
+        };
+        std::fs::write(
+            temp.path().join(format!("{test_name}.json")),
+            serde_json::to_string_pretty(&cassette).expect("serialize"),
+        )
+        .expect("write cassette");
+        let client = Client::new().with_vcr(VcrRecorder::new_with(
+            test_name,
+            VcrMode::Playback,
+            temp.path(),
+        ));
+        let provider = CopilotProvider::new("gpt-4o", "github-secret")
+            .with_github_api_base(GITHUB_API_BASE)
+            .with_client(client);
+        *provider.cached_token.lock().expect("cache") = Some(cached_session("old-session"));
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&attempts);
+        let options = StreamOptions {
+            before_provider_request: Some(crate::provider::BeforeProviderRequestHook::new(
+                move |_| {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    Box::pin(async { Some(recovery_request_body()) })
+                },
+            )),
+            ..Default::default()
+        };
+        (provider, options, attempts, temp)
+    }
+
+    #[test]
+    fn rejected_cached_session_refreshes_once_and_streams() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let (provider, options, attempts, _temp) = recovery_fixture(
+                "copilot_recover_401",
+                &[
+                    (401, "expired"),
+                    (200, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"),
+                ],
+            );
+            let mut stream = provider.stream(&Context::default(), &options).await.expect("recovered");
+            let mut done = false;
+            while let Some(event) = stream.next().await {
+                done |= matches!(event.expect("stream event"), StreamEvent::Done { .. });
+            }
+            assert!(done, "the recovered response must reach a terminal completion");
+            assert_eq!(attempts.load(Ordering::SeqCst), 2);
+            assert_eq!(provider.ensure_session_token().await.expect("cached").token, "fresh-session");
+        });
+    }
+
+    #[test]
+    fn repeated_rejection_is_bounded_and_evicts_rejected_refresh() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let (provider, options, attempts, _temp) = recovery_fixture(
+                "copilot_repeated_401",
+                &[(401, "expired"), (401, "still rejected")],
+            );
+            let result = provider.stream(&Context::default(), &options).await;
+            let error = result.err().expect("second rejection must be returned");
+            assert!(provider.session_token_rejected(&error));
+            assert_eq!(attempts.load(Ordering::SeqCst), 2);
+            assert!(provider.cached_token.lock().expect("cache").is_none());
+        });
+    }
+
+    #[test]
+    fn non_auth_proxy_errors_are_not_replayed() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            for status in [400, 403, 429, 500, 503] {
+                let (provider, options, attempts, _temp) = recovery_fixture(
+                    &format!("copilot_no_replay_{status}"),
+                    &[(status, "upstream body mentions HTTP 401")],
+                );
+                let error = provider
+                    .stream(&Context::default(), &options)
+                    .await
+                    .err()
+                    .expect("error");
+                assert!(!provider.session_token_rejected(&error));
+                assert_eq!(attempts.load(Ordering::SeqCst), 1);
+                assert_eq!(
+                    provider.ensure_session_token().await.expect("cached").token,
+                    "old-session"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn established_stream_errors_never_trigger_reauthentication() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let (provider, options, attempts, _temp) = recovery_fixture(
+                "copilot_no_stream_replay",
+                &[(200, "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"partial\"}}]}\n\nevent: error\ndata: {\"error\":{\"message\":\"HTTP 401\"}}\n\n")],
+            );
+            let mut stream = provider.stream(&Context::default(), &options).await.expect("accepted");
+            let mut completed = false;
+            while let Some(event) = stream.next().await {
+                completed |= matches!(event, Ok(StreamEvent::Done { .. }));
+            }
+            assert!(!completed, "a broken stream must not masquerade as completion");
+            assert_eq!(attempts.load(Ordering::SeqCst), 1);
+            assert_eq!(provider.ensure_session_token().await.expect("cached").token, "old-session");
+        });
+    }
+
+    #[test]
+    fn session_response_requires_header_safe_unexpired_credentials() {
+        let now = 1_700_000_000;
+        for token in [
+            "",
+            " ",
+            " secret",
+            "secret ",
+            "secret\tvalue",
+            "secret\r\nInjected: yes",
+            "secret\u{7f}",
+            "sëcret",
+        ] {
+            let body = serde_json::json!({"token": token, "expires_at": now + 3600}).to_string();
+            let error = parse_session_token_response(&body, now).expect_err("unsafe credential");
+            assert!(error.to_string().contains("unusable session token"));
+        }
+        for expires_at in [now - 1, now, i64::MIN] {
+            let body =
+                serde_json::json!({"token": "secret-marker", "expires_at": expires_at}).to_string();
+            let error = parse_session_token_response(&body, now).expect_err("expired credential");
+            assert!(error.to_string().contains("expired session token"));
+            assert!(!error.to_string().contains("secret-marker"));
+        }
+        // Opaque Copilot tokens may contain separators. A live token inside
+        // the refresh margin can serve this request; it is not yet expired.
+        let body = serde_json::json!({
+            "token": "tid=test;exp=1700000001;sku=copilot;sig=a+b/c=",
+            "expires_at": now + 1
+        })
+        .to_string();
+        let parsed = parse_session_token_response(&body, now).expect("valid opaque token");
+        assert_eq!(parsed.expires_at, now + 1);
+    }
+
+    #[test]
+    fn malformed_session_responses_do_not_echo_secret_values() {
+        let now = 1_700_000_000;
+        for body in [
+            r#"{"token":"secret-marker","expires_at":"secret-marker"}"#,
+            r#"{"token":["secret-marker"],"expires_at":1700003600}"#,
+            r#"{"token":"secret-marker","expires_at":1700003600,"endpoints":{"api":42}}"#,
+            "secret-marker is not JSON",
+        ] {
+            let error = parse_session_token_response(body, now).expect_err("malformed response");
+            assert!(error.to_string().contains("Invalid Copilot token response"));
+            assert!(!error.to_string().contains("secret-marker"));
+        }
+    }
+
+    #[test]
+    fn oversized_token_text_is_rejected_without_parsing_or_echoing_it() {
+        let now = 1_700_000_000;
+        // Well-formed and otherwise acceptable: without the size guard this
+        // body parses into a usable token, so reaching `expect_err` is the
+        // guard doing the work and nothing else.
+        let body = serde_json::json!({
+            "token": "secret-marker",
+            "expires_at": now + 3600,
+            "padding": "x".repeat(MAX_TOKEN_RESPONSE_BYTES)
+        })
+        .to_string();
+        assert!(body.len() > MAX_TOKEN_RESPONSE_BYTES);
+        let error = parse_session_token_response(&body, now).expect_err("oversized response");
+        assert!(error.to_string().contains("size limit"));
+        assert!(!error.to_string().contains("secret-marker"));
+    }
+
+    #[test]
+    fn secret_bearing_debug_values_are_redacted() {
+        let response = parse_session_token_response(
+            r#"{"token":"secret-marker","expires_at":1700003600,"endpoints":{"api":"https://example.com/?key=url-secret"}}"#,
+            1_700_000_000,
+        ).expect("response");
+        let cached = CachedToken {
+            token: response.token.clone(),
+            expires_at: response.expires_at,
+            api_endpoint: response.endpoints.api.clone(),
+        };
+        for debug in [format!("{response:?}"), format!("{cached:?}")] {
+            assert!(debug.contains("[REDACTED]"));
+            assert!(!debug.contains("secret-marker"));
+            assert!(!debug.contains("url-secret"));
+        }
+    }
+
+    #[test]
+    fn invalid_exchange_credentials_never_populate_the_cache() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let now = chrono::Utc::now().timestamp();
+            for (index, (token, expires_at)) in [
+                ("", now + 3600),
+                ("secret\r\nInjected: yes", now + 3600),
+                ("expired-secret", now - 1),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let (client, _temp) = vcr_token_exchange_client(
+                    &format!("copilot_invalid_token_{index}"),
+                    token,
+                    expires_at,
+                    "",
+                );
+                let provider = CopilotProvider::new("gpt-4o", "github-secret")
+                    .with_github_api_base(GITHUB_API_BASE)
+                    .with_client(client);
+                assert!(provider.ensure_session_token().await.is_err());
+                assert!(provider.cached_token.lock().expect("cache").is_none());
+            }
+        });
+    }
+
+    #[test]
+    fn oversized_exchange_response_is_rejected_before_caching() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            let body = serde_json::json!({
+                "token": "secret-marker",
+                "expires_at": chrono::Utc::now().timestamp() + 3600,
+                "padding": "x".repeat(MAX_TOKEN_RESPONSE_BYTES)
+            })
+            .to_string();
+            let (client, _temp) = vcr_raw_token_client("copilot_oversized_token", 200, body);
+            let provider = CopilotProvider::new("gpt-4o", "github-secret")
+                .with_github_api_base(GITHUB_API_BASE)
+                .with_client(client);
+            let error = provider
+                .ensure_session_token()
+                .await
+                .expect_err("oversized response");
+            // The read is bounded before the parser ever sees a byte, so an
+            // oversized body is refused by `text_limited`, not by the size
+            // guard in `parse_session_token_response`. This assertion used to
+            // name the guard's message, which is why it has failed since the
+            // day it was written. What the test is actually for holds either
+            // way and is asserted below: refused before caching, and the body
+            // never copied into the error.
+            // `oversized_token_text_is_rejected_without_parsing_or_echoing_it`
+            // covers the guard itself.
+            assert!(
+                error
+                    .to_string()
+                    .contains("Failed to read Copilot token response"),
+                "unexpected error: {error}"
+            );
+            assert!(!error.to_string().contains("secret-marker"));
+            assert!(provider.cached_token.lock().expect("cache").is_none());
+        });
+    }
+
+    #[test]
+    fn failed_exchange_responses_do_not_disclose_response_bodies() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            for status in [401, 403, 429, 500] {
+                let (client, _temp) = vcr_raw_token_client(
+                    &format!("copilot_secret_error_{status}"),
+                    status,
+                    "github-secret session-secret".repeat(MAX_TOKEN_RESPONSE_BYTES / 16),
+                );
+                let provider = CopilotProvider::new("gpt-4o", "github-secret")
+                    .with_github_api_base(GITHUB_API_BASE)
+                    .with_client(client);
+                let error = provider
+                    .ensure_session_token()
+                    .await
+                    .expect_err("exchange rejected");
+                let message = error.to_string();
+                assert!(message.contains(&format!("HTTP {status}")));
+                assert!(!message.contains("github-secret"));
+                assert!(!message.contains("session-secret"));
+                assert!(provider.cached_token.lock().expect("cache").is_none());
+            }
+        });
+    }
+
+    #[test]
+    fn failed_reauthentication_never_reuses_the_rejected_session() {
+        let rt = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("rt");
+        rt.block_on(async {
+            // No GET interaction is available: refresh fails in playback,
+            // rather than falling through to a live authentication call.
+            let (provider, options, attempts, _temp) =
+                recovery_fixture("copilot_failed_refresh", &[(401, "expired")]);
+            let error = provider
+                .stream(&Context::default(), &options)
+                .await
+                .err()
+                .expect("refresh failure");
+            assert!(error.to_string().contains("Copilot token exchange failed"));
+            assert!(!error.to_string().contains("github-secret"));
+            assert_eq!(attempts.load(Ordering::SeqCst), 1);
+            assert!(provider.cached_token.lock().expect("cache").is_none());
+        });
+    }
+}

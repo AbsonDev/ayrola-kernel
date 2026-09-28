@@ -1,0 +1,138 @@
+# Interactive Interface (TUI)
+
+Pi's interactive mode provides a full-screen terminal UI for chatting, streaming
+responses, and managing sessions.
+
+## Stacks and launch flags
+
+| Invocation | Stack | Notes |
+|---|---|---|
+| `pi` | FrankenTUI (`ftui`, default since v0.4.0) | Alternate screen; markdown render cache; busy spinner chain; inline ask cards |
+| `pi --inline` | FrankenTUI, inline | UI drawn at the bottom of the terminal; shell scrollback preserved |
+| `pi --classic` | charmed_rust / bubbletea (`src/interactive.rs`) | Previous stack, kept until removal; aliases `--classic-tui`, `--charmed`, `--bubbletea` |
+
+Both stacks share the agent-event vocabulary (`PiMsg`), keybinding catalog,
+slash commands, autocomplete, overlays, and session persistence.
+
+## Layout
+
+### Header
+Shows high-level session context (current model, status, hints). Exact contents
+may vary as the UI evolves.
+
+### Conversation View
+The main area shows the conversation history.
+- **User messages**: Highlighted in accent color.
+- **Assistant messages**: Rendered as Markdown.
+- **Thinking blocks**: Muted and italicized.
+- **Tool calls/results**: Structured blocks showing tool execution and output.
+
+### Editor
+The input area at the bottom.
+- **Single-line + multi-line editing** (see shortcuts below).
+- **Autocomplete** for `@file` references, `/commands`, and resource names.
+- Paste and editing behaviors follow the configured keybindings.
+
+### Footer
+Displays session statistics and status.
+- Token usage (input/output) and estimated cost.
+- Editor mode hints (Single-line vs Multi-line).
+- Current status messages.
+
+## Display Controls
+
+| Action | Shortcut | Description |
+|--------|----------|-------------|
+| **Toggle Thinking** | `Ctrl+T` | Hide/show thinking blocks to reduce noise. |
+| **Scroll History** | `PageUp` / `PageDown` | Scroll conversation view. |
+
+## Operator Telemetry
+
+Setting `PI_PERF_TELEMETRY=1` enables bounded in-process timing samples for
+operator diagnosis during long swarm runs. The samples are timing-only: they do
+not include prompts, tool arguments, provider payloads, transcript text, or
+credentials. Runtime summaries use the `pi.operator_tail_latency.v1` schema and
+include p95, p99, and p999 windows for provider streaming, local tools,
+extension hostcalls, session append/index work, and TUI render phases.
+Frame-budget snapshots use the `pi.tui.frame_budget.v1` schema for large
+conversation, tool preview, model selector, branch picker, and tree selector
+surfaces. The deterministic regression evidence for those snapshots is recorded
+in `docs/evidence/large-session-tui-frame-budget.json`.
+
+This telemetry is an operator handoff aid, not release performance evidence.
+Release-facing speed claims still require the measured artifacts and freshness
+gates under `tests/perf/reports/`, `docs/evidence/`, and the perf SLI contract.
+
+## Navigation & Overlays
+
+### Keyboard shortcuts (`/hotkeys`)
+Use `/hotkeys` to see the current shortcut list (including any user overrides
+from `~/.pi/agent/keybindings.json`).
+
+## Slash commands
+
+Type a slash command into the editor (prefix with `/`) and press Enter.
+
+`/help` is the authoritative, in-app list. This section documents the current
+command surface implemented in `src/interactive.rs`.
+
+| Command | Description |
+|---------|-------------|
+| `/help` (`/h`, `/?`) | Show help text and shortcut tips. |
+| `/login [provider]` | Login/setup credentials (OAuth for built-ins; API key prompts for supported providers). Run without args to see status table. |
+| `/logout [provider]` | Remove stored OAuth credentials. |
+| `/clear` (`/cls`) | Clear conversation view/history. |
+| `/model [id|provider/id]` (`/m`) | Show or change the current model. |
+| `/thinking [level]` (`/think`, `/t`) | Set thinking level (`off|minimal|low|medium|high|xhigh|max`). |
+| `/scoped-models [patterns\|clear]` (`/scoped`) | Show or set model patterns used for Ctrl+P cycling. |
+| `/history` (`/hist`) | Show input history. |
+| `/export [path]` | Export conversation to HTML. |
+| `/session` (`/info`) | Show session info (path, tokens, cost). |
+| `/settings` | Open settings selector UI. |
+| `/theme [name]` | List or switch themes (see `docs/themes.md`). |
+| `/resume` (`/r`) | Pick and resume a previous session. |
+| `/new` | Start a new session. |
+| `/copy` (`/cp`) | Copy last assistant message to clipboard. |
+| `/name <name>` | Set session display name. |
+| `/hotkeys` (`/keys`, `/keybindings`) | Show keyboard shortcuts. |
+| `/changelog` | Show changelog entries. |
+| `/tree` | Show session branch tree summary. |
+| `/fork [id\|index]` | Fork from a user message (default: last on current path). |
+| `/compact [notes]` | Compact older context with optional instructions. |
+| `/reload` | Reload skills/prompts from disk. |
+| `/template <name> [args]` | Expand a prompt template by name. |
+| `/share` | Upload the current branch as bounded HTML to a secret, unlisted GitHub gist and show its URL. Secret gists are not private; anyone with the URL can view them. Pi redacts recognized secrets and the exact workspace cwd, but the transcript may still contain other sensitive local context. |
+| `/exit` (`/quit`, `/q`) | Exit Pi. |
+
+### Model selection
+- Use `/model` to switch models (by `provider/id` or fuzzy match).
+- Some builds also define shortcuts like `Ctrl+L` (model selector) and `Ctrl+P`
+  (cycle models). If a shortcut appears in `/hotkeys` but does nothing, it
+  hasn’t been wired in that build yet.
+
+### Session Picker (`/resume`)
+Browse and resume previous sessions without restarting Pi.
+- `Enter`: Select session
+- `Ctrl+D`: Delete session (with confirmation)
+
+### Tree Navigator (`/tree`)
+Visualize the conversation branching structure.
+- `Up` / `Down`: Navigate nodes
+- `Enter`: Switch to selected node (forks if not a leaf)
+- `Ctrl+U`: Toggle user-only view (hides assistant/tool noise)
+
+### Settings (`/settings`)
+Change configuration on the fly (Thinking levels, themes, message delivery mode).
+
+## Message Queue
+
+When Pi is busy generating a response or running tools, you can still type.
+
+- **Queue Steering (`Enter`)**: Sends your message as a steering interrupt after
+  the current step completes.
+- **Queue Follow-up (`Alt+Enter`)**: Adds your message to the follow-up queue to
+  be processed when the agent becomes idle.
+- **Restore queued messages (`Alt+Up`)**: Pull queued messages back into the
+  editor (useful if you queued something by mistake).
+
+The queue is visible above the editor when not empty.

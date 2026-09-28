@@ -1,0 +1,705 @@
+{
+  "checklist": [
+    {
+      "evidence": [
+        {
+          "artifact_path_count": 20,
+          "artifact_paths_exist": true,
+          "child_statuses": {
+            "bd-h66tp.1": "closed",
+            "bd-h66tp.2": "closed",
+            "bd-h66tp.3": "closed",
+            "bd-h66tp.4": "closed",
+            "bd-h66tp.5": "closed",
+            "bd-h66tp.6": "closed",
+            "bd-h66tp.7": "closed"
+          },
+          "close_reasons": {
+            "bd-h66tp.1": "Completed: deterministic compaction admission decisions now gate background starts with reason coverage and proof evidence.",
+            "bd-h66tp.2": "Completed: huge built-in tool outputs now spill into bounded session-scoped artifacts with compact references, degraded persistence markers, and session JSONL coverage.",
+            "bd-h66tp.3": "Completed provider routing evidence with fail-closed metrics, cost hints, user override evidence, JSON projection, and TUI regression coverage.",
+            "bd-h66tp.4": "Completed scheduler fairness replay coverage for hostcall, timer, stream, and event storms.",
+            "bd-h66tp.5": "Completed: large-session TUI frame-budget telemetry now emits structured redaction-safe snapshots and covers conversation, tool preview, model selector, branch picker, and tree navigation regressions.",
+            "bd-h66tp.6": "Completed: cancellation cleanup evidence is structured and covered by focused tests.",
+            "bd-h66tp.7": "Completed: offline extension safety provenance is exposed on search/info/install/list surfaces with redacted provenance tests."
+          },
+          "commit_check_source": "git_cat_file",
+          "commits": [
+            "d9cfaa66073e0b1d27ccfe2235f0916007c61f7f",
+            "547302f93977849b0f02b19e1f70a9127a154922",
+            "aa5f8bc5183e862dd7d63c2b4524f367776909de",
+            "97cda5eb6eb0446c6e4c7fb8020d891135ae1a6c",
+            "c34a29b3823280198afce8dc850a77f4773b28aa",
+            "09c4d9e02c80ea352f783f69d4e2a774bf21e4bf",
+            "a82551dccb31a478a398665b7843d0afd118d13e"
+          ],
+          "commits_present": true,
+          "path": ".beads/issues.jsonl"
+        }
+      ],
+      "id": "child_beads_closed",
+      "issue": null,
+      "requirement": "All third-wave runtime-intelligence child Beads are closed and mapped to concrete artifacts.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/compaction_worker.rs"
+        },
+        {
+          "path": "docs/evidence/compaction-admission-proof.json"
+        }
+      ],
+      "id": "compaction_admission",
+      "issue": null,
+      "requirement": "Memory-aware compaction admission is deterministic, reason-coded, and backed by proof evidence.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/tools.rs"
+        },
+        {
+          "path": "src/session.rs"
+        },
+        {
+          "path": "src/agent.rs"
+        }
+      ],
+      "id": "tool_output_artifacts",
+      "issue": null,
+      "requirement": "Huge built-in tool outputs spill into bounded session artifacts instead of unbounded provider-visible payloads.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/model_routing.rs"
+        },
+        {
+          "path": "src/model_selector.rs"
+        },
+        {
+          "path": "src/interactive/model_selector_ui.rs"
+        }
+      ],
+      "id": "provider_routing",
+      "issue": null,
+      "requirement": "Provider/model routing evidence exposes latency, errors, staleness, cost hints, and user override posture without secrets.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/scheduler.rs"
+        }
+      ],
+      "id": "scheduler_fairness",
+      "issue": null,
+      "requirement": "Extension scheduler replay proves hostcall, timer, stream, and event storms remain ordered and non-starving.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/interactive/perf.rs"
+        },
+        {
+          "path": "tests/tui_state.rs"
+        },
+        {
+          "path": "docs/evidence/large-session-tui-frame-budget.json"
+        }
+      ],
+      "id": "frame_budget",
+      "issue": null,
+      "requirement": "Large-session TUI frame-budget telemetry is redaction-safe and covers conversation, tool preview, model, branch, and tree surfaces.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/tools.rs"
+        },
+        {
+          "path": "src/agent.rs"
+        },
+        {
+          "path": "docs/evidence/cancellation-cleanup-proof.json"
+        }
+      ],
+      "id": "cancellation_cleanup",
+      "issue": null,
+      "requirement": "Long-running tool and extension cancellation leaves structured evidence and avoids late-success records.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "src/extension_index.rs"
+        },
+        {
+          "path": "src/main.rs"
+        }
+      ],
+      "id": "extension_safety_provenance",
+      "issue": null,
+      "requirement": "Offline extension search/info/install surfaces expose source, license, category, capability, risk, and freshness provenance.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "README.md"
+        },
+        {
+          "path": "docs/contracts/runtime-intelligence-closeout-gate-contract.json"
+        },
+        {
+          "path": "docs/evidence/runtime-intelligence-closeout-gate.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "docs_and_evidence",
+      "issue": null,
+      "requirement": "Runtime-intelligence operator evidence is linked without promoting advisory evidence into release or drop-in claims.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "evidence": [
+            {
+              "path": ".beads/issues.jsonl"
+            }
+          ],
+          "id": "beads_are_source_of_truth",
+          "requirement": "Beads record child status, close reasons, and final-gate ownership.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "role": "coordination",
+              "source": "Agent Mail"
+            }
+          ],
+          "id": "agent_mail_is_coordination_only",
+          "requirement": "Agent Mail reservations and messages are coordination signals, not implementation proof.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "path": "scripts/build_swarm_operator_runpack.py"
+            }
+          ],
+          "id": "read_only_gate",
+          "requirement": "The closeout gate inspects already-captured artifacts and does not mutate runtime sources.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "required_command_fragment": "rch exec --"
+            }
+          ],
+          "id": "rch_required_for_heavy_cargo",
+          "requirement": "Heavy Cargo gates must prove RCH execution.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "command": "ubs --staged --only=rust ."
+            }
+          ],
+          "id": "staged_ubs_required",
+          "requirement": "The staged UBS gate remains mandatory before the closeout commit.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "command": "./scripts/reconcile_beads_ledger.sh"
+            }
+          ],
+          "id": "beads_ledger_required",
+          "requirement": "Beads ledger reconciliation remains mandatory before the closeout commit.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "claim_authorized": false
+            }
+          ],
+          "id": "no_release_or_dropin_claims",
+          "requirement": "Runtime-intelligence closeout is advisory prompt-to-artifact evidence only.",
+          "status": "pass"
+        },
+        {
+          "evidence": [
+            {
+              "closeout_replaces_source_artifacts": false
+            }
+          ],
+          "id": "closeout_does_not_replace_child_artifacts",
+          "requirement": "Passing closeout does not replace child tests, evidence, Beads, git, RCH, UBS, or CI.",
+          "status": "pass"
+        }
+      ],
+      "id": "source_boundaries",
+      "issue": null,
+      "requirement": "Closeout source boundaries preserve Beads, Agent Mail, RCH, UBS, ledger, CI, child evidence, and claim-integrity authorities.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "child_commits": [
+            "d9cfaa66073e0b1d27ccfe2235f0916007c61f7f",
+            "547302f93977849b0f02b19e1f70a9127a154922",
+            "aa5f8bc5183e862dd7d63c2b4524f367776909de",
+            "97cda5eb6eb0446c6e4c7fb8020d891135ae1a6c",
+            "c34a29b3823280198afce8dc850a77f4773b28aa",
+            "09c4d9e02c80ea352f783f69d4e2a774bf21e4bf",
+            "a82551dccb31a478a398665b7843d0afd118d13e"
+          ],
+          "head_before_closeout_commit": "c34a29b3823280198afce8dc850a77f4773b28aa",
+          "origin_legacy_mirror_before_closeout_commit": "c34a29b3823280198afce8dc850a77f4773b28aa",
+          "origin_main_before_closeout_commit": "c34a29b3823280198afce8dc850a77f4773b28aa",
+          "pushed_remote_refs_equal_head": true
+        }
+      ],
+      "id": "pushed_commits",
+      "issue": null,
+      "requirement": "All implementation child commits are already pushed to origin/main and legacy origin/master before final closeout generation.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "heavy_cargo_uses_rch": true,
+          "provided_quality_gates": [
+            {
+              "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+              "id": "py_compile",
+              "status": "pass"
+            },
+            {
+              "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+              "id": "runpack_self_test",
+              "status": "pass"
+            },
+            {
+              "command": "python3 -m json.tool docs/contracts/runtime-intelligence-closeout-gate-contract.json",
+              "id": "json_contracts",
+              "status": "pass"
+            },
+            {
+              "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo test --test runtime_intelligence_closeout_gate_contract -- --nocapture",
+              "id": "runtime_intelligence_closeout_gate_contract_rch",
+              "status": "pass"
+            },
+            {
+              "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo fmt --check",
+              "id": "cargo_fmt",
+              "status": "pass"
+            },
+            {
+              "command": "git diff --check",
+              "id": "git_diff_check",
+              "status": "pass"
+            },
+            {
+              "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo check --all-targets",
+              "id": "cargo_check_all_targets_rch",
+              "status": "pass"
+            },
+            {
+              "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo clippy --all-targets -- -D warnings",
+              "id": "cargo_clippy_all_targets_rch",
+              "status": "pass"
+            },
+            {
+              "command": "timeout 120s ubs --staged --only=rust .; python3 scripts/check_ubs_staged_delta.py if baseline noisy",
+              "id": "staged_ubs",
+              "status": "pass"
+            },
+            {
+              "command": "./scripts/reconcile_beads_ledger.sh",
+              "id": "beads_ledger_reconcile",
+              "status": "pass"
+            }
+          ],
+          "required_quality_gates": [
+            "py_compile",
+            "runpack_self_test",
+            "json_contracts",
+            "runtime_intelligence_closeout_gate_contract_rch",
+            "cargo_fmt",
+            "git_diff_check",
+            "cargo_check_all_targets_rch",
+            "cargo_clippy_all_targets_rch",
+            "staged_ubs",
+            "beads_ledger_reconcile"
+          ]
+        }
+      ],
+      "id": "quality_gates",
+      "issue": null,
+      "requirement": "Required closeout quality gates passed, with every Cargo/Rust validation gate run through RCH.",
+      "status": "pass"
+    }
+  ],
+  "child_artifact_map": [
+    {
+      "bead_id": "bd-h66tp.1",
+      "close_reason": "Completed: deterministic compaction admission decisions now gate background starts with reason coverage and proof evidence.",
+      "code_paths": [
+        "src/agent.rs",
+        "src/compaction_worker.rs"
+      ],
+      "commit": "d9cfaa66073e0b1d27ccfe2235f0916007c61f7f",
+      "docs_or_evidence_paths": [
+        "docs/evidence/compaction-admission-proof.json"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/compaction_worker.rs"
+      ],
+      "title": "Add memory-aware compaction admission and proof evidence",
+      "validation_commands": [
+        "rch exec -- cargo test --lib compaction_admission -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.2",
+      "close_reason": "Completed: huge built-in tool outputs now spill into bounded session-scoped artifacts with compact references, degraded persistence markers, and session JSONL coverage.",
+      "code_paths": [
+        "src/agent.rs",
+        "src/session.rs",
+        "src/tools.rs"
+      ],
+      "commit": "547302f93977849b0f02b19e1f70a9127a154922",
+      "docs_or_evidence_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/session.rs",
+        "src/tools.rs"
+      ],
+      "title": "Spill huge tool outputs into bounded session artifacts",
+      "validation_commands": [
+        "rch exec -- cargo test --lib artifact -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.3",
+      "close_reason": "Completed provider routing evidence with fail-closed metrics, cost hints, user override evidence, JSON projection, and TUI regression coverage.",
+      "code_paths": [
+        "src/interactive/model_selector_ui.rs",
+        "src/model_routing.rs",
+        "src/model_selector.rs"
+      ],
+      "commit": "aa5f8bc5183e862dd7d63c2b4524f367776909de",
+      "docs_or_evidence_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/model_routing.rs",
+        "src/model_selector.rs"
+      ],
+      "title": "Add provider latency and cost circuit-breaker routing evidence",
+      "validation_commands": [
+        "rch exec -- cargo test --lib model_routing -- --nocapture",
+        "rch exec -- cargo test --test tui_state routing -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.4",
+      "close_reason": "Completed scheduler fairness replay coverage for hostcall, timer, stream, and event storms.",
+      "code_paths": [
+        "src/scheduler.rs"
+      ],
+      "commit": "97cda5eb6eb0446c6e4c7fb8020d891135ae1a6c",
+      "docs_or_evidence_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/scheduler.rs"
+      ],
+      "title": "Replay extension scheduler fairness under hostcall and timer storms",
+      "validation_commands": [
+        "rch exec -- cargo test --lib scheduler_fairness_replay -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.5",
+      "close_reason": "Completed: large-session TUI frame-budget telemetry now emits structured redaction-safe snapshots and covers conversation, tool preview, model selector, branch picker, and tree navigation regressions.",
+      "code_paths": [
+        "src/interactive.rs",
+        "src/interactive/perf.rs"
+      ],
+      "commit": "c34a29b3823280198afce8dc850a77f4773b28aa",
+      "docs_or_evidence_paths": [
+        "docs/evidence/large-session-tui-frame-budget.json",
+        "docs/tui.md"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "tests/tui_state.rs"
+      ],
+      "title": "Add large-session TUI frame-budget telemetry and regression coverage",
+      "validation_commands": [
+        "rch exec -- cargo test -p pi_agent_rust --test tui_state frame_budget -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.6",
+      "close_reason": "Completed: cancellation cleanup evidence is structured and covered by focused tests.",
+      "code_paths": [
+        "src/agent.rs",
+        "src/extensions_js.rs",
+        "src/interactive/commands.rs",
+        "src/tools.rs"
+      ],
+      "commit": "09c4d9e02c80ea352f783f69d4e2a774bf21e4bf",
+      "docs_or_evidence_paths": [
+        "docs/evidence/cancellation-cleanup-proof.json"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/agent.rs",
+        "src/tools.rs"
+      ],
+      "title": "Prove cooperative cancellation cleanup for long-running tools and extensions",
+      "validation_commands": [
+        "rch exec -- cargo test --lib abort_during_tool_execution_records_aborted_tool_result -- --nocapture",
+        "rch exec -- cargo test --lib test_bash_timeout_includes_cancellation_details -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    },
+    {
+      "bead_id": "bd-h66tp.7",
+      "close_reason": "Completed: offline extension safety provenance is exposed on search/info/install/list surfaces with redacted provenance tests.",
+      "code_paths": [
+        "src/extension_index.rs",
+        "src/main.rs"
+      ],
+      "commit": "a82551dccb31a478a398665b7843d0afd118d13e",
+      "docs_or_evidence_paths": [
+        ".beads/issues.jsonl"
+      ],
+      "status": "closed",
+      "test_paths": [
+        "src/extension_index.rs"
+      ],
+      "title": "Add offline extension safety provenance to search and install surfaces",
+      "validation_commands": [
+        "rch exec -- cargo test --lib extension_safety_provenance -- --nocapture",
+        "rch exec -- cargo check --all-targets",
+        "rch exec -- cargo clippy --all-targets -- -D warnings"
+      ]
+    }
+  ],
+  "claim_boundaries": {
+    "allowed_claim": "advisory prompt-to-artifact runtime-intelligence closeout evidence only",
+    "closeout_replaces_source_artifacts": false,
+    "runtime_intelligence_is_release_performance_evidence": false,
+    "strict_dropin_or_release_claim_authorized": false
+  },
+  "decision": "close_final_gate_and_parent_epic",
+  "epic_can_close_after_this_commit": true,
+  "final_gate_bead": {
+    "assignee": "AmberOsprey",
+    "id": "bd-h66tp.8",
+    "status": "in_progress"
+  },
+  "follow_up_beads": [],
+  "follow_up_required": false,
+  "generated_at": "2026-05-16T05:51:14.843753+00:00",
+  "known_limitations": [
+    "Agent Mail is coordination evidence only; reservations/messages do not replace Beads, source review, or validation gates.",
+    "Runtime-intelligence closeout is not release performance evidence, capacity evidence, benchmark evidence, or strict drop-in certification evidence.",
+    "A passing closeout gate is not permission to skip source-specific tests, RCH, cargo fmt, cargo check, cargo clippy, staged UBS, Beads ledger reconciliation, CI, or push verification."
+  ],
+  "missing_checks": [],
+  "parent_epic": {
+    "id": "bd-h66tp",
+    "status": "deferred",
+    "title": "Swarm-scale runtime intelligence third-wave roadmap"
+  },
+  "purpose": "prompt_to_artifact_runtime_intelligence_closeout_gate_not_source_of_truth",
+  "quality_gate_results": [
+    {
+      "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+      "id": "py_compile",
+      "status": "pass"
+    },
+    {
+      "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+      "id": "runpack_self_test",
+      "status": "pass"
+    },
+    {
+      "command": "python3 -m json.tool docs/contracts/runtime-intelligence-closeout-gate-contract.json",
+      "id": "json_contracts",
+      "status": "pass"
+    },
+    {
+      "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo test --test runtime_intelligence_closeout_gate_contract -- --nocapture",
+      "id": "runtime_intelligence_closeout_gate_contract_rch",
+      "status": "pass"
+    },
+    {
+      "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo fmt --check",
+      "id": "cargo_fmt",
+      "status": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "id": "git_diff_check",
+      "status": "pass"
+    },
+    {
+      "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo check --all-targets",
+      "id": "cargo_check_all_targets_rch",
+      "status": "pass"
+    },
+    {
+      "command": "RCH_VISIBILITY=verbose rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey_bd_h66tp_8/tmp cargo clippy --all-targets -- -D warnings",
+      "id": "cargo_clippy_all_targets_rch",
+      "status": "pass"
+    },
+    {
+      "command": "timeout 120s ubs --staged --only=rust .; python3 scripts/check_ubs_staged_delta.py if baseline noisy",
+      "id": "staged_ubs",
+      "status": "pass"
+    },
+    {
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "id": "beads_ledger_reconcile",
+      "status": "pass"
+    }
+  ],
+  "remaining_follow_ups": [],
+  "required_checks": [
+    "child_beads_closed",
+    "compaction_admission",
+    "tool_output_artifacts",
+    "provider_routing",
+    "scheduler_fairness",
+    "frame_budget",
+    "cancellation_cleanup",
+    "extension_safety_provenance",
+    "docs_and_evidence",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "schema": "pi.runtime_intelligence.closeout_gate.v1",
+  "source_boundary_checks": [
+    {
+      "evidence": [
+        {
+          "path": ".beads/issues.jsonl"
+        }
+      ],
+      "id": "beads_are_source_of_truth",
+      "requirement": "Beads record child status, close reasons, and final-gate ownership.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "role": "coordination",
+          "source": "Agent Mail"
+        }
+      ],
+      "id": "agent_mail_is_coordination_only",
+      "requirement": "Agent Mail reservations and messages are coordination signals, not implementation proof.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "read_only_gate",
+      "requirement": "The closeout gate inspects already-captured artifacts and does not mutate runtime sources.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "required_command_fragment": "rch exec --"
+        }
+      ],
+      "id": "rch_required_for_heavy_cargo",
+      "requirement": "Heavy Cargo gates must prove RCH execution.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "command": "ubs --staged --only=rust ."
+        }
+      ],
+      "id": "staged_ubs_required",
+      "requirement": "The staged UBS gate remains mandatory before the closeout commit.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "command": "./scripts/reconcile_beads_ledger.sh"
+        }
+      ],
+      "id": "beads_ledger_required",
+      "requirement": "Beads ledger reconciliation remains mandatory before the closeout commit.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "claim_authorized": false
+        }
+      ],
+      "id": "no_release_or_dropin_claims",
+      "requirement": "Runtime-intelligence closeout is advisory prompt-to-artifact evidence only.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "closeout_replaces_source_artifacts": false
+        }
+      ],
+      "id": "closeout_does_not_replace_child_artifacts",
+      "requirement": "Passing closeout does not replace child tests, evidence, Beads, git, RCH, UBS, or CI.",
+      "status": "pass"
+    }
+  ],
+  "status": "pass"
+}

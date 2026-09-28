@@ -1,0 +1,1112 @@
+{
+  "checklist": [
+    {
+      "evidence": [
+        {
+          "child_statuses": {
+            "bd-9yq7i.1": "closed",
+            "bd-9yq7i.2": "closed",
+            "bd-9yq7i.3": "closed",
+            "bd-9yq7i.4": "closed",
+            "bd-9yq7i.5": "closed",
+            "bd-9yq7i.6": "closed",
+            "bd-9yq7i.7": "closed"
+          },
+          "close_reasons": {
+            "bd-9yq7i.1": "Completed: added checked incident corpus contract, generated fixture evidence, runpack CLI/self-test coverage, and operator docs.",
+            "bd-9yq7i.2": "Completed deterministic swarm incident replay harness",
+            "bd-9yq7i.3": "Completed read-only validation proof-memory index",
+            "bd-9yq7i.4": "Completed read-only operator work recommender",
+            "bd-9yq7i.5": "Completed operator smoothness SLO harness",
+            "bd-9yq7i.6": "Completed extension resource firewall matrix",
+            "bd-9yq7i.7": "Completed no-mock incident replay E2E harness"
+          },
+          "path": ".beads/issues.jsonl"
+        }
+      ],
+      "id": "child_beads_closed",
+      "issue": null,
+      "requirement": "All ninth-wave incident replay and proof-memory child Beads are closed before closeout.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "artifact_paths_exist": true,
+          "child_artifact_map": [
+            {
+              "bead_id": "bd-9yq7i.1",
+              "claim_boundary_text": "Incident corpus evidence is deterministic advisory operator evidence; it does not replace Beads, Agent Mail, RCH, git, source artifacts, or destructive-action authority.",
+              "close_reason": "Completed: added checked incident corpus contract, generated fixture evidence, runpack CLI/self-test coverage, and operator docs.",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "4df2b454eaa81e7fcd96acd61cb27ca807578b1a",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/swarm-incident-corpus-contract.json",
+                "docs/evidence/swarm-incident-corpus.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "missing_source_path_fails_closed",
+                  "unsafe_unredacted_body_fails_closed",
+                  "contradictory_status_fails_closed",
+                  "deletion_or_live_mutation_authorization_fails_closed"
+                ],
+                "id": "incident_corpus_fail_closed_controls"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add swarm incident corpus contract and degraded-source fixtures",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/swarm-incident-corpus-contract.json",
+                "python3 -m json.tool docs/evidence/swarm-incident-corpus.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.2",
+              "claim_boundary_text": "Incident replay output is advisory fixture evidence over source captures; it must not be treated as source-of-truth authority for Beads, Agent Mail, RCH, git, or runtime state.",
+              "close_reason": "Completed deterministic swarm incident replay harness",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "d601942a85edf008d824339cd278487036f494c5",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/swarm-incident-replay-contract.json",
+                "docs/evidence/swarm-incident-replay.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "out_of_order_events_fail_closed",
+                  "missing_required_source_fails_closed",
+                  "unredacted_sensitive_content_fails_closed",
+                  "advisory_evidence_as_source_of_truth_fails_closed"
+                ],
+                "id": "incident_replay_fail_closed_controls"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Build deterministic swarm incident replay harness",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/swarm-incident-replay-contract.json",
+                "python3 -m json.tool docs/evidence/swarm-incident-replay.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.3",
+              "claim_boundary_text": "Proof-memory evidence indexes validation proof posture only; stale, local, dirty, missing, or fingerprint-mismatched proofs must refresh before reuse.",
+              "close_reason": "Completed read-only validation proof-memory index",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "c47068c2a1292e4d4bb9137e4bbaf54aaf3726f0",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/validation-proof-memory-index-contract.json",
+                "docs/evidence/validation-proof-memory-index.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "stale_git_head_proof",
+                  "missing_artifact_proof",
+                  "local_fallback_proof",
+                  "dirty_worktree_mismatch_proof",
+                  "command_fingerprint_mismatch_proof",
+                  "path_coverage_mismatch_proof",
+                  "not_authoritative_proof"
+                ],
+                "id": "proof_memory_fail_closed_classifications"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add validation proof-memory index for reusable evidence",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/validation-proof-memory-index-contract.json",
+                "python3 -m json.tool docs/evidence/validation-proof-memory-index.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.4",
+              "claim_boundary_text": "Operator work recommendations are read-only advisory queue hints; they do not mutate Beads, Agent Mail, RCH, git, or another agent's work.",
+              "close_reason": "Completed read-only operator work recommender",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "dc69419b536d767fb0d593b5764acb2bb8094d54",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/operator-work-recommendation-contract.json",
+                "docs/evidence/operator-work-recommendation.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "missing_source_fails_closed",
+                  "stale_source_fails_closed",
+                  "contradictory_source_fails_closed",
+                  "unredacted_source_fails_closed",
+                  "advisory_evidence_as_authority_fails_closed"
+                ],
+                "id": "operator_work_fail_closed_controls"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add read-only operator work recommender from replay and proof memory",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/operator-work-recommendation-contract.json",
+                "python3 -m json.tool docs/evidence/operator-work-recommendation.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.5",
+              "claim_boundary_text": "Operator smoothness SLO evidence is deterministic fixture evidence only; it does not authorize release, performance, benchmark, capacity, or drop-in claims.",
+              "close_reason": "Completed operator smoothness SLO harness",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "841ab68ece432587d8f742e3d6469595ca2dcd82",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/operator-smoothness-slo-contract.json",
+                "docs/evidence/operator-smoothness-slo.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "delayed_semantic_visibility_fails_closed",
+                  "non_monotonic_timeline_fails_closed",
+                  "runaway_frame_backlog_fails_closed",
+                  "missing_surface_coverage_fails_closed"
+                ],
+                "id": "operator_smoothness_fail_closed_controls"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add operator smoothness SLO harness for high-volume swarm output",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 -m json.tool docs/contracts/operator-smoothness-slo-contract.json",
+                "python3 -m json.tool docs/evidence/operator-smoothness-slo.json",
+                "git diff --check",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.6",
+              "claim_boundary_text": "Extension resource firewall matrix is deterministic stress evidence; runtime enforcement, hostcall accounting, Beads, RCH, Agent Mail, UBS, CI, and source tests remain authoritative.",
+              "close_reason": "Completed extension resource firewall matrix",
+              "code_paths": [
+                "tests/extensions_stress.rs"
+              ],
+              "commit": "570ada12857d73214d16b5cc6a533770d93d0747",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/extension-resource-firewall-matrix-contract.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "missing_resource_counter",
+                  "missing_peer_progress",
+                  "unredacted_payload_body"
+                ],
+                "id": "resource_firewall_fail_closed_controls"
+              },
+              "status": "closed",
+              "test_paths": [
+                "tests/extensions_stress.rs"
+              ],
+              "title": "Add extension resource firewall matrix and fail-closed fixtures",
+              "validation_commands": [
+                "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_bd_9yq7i_6/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_bd_9yq7i_6/tmp cargo test --test extensions_stress resource_firewall_matrix -- --nocapture",
+                "cargo fmt --check",
+                "git diff --check",
+                "timeout 60s ubs --staged --only=rust .",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            },
+            {
+              "bead_id": "bd-9yq7i.7",
+              "claim_boundary_text": "Incident replay E2E evidence uses temporary Beads/git workspaces and fixture-captured degraded inputs; it does not authorize live mutation, local heavyweight Cargo fallback, release, benchmark, capacity, or drop-in claims.",
+              "close_reason": "Completed no-mock incident replay E2E harness",
+              "code_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "commit": "8f0ff0f04840032117826cd48893a63e6f74165e",
+              "docs_or_evidence_paths": [
+                "README.md",
+                "docs/contracts/swarm-incident-replay-e2e-contract.json",
+                "docs/evidence/swarm-incident-replay-e2e-events.jsonl",
+                "docs/evidence/swarm-incident-replay-e2e.json",
+                "docs/swarm-operations-runbook.md"
+              ],
+              "negative_control": {
+                "evidence": [
+                  "agent_mail_corrupt_soft_lock",
+                  "rch_saturated_proof_refresh",
+                  "dirty_worktree_denial",
+                  "stale_proof_memory_refresh",
+                  "extension_resource_firewall_failure",
+                  "smoothness_slo_failure"
+                ],
+                "id": "incident_replay_e2e_fail_closed_scenarios"
+              },
+              "status": "closed",
+              "test_paths": [
+                "scripts/build_swarm_operator_runpack.py"
+              ],
+              "title": "Add no-mock incident replay E2E harness with JSONL logging",
+              "validation_commands": [
+                "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+                "python3 scripts/build_swarm_operator_runpack.py --self-test",
+                "python3 scripts/build_swarm_operator_runpack.py --run-swarm-incident-replay-e2e --out-swarm-incident-replay-e2e-json docs/evidence/swarm-incident-replay-e2e.json --out-swarm-incident-replay-e2e-events-jsonl docs/evidence/swarm-incident-replay-e2e-events.jsonl",
+                "python3 -m json.tool docs/contracts/swarm-incident-replay-e2e-contract.json",
+                "python3 -m json.tool docs/evidence/swarm-incident-replay-e2e.json",
+                "git diff --check",
+                "timeout 60s ubs --staged --only=rust .",
+                "./scripts/reconcile_beads_ledger.sh"
+              ]
+            }
+          ],
+          "commits_present": true,
+          "weak_child_rows": []
+        }
+      ],
+      "id": "child_artifact_mapping",
+      "issue": null,
+      "requirement": "Every ninth-wave child bead maps to pushed commits, source paths, tests or fixtures, evidence artifacts, validation commands, close reason, negative controls, and claim-boundary text.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "final_gate_assignee": "Codex",
+          "final_gate_status": "closed",
+          "remaining_follow_ups": []
+        }
+      ],
+      "id": "remaining_follow_ups_tracked",
+      "issue": null,
+      "requirement": "No ninth-wave child follow-up remains unclosed or untracked before closeout.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/swarm-incident-corpus-contract.json"
+        },
+        {
+          "path": "docs/evidence/swarm-incident-corpus.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "incident_corpus_contract",
+      "issue": null,
+      "requirement": "Incident corpus contract and evidence cover source-boundary, required incident, negative-control, and no-live-mutation claims.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/swarm-incident-replay-contract.json"
+        },
+        {
+          "path": "docs/evidence/swarm-incident-replay.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "incident_replay_harness",
+      "issue": null,
+      "requirement": "Incident replay harness covers ordered phases, required scenarios, source assertions, and fail-closed replay authority boundaries.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/validation-proof-memory-index-contract.json"
+        },
+        {
+          "path": "docs/evidence/validation-proof-memory-index.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "validation_proof_memory_index",
+      "issue": null,
+      "requirement": "Validation proof-memory index classifies stale, missing, local-fallback, dirty-worktree, fingerprint, coverage, and non-authoritative proof evidence.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/operator-work-recommendation-contract.json"
+        },
+        {
+          "path": "docs/evidence/operator-work-recommendation.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "operator_work_recommendation",
+      "issue": null,
+      "requirement": "Operator work recommender consumes incident replay and proof-memory evidence, ranks safe actions, and rejects missing, stale, contradictory, unredacted, or authority-escalating inputs.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/operator-smoothness-slo-contract.json"
+        },
+        {
+          "path": "docs/evidence/operator-smoothness-slo.json"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "operator_smoothness_slo",
+      "issue": null,
+      "requirement": "Operator smoothness SLO covers semantic visibility, timeline monotonicity, frame backlog, and surface coverage without release-performance claims.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/extension-resource-firewall-matrix-contract.json"
+        },
+        {
+          "path": "tests/extensions_stress.rs"
+        }
+      ],
+      "id": "extension_resource_firewall_matrix",
+      "issue": null,
+      "requirement": "Extension resource firewall matrix links hostcall cost attribution, budgets, denials, peer progress, payload redaction, and fail-closed resource controls.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "docs/contracts/swarm-incident-replay-e2e-contract.json"
+        },
+        {
+          "path": "docs/evidence/swarm-incident-replay-e2e.json"
+        },
+        {
+          "event_line_count": 8,
+          "missing_scenarios": [],
+          "path": "docs/evidence/swarm-incident-replay-e2e-events.jsonl"
+        },
+        {
+          "path": "scripts/build_swarm_operator_runpack.py"
+        }
+      ],
+      "id": "incident_replay_e2e",
+      "issue": null,
+      "requirement": "Incident replay E2E evidence covers healthy replay, Agent Mail corruption, RCH saturation, duplicate-work risk, dirty-worktree denial, stale proof refresh, extension firewall failure, and smoothness SLO failure.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "boundary": "Beads issue state, dependencies, comments, assignee, and close reasons remain the work ledger.",
+          "evidence": [
+            ".beads/issues.jsonl"
+          ],
+          "id": "beads_are_source_of_truth",
+          "status": "pass"
+        },
+        {
+          "boundary": "Agent Mail is coordination and reservation evidence only; if the mailbox schema is corrupt, Beads assignee/status/comments are the soft lock.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "agent_mail_is_coordination_only",
+          "status": "pass"
+        },
+        {
+          "boundary": "The ninth-wave closeout gate summarizes checked-in evidence and does not mutate Beads, Agent Mail, RCH, git refs, source files, temp state, runtime, providers, or schedulers.",
+          "evidence": [
+            "scripts/build_swarm_operator_runpack.py"
+          ],
+          "id": "read_only_gate",
+          "status": "pass"
+        },
+        {
+          "boundary": "Any heavyweight Cargo validation referenced by child work remains RCH-backed.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "rch_required_for_heavy_cargo",
+          "status": "pass"
+        },
+        {
+          "boundary": "Staged UBS remains mandatory before committing closeout changes.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "staged_ubs_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "Beads ledger reconciliation remains mandatory before the closeout commit.",
+          "evidence": [
+            "scripts/reconcile_beads_ledger.sh"
+          ],
+          "id": "beads_ledger_required",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate does not authorize deleting files, directories, temp artifacts, or generated evidence.",
+          "evidence": [
+            "AGENTS.md"
+          ],
+          "id": "no_file_deletion_authority",
+          "status": "pass"
+        },
+        {
+          "boundary": "Ninth-wave closeout evidence is advisory operator evidence only; it does not authorize release, benchmark, performance, capacity, or strict drop-in claims.",
+          "evidence": [
+            "docs/contracts/dropin-certification-contract.json",
+            "docs/evidence/dropin-certification-verdict.json",
+            "README.md"
+          ],
+          "id": "no_release_performance_capacity_or_dropin_claims",
+          "status": "pass"
+        },
+        {
+          "boundary": "The gate must not perform live Agent Mail writes, reserve RCH workers, execute providers, mutate runtime state, or touch production services.",
+          "evidence": [
+            "scripts/build_swarm_operator_runpack.py",
+            "docs/swarm-operations-runbook.md"
+          ],
+          "id": "no_live_service_mutation",
+          "status": "pass"
+        },
+        {
+          "boundary": "RCH saturation evidence must surface or back off; local heavyweight Cargo fallback remains unauthorized.",
+          "evidence": [
+            "AGENTS.md",
+            "docs/evidence/operator-work-recommendation.json"
+          ],
+          "id": "no_local_heavy_cargo_fallback",
+          "status": "pass"
+        },
+        {
+          "boundary": "This closeout may reference prior-wave authority boundaries but must not rewrite prior-wave evidence.",
+          "evidence": [
+            "docs/evidence/sixth-wave-validation-hardening-closeout-gate.json",
+            "docs/evidence/seventh-wave-runtime-autonomy-closeout-gate.json",
+            "docs/evidence/predictive-operations-closeout-gate.json"
+          ],
+          "id": "prior_wave_evidence_not_replaced",
+          "status": "pass"
+        },
+        {
+          "boundary": "The closeout gate summarizes child evidence and does not replace child tests, contracts, checked-in artifacts, Beads, pushed commits, RCH, UBS, CI, or review.",
+          "evidence": [
+            "docs/evidence/ninth-wave-incident-replay-proof-memory-closeout-gate.json"
+          ],
+          "id": "closeout_does_not_replace_child_artifacts",
+          "status": "pass"
+        }
+      ],
+      "id": "source_boundaries",
+      "issue": null,
+      "requirement": "Closeout source boundaries preserve Beads, Agent Mail, RCH, staged UBS, ledger reconciliation, no-delete policy, no live service mutation, no local heavyweight fallback, prior-wave evidence, and claim authorities.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "child_commits": [
+            "4df2b454eaa81e7fcd96acd61cb27ca807578b1a",
+            "d601942a85edf008d824339cd278487036f494c5",
+            "c47068c2a1292e4d4bb9137e4bbaf54aaf3726f0",
+            "dc69419b536d767fb0d593b5764acb2bb8094d54",
+            "841ab68ece432587d8f742e3d6469595ca2dcd82",
+            "570ada12857d73214d16b5cc6a533770d93d0747",
+            "8f0ff0f04840032117826cd48893a63e6f74165e"
+          ],
+          "head_before_closeout_commit": "8f0ff0f04840032117826cd48893a63e6f74165e",
+          "origin_legacy_mirror_before_closeout_commit": "8f0ff0f04840032117826cd48893a63e6f74165e",
+          "origin_main_before_closeout_commit": "8f0ff0f04840032117826cd48893a63e6f74165e",
+          "pushed_remote_refs_equal_head": true
+        }
+      ],
+      "id": "pushed_commits",
+      "issue": null,
+      "requirement": "All child implementation commits are pushed to origin/main and mirrored to legacy origin/master before closeout generation.",
+      "status": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "cargo_gate_ids": [],
+          "heavy_cargo_required_for_closeout_script": false,
+          "heavy_cargo_uses_rch": true,
+          "provided_quality_gates": [
+            {
+              "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+              "id": "py_compile",
+              "status": "pass"
+            },
+            {
+              "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+              "id": "runpack_self_test",
+              "status": "pass"
+            },
+            {
+              "command": "python3 -m json.tool docs/contracts/ninth-wave-incident-replay-proof-memory-closeout-gate-contract.json >/dev/null && python3 -m json.tool docs/evidence/ninth-wave-incident-replay-proof-memory-closeout-gate.json >/dev/null",
+              "id": "json_contracts",
+              "status": "pass"
+            },
+            {
+              "command": "git diff --check",
+              "id": "git_diff_check",
+              "status": "pass"
+            },
+            {
+              "command": "timeout 60s ubs --staged --only=rust .",
+              "id": "staged_ubs",
+              "status": "pass"
+            },
+            {
+              "command": "./scripts/reconcile_beads_ledger.sh",
+              "id": "beads_ledger_reconcile",
+              "status": "pass"
+            }
+          ],
+          "required_quality_gates": [
+            "py_compile",
+            "runpack_self_test",
+            "json_contracts",
+            "git_diff_check",
+            "staged_ubs",
+            "beads_ledger_reconcile"
+          ]
+        }
+      ],
+      "id": "quality_gates",
+      "issue": null,
+      "requirement": "Required closeout quality gates passed for Python compilation, runpack self-test, JSON validation, git diff cleanliness, staged UBS, and Beads ledger reconciliation.",
+      "status": "pass"
+    }
+  ],
+  "child_artifact_map": [
+    {
+      "bead_id": "bd-9yq7i.1",
+      "claim_boundary_text": "Incident corpus evidence is deterministic advisory operator evidence; it does not replace Beads, Agent Mail, RCH, git, source artifacts, or destructive-action authority.",
+      "close_reason": "Completed: added checked incident corpus contract, generated fixture evidence, runpack CLI/self-test coverage, and operator docs.",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "4df2b454eaa81e7fcd96acd61cb27ca807578b1a",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/swarm-incident-corpus-contract.json",
+        "docs/evidence/swarm-incident-corpus.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "missing_source_path_fails_closed",
+          "unsafe_unredacted_body_fails_closed",
+          "contradictory_status_fails_closed",
+          "deletion_or_live_mutation_authorization_fails_closed"
+        ],
+        "id": "incident_corpus_fail_closed_controls"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add swarm incident corpus contract and degraded-source fixtures",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/swarm-incident-corpus-contract.json",
+        "python3 -m json.tool docs/evidence/swarm-incident-corpus.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.2",
+      "claim_boundary_text": "Incident replay output is advisory fixture evidence over source captures; it must not be treated as source-of-truth authority for Beads, Agent Mail, RCH, git, or runtime state.",
+      "close_reason": "Completed deterministic swarm incident replay harness",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "d601942a85edf008d824339cd278487036f494c5",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/swarm-incident-replay-contract.json",
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "out_of_order_events_fail_closed",
+          "missing_required_source_fails_closed",
+          "unredacted_sensitive_content_fails_closed",
+          "advisory_evidence_as_source_of_truth_fails_closed"
+        ],
+        "id": "incident_replay_fail_closed_controls"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Build deterministic swarm incident replay harness",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/swarm-incident-replay-contract.json",
+        "python3 -m json.tool docs/evidence/swarm-incident-replay.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.3",
+      "claim_boundary_text": "Proof-memory evidence indexes validation proof posture only; stale, local, dirty, missing, or fingerprint-mismatched proofs must refresh before reuse.",
+      "close_reason": "Completed read-only validation proof-memory index",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "c47068c2a1292e4d4bb9137e4bbaf54aaf3726f0",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/validation-proof-memory-index-contract.json",
+        "docs/evidence/validation-proof-memory-index.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "stale_git_head_proof",
+          "missing_artifact_proof",
+          "local_fallback_proof",
+          "dirty_worktree_mismatch_proof",
+          "command_fingerprint_mismatch_proof",
+          "path_coverage_mismatch_proof",
+          "not_authoritative_proof"
+        ],
+        "id": "proof_memory_fail_closed_classifications"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add validation proof-memory index for reusable evidence",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/validation-proof-memory-index-contract.json",
+        "python3 -m json.tool docs/evidence/validation-proof-memory-index.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.4",
+      "claim_boundary_text": "Operator work recommendations are read-only advisory queue hints; they do not mutate Beads, Agent Mail, RCH, git, or another agent's work.",
+      "close_reason": "Completed read-only operator work recommender",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "dc69419b536d767fb0d593b5764acb2bb8094d54",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/operator-work-recommendation-contract.json",
+        "docs/evidence/operator-work-recommendation.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "missing_source_fails_closed",
+          "stale_source_fails_closed",
+          "contradictory_source_fails_closed",
+          "unredacted_source_fails_closed",
+          "advisory_evidence_as_authority_fails_closed"
+        ],
+        "id": "operator_work_fail_closed_controls"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add read-only operator work recommender from replay and proof memory",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/operator-work-recommendation-contract.json",
+        "python3 -m json.tool docs/evidence/operator-work-recommendation.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.5",
+      "claim_boundary_text": "Operator smoothness SLO evidence is deterministic fixture evidence only; it does not authorize release, performance, benchmark, capacity, or drop-in claims.",
+      "close_reason": "Completed operator smoothness SLO harness",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "841ab68ece432587d8f742e3d6469595ca2dcd82",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/operator-smoothness-slo-contract.json",
+        "docs/evidence/operator-smoothness-slo.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "delayed_semantic_visibility_fails_closed",
+          "non_monotonic_timeline_fails_closed",
+          "runaway_frame_backlog_fails_closed",
+          "missing_surface_coverage_fails_closed"
+        ],
+        "id": "operator_smoothness_fail_closed_controls"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add operator smoothness SLO harness for high-volume swarm output",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 -m json.tool docs/contracts/operator-smoothness-slo-contract.json",
+        "python3 -m json.tool docs/evidence/operator-smoothness-slo.json",
+        "git diff --check",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.6",
+      "claim_boundary_text": "Extension resource firewall matrix is deterministic stress evidence; runtime enforcement, hostcall accounting, Beads, RCH, Agent Mail, UBS, CI, and source tests remain authoritative.",
+      "close_reason": "Completed extension resource firewall matrix",
+      "code_paths": [
+        "tests/extensions_stress.rs"
+      ],
+      "commit": "570ada12857d73214d16b5cc6a533770d93d0747",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/extension-resource-firewall-matrix-contract.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "missing_resource_counter",
+          "missing_peer_progress",
+          "unredacted_payload_body"
+        ],
+        "id": "resource_firewall_fail_closed_controls"
+      },
+      "status": "closed",
+      "test_paths": [
+        "tests/extensions_stress.rs"
+      ],
+      "title": "Add extension resource firewall matrix and fail-closed fixtures",
+      "validation_commands": [
+        "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_bd_9yq7i_6/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_bd_9yq7i_6/tmp cargo test --test extensions_stress resource_firewall_matrix -- --nocapture",
+        "cargo fmt --check",
+        "git diff --check",
+        "timeout 60s ubs --staged --only=rust .",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    },
+    {
+      "bead_id": "bd-9yq7i.7",
+      "claim_boundary_text": "Incident replay E2E evidence uses temporary Beads/git workspaces and fixture-captured degraded inputs; it does not authorize live mutation, local heavyweight Cargo fallback, release, benchmark, capacity, or drop-in claims.",
+      "close_reason": "Completed no-mock incident replay E2E harness",
+      "code_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "commit": "8f0ff0f04840032117826cd48893a63e6f74165e",
+      "docs_or_evidence_paths": [
+        "README.md",
+        "docs/contracts/swarm-incident-replay-e2e-contract.json",
+        "docs/evidence/swarm-incident-replay-e2e-events.jsonl",
+        "docs/evidence/swarm-incident-replay-e2e.json",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "negative_control": {
+        "evidence": [
+          "agent_mail_corrupt_soft_lock",
+          "rch_saturated_proof_refresh",
+          "dirty_worktree_denial",
+          "stale_proof_memory_refresh",
+          "extension_resource_firewall_failure",
+          "smoothness_slo_failure"
+        ],
+        "id": "incident_replay_e2e_fail_closed_scenarios"
+      },
+      "status": "closed",
+      "test_paths": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "title": "Add no-mock incident replay E2E harness with JSONL logging",
+      "validation_commands": [
+        "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+        "python3 scripts/build_swarm_operator_runpack.py --self-test",
+        "python3 scripts/build_swarm_operator_runpack.py --run-swarm-incident-replay-e2e --out-swarm-incident-replay-e2e-json docs/evidence/swarm-incident-replay-e2e.json --out-swarm-incident-replay-e2e-events-jsonl docs/evidence/swarm-incident-replay-e2e-events.jsonl",
+        "python3 -m json.tool docs/contracts/swarm-incident-replay-e2e-contract.json",
+        "python3 -m json.tool docs/evidence/swarm-incident-replay-e2e.json",
+        "git diff --check",
+        "timeout 60s ubs --staged --only=rust .",
+        "./scripts/reconcile_beads_ledger.sh"
+      ]
+    }
+  ],
+  "claim_boundaries": {
+    "allowed_claim": "advisory ninth-wave incident replay and proof-memory closeout evidence only",
+    "benchmark_claim_authorized": false,
+    "closeout_authorizes_file_deletion": false,
+    "closeout_mutates_agent_mail_rch_or_runtime": false,
+    "closeout_mutates_sources": false,
+    "closeout_replaces_child_artifacts": false,
+    "closeout_replaces_source_artifacts": false,
+    "closeout_rewrites_prior_wave_artifacts": false,
+    "closeout_runs_live_provider_or_network_calls": false,
+    "file_deletion_authorized": false,
+    "live_agent_mail_or_rch_mutation_authorized": false,
+    "local_heavy_cargo_fallback_authorized": false,
+    "parent_can_close_before_closeout_commit_is_pushed": false,
+    "performance_or_capacity_claim_authorized": false,
+    "production_network_or_model_calls_authorized": false,
+    "strict_dropin_or_release_claim_authorized": false
+  },
+  "decision": "close_final_gate_and_parent_epic",
+  "epic_can_close_after_this_commit": true,
+  "final_gate_bead": {
+    "assignee": "Codex",
+    "id": "bd-9yq7i.8",
+    "status": "closed"
+  },
+  "follow_up_beads": [],
+  "follow_up_required": false,
+  "generated_at": "2026-05-18T07:46:44.304027+00:00",
+  "known_limitations": [
+    "Ninth-wave closeout evidence is advisory operator evidence only.",
+    "Child tests, checked-in evidence, Beads, pushed commits, RCH, Agent Mail health, staged UBS, and CI remain their own sources of truth.",
+    "Agent Mail may be schema-corrupt during closeout; Beads assignment/comments remain the soft lock and this artifact does not prove reservations were absent.",
+    "This is not release performance evidence, capacity evidence, benchmark evidence, strict drop-in certification evidence, or live-swarm safety proof.",
+    "This is not permission to skip RCH for heavy Cargo, staged UBS, Beads ledger reconciliation, pushed refs, child source artifact inspection, or CI.",
+    "This closeout does not authorize file deletion, production network access, live model calls, live Agent Mail mutation, live RCH worker mutation, runtime mutation, scheduler mutation, or local heavyweight Cargo fallback."
+  ],
+  "missing_checks": [],
+  "operator_summary": {
+    "claim_boundary": "advisory ninth-wave incident replay and proof-memory closeout evidence only",
+    "covered_child_beads": [
+      "bd-9yq7i.1",
+      "bd-9yq7i.2",
+      "bd-9yq7i.3",
+      "bd-9yq7i.4",
+      "bd-9yq7i.5",
+      "bd-9yq7i.6",
+      "bd-9yq7i.7"
+    ],
+    "next_action": "close_final_gate_and_parent_epic",
+    "ready_to_close_parent_after_commit": true,
+    "verdict": "pass"
+  },
+  "parent_epic": {
+    "id": "bd-9yq7i",
+    "status": "closed",
+    "title": "Ninth-wave swarm incident replay and proof-memory roadmap"
+  },
+  "purpose": "prompt_to_artifact_ninth_wave_incident_replay_proof_memory_closeout_gate_not_source_of_truth",
+  "quality_gate_results": [
+    {
+      "command": "python3 -m py_compile scripts/build_swarm_operator_runpack.py",
+      "id": "py_compile",
+      "status": "pass"
+    },
+    {
+      "command": "python3 scripts/build_swarm_operator_runpack.py --self-test",
+      "id": "runpack_self_test",
+      "status": "pass"
+    },
+    {
+      "command": "python3 -m json.tool docs/contracts/ninth-wave-incident-replay-proof-memory-closeout-gate-contract.json >/dev/null && python3 -m json.tool docs/evidence/ninth-wave-incident-replay-proof-memory-closeout-gate.json >/dev/null",
+      "id": "json_contracts",
+      "status": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "id": "git_diff_check",
+      "status": "pass"
+    },
+    {
+      "command": "timeout 60s ubs --staged --only=rust .",
+      "id": "staged_ubs",
+      "status": "pass"
+    },
+    {
+      "command": "./scripts/reconcile_beads_ledger.sh",
+      "id": "beads_ledger_reconcile",
+      "status": "pass"
+    }
+  ],
+  "remaining_follow_ups": [],
+  "required_checks": [
+    "child_beads_closed",
+    "child_artifact_mapping",
+    "remaining_follow_ups_tracked",
+    "incident_corpus_contract",
+    "incident_replay_harness",
+    "validation_proof_memory_index",
+    "operator_work_recommendation",
+    "operator_smoothness_slo",
+    "extension_resource_firewall_matrix",
+    "incident_replay_e2e",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "schema": "pi.swarm.incident_replay_proof_memory.closeout_gate.v1",
+  "source_boundary_checks": [
+    {
+      "boundary": "Beads issue state, dependencies, comments, assignee, and close reasons remain the work ledger.",
+      "evidence": [
+        ".beads/issues.jsonl"
+      ],
+      "id": "beads_are_source_of_truth",
+      "status": "pass"
+    },
+    {
+      "boundary": "Agent Mail is coordination and reservation evidence only; if the mailbox schema is corrupt, Beads assignee/status/comments are the soft lock.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "agent_mail_is_coordination_only",
+      "status": "pass"
+    },
+    {
+      "boundary": "The ninth-wave closeout gate summarizes checked-in evidence and does not mutate Beads, Agent Mail, RCH, git refs, source files, temp state, runtime, providers, or schedulers.",
+      "evidence": [
+        "scripts/build_swarm_operator_runpack.py"
+      ],
+      "id": "read_only_gate",
+      "status": "pass"
+    },
+    {
+      "boundary": "Any heavyweight Cargo validation referenced by child work remains RCH-backed.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "rch_required_for_heavy_cargo",
+      "status": "pass"
+    },
+    {
+      "boundary": "Staged UBS remains mandatory before committing closeout changes.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "staged_ubs_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "Beads ledger reconciliation remains mandatory before the closeout commit.",
+      "evidence": [
+        "scripts/reconcile_beads_ledger.sh"
+      ],
+      "id": "beads_ledger_required",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate does not authorize deleting files, directories, temp artifacts, or generated evidence.",
+      "evidence": [
+        "AGENTS.md"
+      ],
+      "id": "no_file_deletion_authority",
+      "status": "pass"
+    },
+    {
+      "boundary": "Ninth-wave closeout evidence is advisory operator evidence only; it does not authorize release, benchmark, performance, capacity, or strict drop-in claims.",
+      "evidence": [
+        "docs/contracts/dropin-certification-contract.json",
+        "docs/evidence/dropin-certification-verdict.json",
+        "README.md"
+      ],
+      "id": "no_release_performance_capacity_or_dropin_claims",
+      "status": "pass"
+    },
+    {
+      "boundary": "The gate must not perform live Agent Mail writes, reserve RCH workers, execute providers, mutate runtime state, or touch production services.",
+      "evidence": [
+        "scripts/build_swarm_operator_runpack.py",
+        "docs/swarm-operations-runbook.md"
+      ],
+      "id": "no_live_service_mutation",
+      "status": "pass"
+    },
+    {
+      "boundary": "RCH saturation evidence must surface or back off; local heavyweight Cargo fallback remains unauthorized.",
+      "evidence": [
+        "AGENTS.md",
+        "docs/evidence/operator-work-recommendation.json"
+      ],
+      "id": "no_local_heavy_cargo_fallback",
+      "status": "pass"
+    },
+    {
+      "boundary": "This closeout may reference prior-wave authority boundaries but must not rewrite prior-wave evidence.",
+      "evidence": [
+        "docs/evidence/sixth-wave-validation-hardening-closeout-gate.json",
+        "docs/evidence/seventh-wave-runtime-autonomy-closeout-gate.json",
+        "docs/evidence/predictive-operations-closeout-gate.json"
+      ],
+      "id": "prior_wave_evidence_not_replaced",
+      "status": "pass"
+    },
+    {
+      "boundary": "The closeout gate summarizes child evidence and does not replace child tests, contracts, checked-in artifacts, Beads, pushed commits, RCH, UBS, CI, or review.",
+      "evidence": [
+        "docs/evidence/ninth-wave-incident-replay-proof-memory-closeout-gate.json"
+      ],
+      "id": "closeout_does_not_replace_child_artifacts",
+      "status": "pass"
+    }
+  ],
+  "status": "pass"
+}

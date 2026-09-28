@@ -1,0 +1,692 @@
+{
+  "action_catalog": [
+    {
+      "description": "Claim the highest-priority ready Bead after checking active ownership.",
+      "id": "claim_ready_bead",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Continue a docs/script/evidence-only task while heavyweight validation is deferred.",
+      "id": "run_docs_only_work",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Regenerate stale or non-authoritative validation proof before using it.",
+      "id": "refresh_stale_evidence",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Defer heavyweight cargo work until RCH capacity or explicit remote proof is available.",
+      "id": "wait_for_rch",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Use Beads assignee/status/comments as the visible lock when Agent Mail is corrupt.",
+      "id": "use_beads_soft_lock",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Create or refine a concrete Beads item instead of inventing untracked work.",
+      "id": "open_follow_up_bead",
+      "mutates_source_system": false,
+      "requires_operator_execution": true
+    },
+    {
+      "description": "Stop admission and report the exact blocker when overlap or dirty state is unsafe.",
+      "id": "stop_and_surface_blocker",
+      "mutates_source_system": false,
+      "requires_operator_execution": false
+    }
+  ],
+  "claim_boundaries": {
+    "advisory_evidence_as_source_of_truth_authorized": false,
+    "agent_mail_authority_authorized": false,
+    "beads_mutation_authorized": false,
+    "does_not_authorize_dropin_claims": true,
+    "does_not_authorize_release_performance_claims": true,
+    "does_not_delete_files": true,
+    "does_not_launch_rch": true,
+    "does_not_mutate_agent_mail": true,
+    "does_not_mutate_beads": true,
+    "does_not_mutate_git": true,
+    "does_not_replace_source_systems": true,
+    "does_not_run_cargo": true,
+    "file_deletion_authorized": false,
+    "git_mutation_authorized": false,
+    "operator_evidence_only": true,
+    "raw_source_bodies_embedded": false,
+    "rch_authority_authorized": false,
+    "read_only": true
+  },
+  "decision": "operator_work_recommendations_ready",
+  "failed_negative_controls": [],
+  "fixture_results": [
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "healthy_ready_bead selected claim_ready_bead",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "healthy_ready_bead confidence=0.94",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "healthy_ready_bead cites 2 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "healthy_ready_bead rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "healthy_ready_bead explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.94,
+      "evidence_paths": [
+        ".beads/issues.jsonl",
+        "docs/evidence/validation-proof-memory-index.json"
+      ],
+      "fixture_id": "healthy_ready_bead",
+      "operator_explanation": "Ready Beads exist, Agent Mail is healthy, the worktree is clean, and reusable proof-memory evidence permits a narrow claim after checking active ownership.",
+      "proof_fixture_id": "reusable_remote_proof",
+      "rank": 1,
+      "rejected_alternatives": [
+        {
+          "action": "claim_without_active_ownership_check",
+          "reason": "duplicate work risk must be checked through Beads and Agent Mail when healthy"
+        },
+        {
+          "action": "reuse_unrelated_validation_proof",
+          "reason": "proof memory is reusable only for the exact command, git, path, and env context"
+        }
+      ],
+      "scenario_id": null,
+      "secondary_actions": [],
+      "selected_action": "claim_ready_bead",
+      "source_state": {
+        "agent_mail_health": "healthy",
+        "git_dirty": false,
+        "proof_memory_classification": "reusable",
+        "rch_admission": "available",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "agent_mail_corrupt_soft_lock selected use_beads_soft_lock",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "agent_mail_corrupt_soft_lock confidence=0.91",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "agent_mail_corrupt_soft_lock cites 3 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "agent_mail_corrupt_soft_lock rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "agent_mail_corrupt_soft_lock explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.91,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "tests/fixtures/agent_mail/schema_corrupt_health.json",
+        ".beads/issues.jsonl"
+      ],
+      "fixture_id": "agent_mail_corrupt_soft_lock",
+      "operator_explanation": "Agent Mail corruption blocks reservations and thread writes, so the safe path is a visible Beads assignee/comment soft lock on one bead.",
+      "proof_fixture_id": null,
+      "rank": 2,
+      "rejected_alternatives": [
+        {
+          "action": "write_agent_mail_reservation",
+          "reason": "Agent Mail schema health is red and writes are unavailable"
+        },
+        {
+          "action": "work_without_visible_lock",
+          "reason": "large swarms require a visible ownership surface"
+        }
+      ],
+      "scenario_id": "agent_mail_schema_corruption",
+      "secondary_actions": [],
+      "selected_action": "use_beads_soft_lock",
+      "source_state": {
+        "agent_mail_health": "schema_corrupt",
+        "git_dirty": false,
+        "incident_replay_status": "pass",
+        "rch_admission": "not_required_for_claim",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "rch_saturated selected wait_for_rch",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "rch_saturated confidence=0.88",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "rch_saturated cites 2 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "rch_saturated rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "rch_saturated explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.88,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/evidence/validation-scheduler-plan.json"
+      ],
+      "fixture_id": "rch_saturated",
+      "operator_explanation": "RCH saturation makes heavyweight cargo inadmissible; continue only docs/script/evidence work or wait for RCH before broad Rust gates.",
+      "proof_fixture_id": null,
+      "rank": 3,
+      "rejected_alternatives": [
+        {
+          "action": "run_heavy_cargo_locally",
+          "reason": "local fallback would violate the RCH admission boundary"
+        },
+        {
+          "action": "drop_required_validation",
+          "reason": "capacity pressure defers validation; it does not remove it"
+        }
+      ],
+      "scenario_id": "rch_saturation_local_fallback_denial",
+      "secondary_actions": [
+        "run_docs_only_work"
+      ],
+      "selected_action": "wait_for_rch",
+      "source_state": {
+        "agent_mail_health": "healthy_or_soft_locked",
+        "git_dirty": false,
+        "incident_replay_status": "pass",
+        "rch_admission": "saturated",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "stale_proof_refresh selected refresh_stale_evidence",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "stale_proof_refresh confidence=0.87",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "stale_proof_refresh cites 2 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "stale_proof_refresh rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "stale_proof_refresh explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.87,
+      "evidence_paths": [
+        "docs/evidence/validation-proof-memory-index.json",
+        "tests/golden_corpus/remote_validation_proof_ledger/examples.json"
+      ],
+      "fixture_id": "stale_proof_refresh",
+      "operator_explanation": "A stale proof-memory record cannot justify operator work or closeout; refresh the focused proof through the required validation path.",
+      "proof_fixture_id": "stale_git_head_proof",
+      "rank": 4,
+      "rejected_alternatives": [
+        {
+          "action": "reuse_stale_proof",
+          "reason": "stale git head or stale source time fails closed"
+        },
+        {
+          "action": "treat_proof_memory_as_validation_skipper",
+          "reason": "proof-memory evidence is advisory and never skips validation by itself"
+        }
+      ],
+      "scenario_id": null,
+      "secondary_actions": [],
+      "selected_action": "refresh_stale_evidence",
+      "source_state": {
+        "agent_mail_health": "healthy_or_soft_locked",
+        "git_dirty": false,
+        "proof_memory_classification": "stale",
+        "rch_admission": "required_for_refresh",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "duplicate_work_risk selected open_follow_up_bead",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "duplicate_work_risk confidence=0.82",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "duplicate_work_risk cites 3 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "duplicate_work_risk rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "duplicate_work_risk explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.82,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/swarm-activity-ledger.md",
+        ".beads/issues.jsonl"
+      ],
+      "fixture_id": "duplicate_work_risk",
+      "operator_explanation": "Duplicate-work pressure means do not launch or overlap another agent; surface the active owner and pick a disjoint bead before editing.",
+      "proof_fixture_id": null,
+      "rank": 5,
+      "rejected_alternatives": [
+        {
+          "action": "edit_reserved_or_owned_surface",
+          "reason": "overlapping edits risk losing another agent's work"
+        },
+        {
+          "action": "ignore_stale_claim_without_evidence",
+          "reason": "stale ownership must be resolved through visible ledger state"
+        }
+      ],
+      "scenario_id": "duplicate_agent_work_risk",
+      "secondary_actions": [],
+      "selected_action": "open_follow_up_bead",
+      "source_state": {
+        "active_owner_count": 1,
+        "agent_mail_health": "degraded_or_unknown",
+        "git_dirty": false,
+        "incident_replay_status": "pass",
+        "rch_admission": "not_the_blocker",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "dirty_worktree_admission_denial selected stop_and_surface_blocker",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "dirty_worktree_admission_denial confidence=0.8",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "dirty_worktree_admission_denial cites 3 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "dirty_worktree_admission_denial rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "dirty_worktree_admission_denial explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.8,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/swarm-operations-runbook.md",
+        "docs/contracts/swarm-work-admission-gate-contract.json"
+      ],
+      "fixture_id": "dirty_worktree_admission_denial",
+      "operator_explanation": "A dirty worktree outside the current bead blocks destructive cleanup and broad admission; stage only owned files or surface the blocker.",
+      "proof_fixture_id": null,
+      "rank": 6,
+      "rejected_alternatives": [
+        {
+          "action": "delete_or_revert_unowned_files",
+          "reason": "file deletion and destructive cleanup require explicit operator authorization"
+        },
+        {
+          "action": "stage_unrelated_changes",
+          "reason": "only current-bead artifacts should be staged"
+        }
+      ],
+      "scenario_id": "dirty_worktree_admission_denial",
+      "secondary_actions": [],
+      "selected_action": "stop_and_surface_blocker",
+      "source_state": {
+        "agent_mail_health": "healthy_or_soft_locked",
+        "git_dirty": true,
+        "incident_replay_status": "pass",
+        "rch_admission": "defer_until_dirty_state_understood",
+        "ready_bead_count": 1
+      },
+      "status": "pass"
+    },
+    {
+      "assertions": [
+        {
+          "id": "selected_action_allowed",
+          "message": "no_ready_beads selected run_docs_only_work",
+          "status": "pass"
+        },
+        {
+          "id": "confidence_bounded",
+          "message": "no_ready_beads confidence=0.74",
+          "status": "pass"
+        },
+        {
+          "id": "evidence_paths_present",
+          "message": "no_ready_beads cites 3 evidence paths",
+          "status": "pass"
+        },
+        {
+          "id": "rejected_alternatives_present",
+          "message": "no_ready_beads rejects 2 unsafe alternatives",
+          "status": "pass"
+        },
+        {
+          "id": "operator_explanation_present",
+          "message": "no_ready_beads explanation is operator-facing",
+          "status": "pass"
+        }
+      ],
+      "confidence": 0.74,
+      "evidence_paths": [
+        ".beads/issues.jsonl",
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/evidence/validation-proof-memory-index.json"
+      ],
+      "fixture_id": "no_ready_beads",
+      "operator_explanation": "With no ready Beads, do not infer live implementation work from advisory evidence; create or refine a concrete follow-up bead or stop.",
+      "proof_fixture_id": null,
+      "rank": 7,
+      "rejected_alternatives": [
+        {
+          "action": "claim_tombstone_or_deferred_item",
+          "reason": "deleted, tombstoned, deferred, or blocked work is not actionable"
+        },
+        {
+          "action": "start_untracked_work",
+          "reason": "large-swarm work needs a visible Beads owner"
+        }
+      ],
+      "scenario_id": null,
+      "secondary_actions": [
+        "open_follow_up_bead"
+      ],
+      "selected_action": "run_docs_only_work",
+      "source_state": {
+        "agent_mail_health": "healthy_or_soft_locked",
+        "git_dirty": false,
+        "proof_memory_classification": "not_applicable",
+        "rch_admission": "not_required",
+        "ready_bead_count": 0
+      },
+      "status": "pass"
+    }
+  ],
+  "generated_at": "2026-05-18T06:20:00+00:00",
+  "missing_action_ids": [],
+  "missing_fixture_ids": [],
+  "negative_controls": [
+    {
+      "diagnostic": "missing incident replay or proof-memory source blocks recommendations",
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "missing_source_fails_closed",
+      "verdict": "fail"
+    },
+    {
+      "diagnostic": "source freshness older than stale_after_hours selects refresh_stale_evidence",
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "stale_source_fails_closed",
+      "verdict": "fail"
+    },
+    {
+      "diagnostic": "pass status with failed replay or missing fixture is blocked",
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "contradictory_source_fails_closed",
+      "verdict": "fail"
+    },
+    {
+      "diagnostic": "raw logs, stdout, stderr, provider, or Agent Mail bodies are rejected",
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "unredacted_source_fails_closed",
+      "verdict": "fail"
+    },
+    {
+      "diagnostic": "advisory replay or proof memory cannot replace Beads, Agent Mail, RCH, git, validation, or deletion authority",
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "advisory_evidence_as_authority_fails_closed",
+      "verdict": "fail"
+    }
+  ],
+  "purpose": "read_only_operator_work_recommendation_not_source_of_truth_or_mutation",
+  "ranked_recommendations": [
+    {
+      "confidence": 0.94,
+      "evidence_paths": [
+        ".beads/issues.jsonl",
+        "docs/evidence/validation-proof-memory-index.json"
+      ],
+      "fixture_id": "healthy_ready_bead",
+      "operator_explanation": "Ready Beads exist, Agent Mail is healthy, the worktree is clean, and reusable proof-memory evidence permits a narrow claim after checking active ownership.",
+      "rank": 1,
+      "secondary_actions": [],
+      "selected_action": "claim_ready_bead"
+    },
+    {
+      "confidence": 0.91,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "tests/fixtures/agent_mail/schema_corrupt_health.json",
+        ".beads/issues.jsonl"
+      ],
+      "fixture_id": "agent_mail_corrupt_soft_lock",
+      "operator_explanation": "Agent Mail corruption blocks reservations and thread writes, so the safe path is a visible Beads assignee/comment soft lock on one bead.",
+      "rank": 2,
+      "secondary_actions": [],
+      "selected_action": "use_beads_soft_lock"
+    },
+    {
+      "confidence": 0.88,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/evidence/validation-scheduler-plan.json"
+      ],
+      "fixture_id": "rch_saturated",
+      "operator_explanation": "RCH saturation makes heavyweight cargo inadmissible; continue only docs/script/evidence work or wait for RCH before broad Rust gates.",
+      "rank": 3,
+      "secondary_actions": [
+        "run_docs_only_work"
+      ],
+      "selected_action": "wait_for_rch"
+    },
+    {
+      "confidence": 0.87,
+      "evidence_paths": [
+        "docs/evidence/validation-proof-memory-index.json",
+        "tests/golden_corpus/remote_validation_proof_ledger/examples.json"
+      ],
+      "fixture_id": "stale_proof_refresh",
+      "operator_explanation": "A stale proof-memory record cannot justify operator work or closeout; refresh the focused proof through the required validation path.",
+      "rank": 4,
+      "secondary_actions": [],
+      "selected_action": "refresh_stale_evidence"
+    },
+    {
+      "confidence": 0.82,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/swarm-activity-ledger.md",
+        ".beads/issues.jsonl"
+      ],
+      "fixture_id": "duplicate_work_risk",
+      "operator_explanation": "Duplicate-work pressure means do not launch or overlap another agent; surface the active owner and pick a disjoint bead before editing.",
+      "rank": 5,
+      "secondary_actions": [],
+      "selected_action": "open_follow_up_bead"
+    },
+    {
+      "confidence": 0.8,
+      "evidence_paths": [
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/swarm-operations-runbook.md",
+        "docs/contracts/swarm-work-admission-gate-contract.json"
+      ],
+      "fixture_id": "dirty_worktree_admission_denial",
+      "operator_explanation": "A dirty worktree outside the current bead blocks destructive cleanup and broad admission; stage only owned files or surface the blocker.",
+      "rank": 6,
+      "secondary_actions": [],
+      "selected_action": "stop_and_surface_blocker"
+    },
+    {
+      "confidence": 0.74,
+      "evidence_paths": [
+        ".beads/issues.jsonl",
+        "docs/evidence/swarm-incident-replay.json",
+        "docs/evidence/validation-proof-memory-index.json"
+      ],
+      "fixture_id": "no_ready_beads",
+      "operator_explanation": "With no ready Beads, do not infer live implementation work from advisory evidence; create or refine a concrete follow-up bead or stop.",
+      "rank": 7,
+      "secondary_actions": [
+        "open_follow_up_bead"
+      ],
+      "selected_action": "run_docs_only_work"
+    }
+  ],
+  "required_action_ids": [
+    "claim_ready_bead",
+    "run_docs_only_work",
+    "refresh_stale_evidence",
+    "wait_for_rch",
+    "use_beads_soft_lock",
+    "open_follow_up_bead",
+    "stop_and_surface_blocker"
+  ],
+  "required_fixture_ids": [
+    "no_ready_beads",
+    "healthy_ready_bead",
+    "agent_mail_corrupt_soft_lock",
+    "rch_saturated",
+    "stale_proof_refresh",
+    "duplicate_work_risk",
+    "dirty_worktree_admission_denial"
+  ],
+  "schema": "pi.swarm.operator_work_recommendation.v1",
+  "source_artifacts": [
+    {
+      "decision": "replay_passed",
+      "freshness": {
+        "age_hours": 0.583,
+        "issue": null,
+        "stale_after_hours": 24,
+        "status": "fresh"
+      },
+      "generated_at": "2026-05-18T05:45:00+00:00",
+      "id": "incident_replay",
+      "load_status": "ok",
+      "path": "docs/evidence/swarm-incident-replay.json",
+      "schema": "pi.swarm.incident_replay.v1",
+      "sha256": "7e8396795694c4e9bfd35b6e5373bf9f1037b338fcc51fcd7d6853315d7b9b71",
+      "size_bytes": 62431,
+      "source_status": "pass"
+    },
+    {
+      "decision": "proof_memory_index_ready",
+      "freshness": {
+        "age_hours": 0.333,
+        "issue": null,
+        "stale_after_hours": 24,
+        "status": "fresh"
+      },
+      "generated_at": "2026-05-18T06:00:00+00:00",
+      "id": "validation_proof_memory_index",
+      "load_status": "ok",
+      "path": "docs/evidence/validation-proof-memory-index.json",
+      "schema": "pi.validation.proof_memory_index.v1",
+      "sha256": "d37d37d803468d5cedc97a10c41f9669f975808509834e1e336f73fa40dd4d4a",
+      "size_bytes": 49102,
+      "source_status": "pass"
+    }
+  ],
+  "source_bead": "bd-9yq7i.4",
+  "source_guard_issues": [],
+  "status": "pass",
+  "summary": {
+    "action_count": 7,
+    "blocked_source_count": 0,
+    "fixture_count": 7,
+    "pass_fixture_count": 7,
+    "ranked_recommendation_count": 7
+  }
+}

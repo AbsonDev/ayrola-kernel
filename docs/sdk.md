@@ -1,0 +1,361 @@
+# SDK Cookbook and Migration Guide
+
+This guide is for teams embedding Pi as a Rust library. The Rust SDK provides
+idiomatic Rust APIs for Pi's core embedding workflows, using Rust-native
+patterns such as `Result` types and structured concurrency.
+
+**Note**: This SDK is an idiomatic Rust companion to the pi-mono TypeScript
+SDK, not a drop-in equivalent. Parity remains governed by the active
+certification contract and its provenance-matched verdict.
+
+## Install
+
+```toml
+[dependencies]
+pi = { package = "pi_agent_rust", version = "0.2.0" }
+futures = "0.3"
+```
+
+When developing against a local checkout, replace `version = "0.2.0"` with
+`path = "/path/to/pi_agent_rust"` while retaining `package = "pi_agent_rust"`.
+
+### Raise your crate's `recursion_limit`
+
+Add this at the top of the crate that drives a session:
+
+```rust
+#![recursion_limit = "256"]
+```
+
+Pi's runtime nests its future types deeply enough that proving `Send` for a
+session future can exceed rustc's default limit of 128. `recursion_limit` is
+per-crate and is **not** inherited from a dependency, so pi raising it
+internally does nothing for yours. Without it you get an `overflow evaluating
+the requirement ...: std::marker::Send` error, or a
+`recursion_depth_exceeding_limit` warning that `-D warnings` makes fatal — and
+neither names the real cause.
+
+This is not hypothetical: every one of pi's own binaries, examples and
+integration tests needed the attribute, `examples/basic_sdk.rs` included.
+
+## SemVer Surface
+
+The supported library surface is the crate root aliases `pi::Error`,
+`pi::PiResult`, and the `pi::sdk` module. Other root modules are implementation
+details for the CLI, examples, and in-repository tests; they are hidden from the
+published API documentation and may change without SemVer guarantees.
+
+The `semver` GitHub Actions workflow runs `cargo-semver-checks` on PRs and
+`main` pushes that touch the SDK/API surface. It compares the current public
+API to the PR target branch or previous push baseline. An incompatible change
+to a stable item requires a SemVer-incompatible bump (`0.y` to `0.(y+1)` before
+1.0, or a major-version bump after 1.0). Only semver-compatible additions
+remain compatible; adding public enum variants or required struct fields can
+be breaking for Rust consumers.
+
+### Stability Annotations
+
+| Item | Stability | Notes |
+| --- | --- | --- |
+| `pi::Error` | Stable | Crate-root error type alias target. |
+| `pi::PiResult` | Stable | Crate-root result alias for `pi::Error`. |
+| `pi::sdk::{Error, Result}` | Stable | SDK error/result exports. |
+| `pi::sdk::{AbortHandle, AbortSignal}` | Stable | Prompt cancellation handles. |
+| `pi::sdk::{Agent, AgentConfig, AgentEvent, AgentSession, QueueMode}` | Stable | In-process agent/session integration exports. |
+| `pi::sdk::{AssistantMessage, ContentBlock, Cost, CustomMessage, ImageContent, Message, StopDetails, StopReason, StreamEvent, TextContent, ThinkingContent, ToolCall, ToolResultMessage, Usage, UserContent, UserMessage}` | Stable | Message, content, streaming, and accounting model types. |
+| `pi::sdk::{Config, ExtensionManager, ExtensionPolicy, ExtensionRegion, Session, ThinkingLevel}` | Stable | Configuration, extension, session, and thinking-control exports. |
+| `pi::sdk::{InputType, Model, ModelCost, Provider, ProviderContext, ProviderThinkingBudgets, StreamOptions, ToolDef}` | Stable | Provider integration exports. |
+| `pi::sdk::{ModelEntry, ModelRegistry}` | Stable | Model registry exports. |
+| `pi::sdk::{Tool, ToolDefinition, ToolOutput, ToolRegistry, ToolUpdate}` | Stable | Tool integration exports. |
+| `pi::sdk::BUILTIN_TOOL_NAMES` | Stable | Canonical default non-delegating tool-name inventory; opt-in `subagent` is separate. |
+| `pi::sdk::{create_read_tool, create_bash_tool, create_edit_tool, create_write_tool, create_grep_tool, create_find_tool, create_ls_tool, create_hashline_edit_tool, create_all_tools}` | Stable | Default non-delegating tool constructors. |
+| `pi::sdk::{tool_to_definition, all_tool_definitions}` | Stable | Default non-delegating tool schema helpers. |
+| `pi::sdk::{SubscriptionId, EventListeners, EventSubscriber, OnStreamEvent, OnToolEnd, OnToolStart}` | Stable | Event subscription and hook types. |
+| `pi::sdk::{SessionOptions, ToolFactory, default_tool_registry}` | Stable | In-process session construction and custom tool registry extension points. |
+| `pi::sdk::{AgentSessionHandle, AgentSessionState, create_agent_session}` | Stable | Primary in-process SDK entry point and state handle. |
+| `pi::sdk::{SessionPromptResult, SessionTransport, SessionTransportEvent, SessionTransportState}` | Stable | Unified in-process/RPC transport adapter. |
+| `pi::sdk::{RpcTransportClient, RpcTransportOptions}` | Stable | Subprocess RPC transport client. |
+| `pi::sdk::{RpcBashResult, RpcCancelledResult, RpcCommandInfo, RpcCompactionResult, RpcCycleModelResult, RpcExportHtmlResult, RpcExtensionUiResponse, RpcForkMessage, RpcForkResult, RpcLastAssistantText, RpcModelInfo, RpcSessionState, RpcSessionStats, RpcThinkingLevelResult, RpcTokenStats}` | Stable | RPC request/response payloads. |
+
+## Migration Map (TypeScript -> Rust)
+
+| TypeScript surface | Rust SDK surface |
+| --- | --- |
+| `createAgentSession(options)` | `pi::sdk::create_agent_session(SessionOptions)` |
+| `session.prompt(text, onEvent)` | `AgentSessionHandle::prompt(text, on_event)` |
+| `session.subscribe(listener)` | `AgentSessionHandle::subscribe(listener)` |
+| `unsubscribe()` | `AgentSessionHandle::unsubscribe(subscription_id)` |
+| `session.setModel(provider, model)` | `AgentSessionHandle::set_model(provider, model)` |
+| `session.setThinkingLevel(level)` | `AgentSessionHandle::set_thinking_level(level)` |
+| `session.compact()` | `AgentSessionHandle::compact(on_event)` |
+| `session.abort()` | `AgentSessionHandle::new_abort_handle()` + `prompt_with_abort(...)` |
+| `session.steer(...)`, `session.followUp(...)` | `RpcTransportClient::steer(...)`, `RpcTransportClient::follow_up(...)` |
+| RPC bridge client | `RpcTransportClient` / `SessionTransport::RpcSubprocess` |
+
+## Recipe 1: Create In-Process Session and Prompt
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{AgentEvent, SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions {
+        provider: Some("openai".to_string()),
+        model: Some("gpt-4o".to_string()),
+        api_key: Some(std::env::var("OPENAI_API_KEY").unwrap_or_default()),
+        no_session: true,
+        ..SessionOptions::default()
+    }))?;
+
+    let message = block_on(session.prompt("Summarize src/sdk.rs", |event: AgentEvent| {
+        eprintln!("{event:?}");
+    }))?;
+
+    println!("{message:#?}");
+    Ok(())
+}
+```
+
+## Recipe 2: Session-Level Subscribers and Typed Hooks
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{SessionOptions, create_agent_session};
+use std::sync::Arc;
+
+fn main() -> pi::sdk::Result<()> {
+    let options = SessionOptions {
+        on_tool_start: Some(Arc::new(|tool, args| eprintln!("tool start: {tool} {args}"))),
+        on_tool_end: Some(Arc::new(|tool, output, is_error| {
+            eprintln!("tool end: {tool}, error={is_error}, output={output:?}");
+        })),
+        on_stream_event: Some(Arc::new(|ev| eprintln!("stream: {ev:?}"))),
+        ..SessionOptions::default()
+    };
+
+    let mut session = block_on(create_agent_session(options))?;
+    let sub_id = session.subscribe(|event| eprintln!("session event: {event:?}"));
+
+    let _ = block_on(session.prompt("read Cargo.toml", |_| {}))?;
+    let _removed = session.unsubscribe(sub_id);
+    Ok(())
+}
+```
+
+## Recipe 3: Prompt Cancellation
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{AgentSessionHandle, SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions::default()))?;
+
+    let (abort_handle, abort_signal) = AgentSessionHandle::new_abort_handle();
+    let fut = session.prompt_with_abort("long running prompt", abort_signal, |_| {});
+    abort_handle.abort();
+    let _ = block_on(fut);
+    Ok(())
+}
+```
+
+## Recipe 4: Model and Thinking Controls
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{SessionOptions, ThinkingLevel, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions::default()))?;
+    block_on(session.set_model("openai", "gpt-4o"))?;
+    block_on(session.set_thinking_level(ThinkingLevel::Low))?;
+
+    let state = block_on(session.state())?;
+    println!("provider={} model={}", state.provider, state.model_id);
+    Ok(())
+}
+```
+
+## Recipe 5: Load Extensions in SDK Sessions
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{SessionOptions, create_agent_session};
+use std::path::PathBuf;
+
+fn main() -> pi::sdk::Result<()> {
+    let session = block_on(create_agent_session(SessionOptions {
+        extension_paths: vec![PathBuf::from("extensions/my_extension.js")],
+        extension_policy: Some("safe".to_string()),
+        repair_policy: Some("ask".to_string()),
+        ..SessionOptions::default()
+    }))?;
+
+    if session.has_extensions() {
+        eprintln!("extensions loaded");
+    }
+    Ok(())
+}
+```
+
+## Recipe 5b: Handle Extension UI Prompts and Permission Scope
+
+Without a UI handler, SDK sessions fail closed: extension UI requests error and
+capability prompts resolve to deny. Attach a handler to answer them in-process.
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{
+    ExtensionUiHandler, ExtensionUiRequest, ExtensionUiResponse, SessionOptions,
+    create_agent_session,
+};
+use serde_json::json;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+struct AllowOnce;
+
+#[async_trait::async_trait]
+impl ExtensionUiHandler for AllowOnce {
+    async fn request_ui(
+        &self,
+        request: ExtensionUiRequest,
+    ) -> pi::sdk::Result<Option<ExtensionUiResponse>> {
+        Ok(Some(ExtensionUiResponse {
+            id: request.id,
+            // Plain `Value::Bool(allow)` keeps default persistence; an object
+            // controls it per decision ("persist": false = this session only).
+            value: Some(json!({ "allow": true, "persist": false })),
+            cancelled: false,
+        }))
+    }
+}
+
+fn main() -> pi::sdk::Result<()> {
+    let _session = block_on(create_agent_session(SessionOptions {
+        extension_paths: vec![PathBuf::from("extensions/my_extension.js")],
+        extension_ui_handler: Some(Arc::new(AllowOnce)),
+        // `false` scopes all prompt decisions to this session's memory instead
+        // of `~/.pi/extension-permissions.json` (default `true` = CLI behavior).
+        persist_extension_permissions: false,
+        ..SessionOptions::default()
+    }))?;
+    Ok(())
+}
+```
+
+## Recipe 5c: Override Compaction Settings Per Session
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{ResolvedCompactionSettings, SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let session = block_on(create_agent_session(SessionOptions {
+        // Used verbatim; `None` keeps the config/model-derived defaults.
+        compaction_settings: Some(ResolvedCompactionSettings {
+            enabled: true,
+            context_window_tokens: 200_000,
+            reserve_tokens: 32_768,
+            keep_recent_tokens: 40_000,
+        }),
+        ..SessionOptions::default()
+    }))?;
+    eprintln!("resolved: {:?}", session.compaction_settings());
+    Ok(())
+}
+```
+
+## Recipe 6: Use RPC Transport Client
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{RpcTransportClient, RpcTransportOptions};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut rpc = RpcTransportClient::connect(RpcTransportOptions::default())?;
+
+    let state = block_on(rpc.get_state())?;
+    println!("rpc session id: {}", state.session_id);
+
+    let events = block_on(rpc.prompt("Hello from RPC"))?;
+    println!("received {} rpc events", events.len());
+
+    rpc.shutdown()?;
+    Ok(())
+}
+```
+
+## Recipe 7: Unified Transport Adapter (In-Process or RPC)
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{SessionOptions, SessionTransport};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut transport = block_on(SessionTransport::in_process(SessionOptions::default()))?;
+
+    let _result = block_on(transport.prompt("Status?", |_event| {}))?;
+    let _state = block_on(transport.state())?;
+    transport.shutdown()?;
+    Ok(())
+}
+```
+
+## Compatibility Notes for Migrating Integrators
+
+- `SessionOptions::default().no_session` is `true` (ephemeral by default).
+- In-process `AgentSessionHandle` currently exposes prompt/state/model/thinking/compaction flows; queue controls like `steer`/`follow_up` are on `RpcTransportClient`.
+- `SessionTransport::prompt` returns `SessionPromptResult`, which is `InProcess(Box<AssistantMessage>)` or `RpcEvents(Vec<Value>)` depending on backend.
+- Extension loading is opt-in via `extension_paths`, with `extension_policy`/`repair_policy` controls.
+- Extension UI/capability prompts are answered via `SessionOptions::extension_ui_handler`; without one they fail closed (deny).
+- Prompt decisions persist to disk by default (CLI parity); `persist_extension_permissions: false` or a per-response `"persist": false` scopes them to the session.
+- `SessionOptions::compaction_settings` overrides the config/model-derived compaction settings verbatim when `Some`.
+
+## Verified Reference Surfaces
+
+- `src/sdk.rs`
+- `tests/sdk_api.rs`
+- `tests/sdk_unit.rs`
+- `tests/sdk_integration.rs`
+
+
+### RPC subprocess streaming
+
+`RpcTransportClient::prompt_with_options_streaming` delivers each raw RPC event
+as it is read instead of buffering the complete turn first. `SessionTransport::prompt`
+uses that path, so its callback has the same live-delivery contract in subprocess
+mode as in-process mode.
+
+A server event that races ahead of the matching prompt acknowledgement is retained
+under explicit count and byte bounds, then delivered in order after a successful
+acknowledgement. A failed acknowledgement does not expose those speculative events.
+Prompt acknowledgements must match both request id and command. Individual
+line-delimited JSON frames are capped at 8 MiB; oversized or truncated frames fail
+the transport rather than allocating without bound. Public generic RPC requests
+cannot override the SDK-generated `type` or `id` fields.
+
+The returned `RpcEvents` vector still contains the delivered events for callers
+that need the completed transcript. Live callbacks are therefore additive, not a
+change to the completion payload.
+
+
+### Mid-turn RPC control
+
+Call `RpcTransportClient::control_handle()` before starting a subprocess prompt
+when another thread, event loop, or the prompt's live callback may need to steer
+or abort it. The cloned `RpcControlHandle` shares only the serialized stdin
+writer and request-id allocator. The prompt remains the **only stdout reader**,
+so concurrent control never races a second parser over the RPC event stream.
+
+`RpcControlHandle::steer`, `follow_up`, and `abort` synchronously write and
+flush a command and return its SDK-owned request id. A successful return means
+the command was dispatched to the subprocess pipe; it does not claim the RPC
+server accepted or completed the operation. Its acknowledgement is consumed by
+the prompt's single reader. Use the ordinary `RpcTransportClient` methods when
+you need an acknowledgement and no prompt currently owns the read lane.
+
+The control lane and ordinary requests use one atomic id sequence and one mutexed
+writer, preventing duplicate IDs or interleaved JSON lines. Holding a control
+handle does not keep the child process alive after the owning client shuts down;
+subsequent writes then fail.

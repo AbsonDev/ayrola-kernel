@@ -1,0 +1,138 @@
+{
+  "schema": "pi.compaction.admission.v1",
+  "generated_at": "2026-05-15T23:31:19Z",
+  "bead_id": "bd-h66tp.1",
+  "purpose": "deterministic_background_compaction_admission_fixture_not_live_host_measurement",
+  "decisionCount": 5,
+  "admittedCount": 2,
+  "rejectedCount": 3,
+  "rejectedByReason": {
+    "queue_saturated": 3
+  },
+  "foregroundImpact": {
+    "source": "deterministic_fixture",
+    "p95Ms": 4,
+    "p99Ms": 7
+  },
+  "decisions": [
+    {
+      "schema": "pi.compaction.admission.v1",
+      "allowed": true,
+      "reason": "allowed",
+      "tokensBefore": 150000,
+      "attemptCount": 0,
+      "maxAttemptsPerSession": 100,
+      "cooldownRemainingMs": 0,
+      "signals": {
+        "memory": null,
+        "provider": null,
+        "queue": {
+          "queuedRequests": 0,
+          "maxQueuedRequests": 2,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "schema": "pi.compaction.admission.v1",
+      "allowed": true,
+      "reason": "allowed",
+      "tokensBefore": 150000,
+      "attemptCount": 0,
+      "maxAttemptsPerSession": 100,
+      "cooldownRemainingMs": 0,
+      "signals": {
+        "memory": null,
+        "provider": null,
+        "queue": {
+          "queuedRequests": 1,
+          "maxQueuedRequests": 2,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "schema": "pi.compaction.admission.v1",
+      "allowed": false,
+      "reason": "queue_saturated",
+      "tokensBefore": 150000,
+      "attemptCount": 0,
+      "maxAttemptsPerSession": 100,
+      "cooldownRemainingMs": 0,
+      "signals": {
+        "memory": null,
+        "provider": null,
+        "queue": {
+          "queuedRequests": 2,
+          "maxQueuedRequests": 2,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "schema": "pi.compaction.admission.v1",
+      "allowed": false,
+      "reason": "queue_saturated",
+      "tokensBefore": 150000,
+      "attemptCount": 0,
+      "maxAttemptsPerSession": 100,
+      "cooldownRemainingMs": 0,
+      "signals": {
+        "memory": null,
+        "provider": null,
+        "queue": {
+          "queuedRequests": 2,
+          "maxQueuedRequests": 2,
+          "saturated": false
+        }
+      }
+    },
+    {
+      "schema": "pi.compaction.admission.v1",
+      "allowed": false,
+      "reason": "queue_saturated",
+      "tokensBefore": 150000,
+      "attemptCount": 0,
+      "maxAttemptsPerSession": 100,
+      "cooldownRemainingMs": 0,
+      "signals": {
+        "memory": null,
+        "provider": null,
+        "queue": {
+          "queuedRequests": 2,
+          "maxQueuedRequests": 2,
+          "saturated": false
+        }
+      }
+    }
+  ],
+  "coveredAdmissionReasons": [
+    "allowed",
+    "no_preparation",
+    "pending",
+    "cooldown",
+    "session_attempt_limit",
+    "memory_pressure",
+    "provider_degraded",
+    "queue_saturated"
+  ],
+  "validation": [
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/tmp cargo test --lib compaction_admission -- --nocapture",
+      "status": "passed",
+      "observed": "9 passed; 0 failed; 6524 filtered out"
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/tmp cargo check --all-targets",
+      "status": "passed"
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/tmp cargo clippy --all-targets -- -D warnings",
+      "status": "passed"
+    },
+    {
+      "command": "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/target TMPDIR=/data/tmp/pi_agent_rust_cargo/amberosprey-compaction-admission/tmp cargo fmt --check",
+      "status": "passed"
+    }
+  ]
+}

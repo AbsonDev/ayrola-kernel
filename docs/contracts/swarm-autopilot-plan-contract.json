@@ -1,0 +1,188 @@
+{
+  "schema": "pi.swarm.autopilot_plan_contract.v1",
+  "plan_schema": "pi.swarm.autopilot_plan.v1",
+  "purpose": "dry_run_swarm_autopilot_plan_not_source_of_truth",
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "input_pack_schema",
+    "input_pack_status",
+    "work_partitions",
+    "budget_drift",
+    "failure_actions",
+    "actions",
+    "omitted_actions",
+    "forbidden_actions",
+    "redaction_summary",
+    "planner_guards",
+    "degraded_reasons"
+  ],
+  "required_action_fields": [
+    "id",
+    "rank",
+    "action",
+    "title",
+    "severity",
+    "confidence",
+    "preconditions",
+    "evidence_paths",
+    "commands",
+    "omitted_commands",
+    "forbidden_actions",
+    "rationale"
+  ],
+  "required_partition_fields": [
+    "issue_id",
+    "title",
+    "status",
+    "priority",
+    "assignee",
+    "surface_ids",
+    "suggested_reservation",
+    "avoid",
+    "alternate_surfaces",
+    "confidence",
+    "degraded_caveats",
+    "evidence_paths"
+  ],
+  "required_failure_action_fields": [
+    "id",
+    "catalog_schema",
+    "category",
+    "title",
+    "match_confidence",
+    "explanation",
+    "evidence_paths",
+    "matched_source",
+    "safe_commands",
+    "escalation",
+    "raw_excerpt",
+    "redaction_summary"
+  ],
+  "allowed_failure_categories": [
+    "rch",
+    "cargo",
+    "agent_mail",
+    "beads",
+    "unknown"
+  ],
+  "required_budget_drift_fields": [
+    "schema",
+    "status",
+    "profile_status",
+    "accepted_profile",
+    "current_profile",
+    "current_observation",
+    "signals",
+    "recommended_adjustments",
+    "hysteresis"
+  ],
+  "allowed_budget_drift_statuses": [
+    "stable",
+    "degraded",
+    "deny_new_work"
+  ],
+  "allowed_statuses": [
+    "ready",
+    "degraded",
+    "blocked"
+  ],
+  "allowed_actions": [
+    "stop_and_surface_blocker",
+    "wait_for_rch",
+    "split_by_surface",
+    "use_beads_soft_lock",
+    "reopen_stale_bead_candidate",
+    "capture_handoff",
+    "adjust_swarm_budget",
+    "claim_ready_bead",
+    "create_or_refine_backlog",
+    "run_docs_only_work",
+    "plan_new_bead"
+  ],
+  "allowed_severities": [
+    "critical",
+    "high",
+    "medium",
+    "low",
+    "info"
+  ],
+  "allowed_confidence": [
+    "high",
+    "medium",
+    "low"
+  ],
+  "required_forbidden_actions": [
+    "destructive git reset",
+    "destructive git clean",
+    "recursive filesystem deletion",
+    "file deletion",
+    "automatic commit",
+    "automatic file reservation"
+  ],
+  "must_requirements": [
+    {
+      "id": "AUTOPILOT-PLAN-MUST-001",
+      "description": "The plan declares the dry-run autopilot schema and does not replace upstream evidence sources.",
+      "validated_by": [
+        "schema",
+        "purpose",
+        "input_pack_schema"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-002",
+      "description": "Every action is rank ordered, evidence-linked, and includes exact operator-run commands plus omitted actions.",
+      "validated_by": [
+        "required_action_fields",
+        "actions"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-003",
+      "description": "The planner is advisory only; commands require explicit operator execution and dangerous runnable commands are blocked.",
+      "validated_by": [
+        "planner_guards",
+        "required_forbidden_actions"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-004",
+      "description": "Missing or stale required planner evidence yields a blocked plan with stop_and_surface_blocker before work-claim recommendations.",
+      "validated_by": [
+        "allowed_statuses",
+        "allowed_actions"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-005",
+      "description": "Ready Beads include diagnostic-only file partition recommendations with reservation globs, avoid surfaces, confidence, and degraded caveats.",
+      "validated_by": [
+        "work_partitions",
+        "required_partition_fields",
+        "required_forbidden_actions"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-006",
+      "description": "Operational blockers include bounded failure-action recommendations with stable IDs, safe commands, escalation text, and redacted raw excerpts.",
+      "validated_by": [
+        "failure_actions",
+        "required_failure_action_fields",
+        "allowed_failure_categories"
+      ]
+    },
+    {
+      "id": "AUTOPILOT-PLAN-MUST-007",
+      "description": "Live budget drift evidence is carried into the plan and can recommend reduced agent or RCH fanout before stale preflight assumptions cascade into failures.",
+      "validated_by": [
+        "budget_drift",
+        "required_budget_drift_fields",
+        "allowed_budget_drift_statuses",
+        "allowed_actions"
+      ]
+    }
+  ]
+}

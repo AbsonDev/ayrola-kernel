@@ -1,0 +1,183 @@
+{
+  "schema": "pi.swarm.validation_scheduler_plan_contract.v1",
+  "plan_schema": "pi.swarm.validation_scheduler_plan.v1",
+  "purpose": "read_only_validation_scheduler_not_execution_or_rch_authority",
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "source_runpack_schema",
+    "change_profile",
+    "rch_posture",
+    "predictive_summary",
+    "command_groups",
+    "would_run_order",
+    "safe_to_defer",
+    "local_fallback_rejections",
+    "summary",
+    "guards"
+  ],
+  "required_change_profile_keys": [
+    "profile_id",
+    "changed_path_count",
+    "changed_paths",
+    "rust_changed",
+    "python_changed",
+    "docs_only",
+    "mixed_python_rust"
+  ],
+  "allowed_change_profiles": [
+    "empty_queue",
+    "rust_only",
+    "python_only",
+    "docs_only",
+    "mixed_python_rust",
+    "mixed_non_rust"
+  ],
+  "required_rch_posture_keys": [
+    "source_status",
+    "decision",
+    "recommended_action",
+    "slot_pressure",
+    "queue_depth",
+    "active_builds",
+    "queued_builds",
+    "workers_healthy",
+    "workers_total",
+    "heavy_validation_allowed",
+    "backoff_reasons"
+  ],
+  "required_predictive_summary_keys": [
+    "schema",
+    "status",
+    "validation_pressure",
+    "coordination_pressure",
+    "work_queue_pressure",
+    "next_bottleneck_observation"
+  ],
+  "required_group_ids": [
+    "fast_script_checks",
+    "evidence_regeneration",
+    "focused_tests",
+    "e2e_conformance",
+    "all_targets_check",
+    "clippy"
+  ],
+  "required_group_keys": [
+    "id",
+    "title",
+    "command_class",
+    "risk",
+    "estimated_cost",
+    "dependency_rank",
+    "cache_reuse",
+    "requires_rch",
+    "no_local_fallback",
+    "exact_commands",
+    "evidence_paths",
+    "action",
+    "backoff_reasons",
+    "required_env",
+    "local_fallback_rejection_reason"
+  ],
+  "required_would_run_keys": [
+    "rank",
+    "group_id",
+    "action",
+    "command",
+    "requires_rch",
+    "required_env",
+    "local_fallback_rejection_reason",
+    "rationale"
+  ],
+  "required_defer_keys": [
+    "group_id",
+    "action",
+    "commands",
+    "reasons",
+    "requires_rch",
+    "required_env",
+    "local_fallback_rejection_reason"
+  ],
+  "required_local_fallback_rejection_keys": [
+    "group_id",
+    "command",
+    "reason"
+  ],
+  "required_summary_keys": [
+    "would_run_count",
+    "deferred_group_count",
+    "blocked_group_count",
+    "local_fallback_rejection_count",
+    "heavy_validation_allowed"
+  ],
+  "allowed_statuses": [
+    "ready",
+    "degraded",
+    "blocked"
+  ],
+  "allowed_actions": [
+    "would_run",
+    "defer",
+    "block"
+  ],
+  "allowed_cost_classes": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "allowed_risk_classes": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "required_true_guards": [
+    "read_only",
+    "no_command_execution",
+    "no_rch_worker_mutation",
+    "no_agent_mail_mutation",
+    "no_beads_mutation",
+    "no_temp_artifact_deletion",
+    "heavy_cargo_requires_rch",
+    "local_fallback_rejected",
+    "advisory_only",
+    "not_release_or_capacity_claim_evidence",
+    "does_not_replace_rch_or_validation_broker"
+  ],
+  "must_requirements": [
+    {
+      "id": "VALIDATION-SCHEDULER-MUST-001",
+      "description": "The plan is advisory, read-only, and explicitly not a scheduler executor, RCH authority, or release/capacity claim.",
+      "validated_by": [
+        "purpose",
+        "required_true_guards"
+      ]
+    },
+    {
+      "id": "VALIDATION-SCHEDULER-MUST-002",
+      "description": "The plan emits stable command groups for script checks, evidence regeneration, focused tests, E2E/conformance, all-targets check, and clippy.",
+      "validated_by": [
+        "required_group_ids",
+        "required_group_keys"
+      ]
+    },
+    {
+      "id": "VALIDATION-SCHEDULER-MUST-003",
+      "description": "Every heavy cargo command is expressed through RCH, includes required target/tmp env, rejects local fallback, and is not admitted when RCH posture is unavailable or pressured.",
+      "validated_by": [
+        "required_rch_posture_keys",
+        "required_local_fallback_rejection_keys",
+        "required_true_guards"
+      ]
+    },
+    {
+      "id": "VALIDATION-SCHEDULER-MUST-004",
+      "description": "The plan preserves exact command strings and deterministic would-run/defer ordering so future agents can follow it without reading implementation details.",
+      "validated_by": [
+        "required_would_run_keys",
+        "required_defer_keys"
+      ]
+    }
+  ]
+}

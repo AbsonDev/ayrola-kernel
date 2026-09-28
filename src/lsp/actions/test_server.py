@@ -1,0 +1,376 @@
+"""Framed LSP peer for code-action integration tests; not a language server."""
+import json
+from pathlib import Path
+import sys
+from urllib.parse import unquote, urlparse
+
+MODE = sys.argv[1]
+SOURCE = None
+VERSIONS = []
+DOCUMENT_VERSIONS = {}
+SEQUENCE = 0
+PULL_COUNT = 0
+PULL_VERSION = None
+PULL_ITEMS = []
+EXTRACTED = "prefix\nextracted()\nsuffix\nfn extracted() { left + right }\n"
+
+
+def read():
+    length = None
+    total = 0
+    while True:
+        line = sys.stdin.buffer.readline(4097)
+        if not line:
+            return None
+        total += len(line)
+        if total > 16384 or len(line) > 4096:
+            raise ValueError("oversized test frame headers")
+        if line == b"\r\n":
+            break
+        key, value = line.split(b":", 1)
+        if key.lower() == b"content-length":
+            length = int(value)
+    if length is None or not 0 < length <= 4 * 1024 * 1024:
+        raise ValueError("invalid test frame size")
+    body = sys.stdin.buffer.read(length)
+    if len(body) != length:
+        raise ValueError("truncated test frame")
+    return json.loads(body)
+
+
+def send(message):
+    payload = json.dumps(dict(jsonrpc="2.0", **message)).encode()
+    sys.stdout.buffer.write(b"Content-Length: %d\r\n\r\n" % len(payload) + payload)
+    sys.stdout.buffer.flush()
+
+
+def reply(request, result):
+    send({"id": request["id"], "result": result})
+
+
+def edit(uri, text="fixed", end=3):
+    return {"changes": {uri: [{"range": {"start": {"line": 0, "character": 0},
+                                         "end": {"line": 0, "character": end}},
+                              "newText": text}]}}
+
+
+def observe(message):
+    method = message.get("method")
+    params = message.get("params", {})
+    if method:
+        with Path("requests.jsonl").open("a", encoding="utf-8") as log:
+            log.write(json.dumps({"method": method, "params": params}) + "\n")
+    if method in ("textDocument/didOpen", "textDocument/didChange"):
+        doc = params["textDocument"]
+        VERSIONS.append(doc["version"])
+        DOCUMENT_VERSIONS[doc["uri"]] = doc["version"]
+    elif method == "textDocument/didClose":
+        DOCUMENT_VERSIONS.pop(params["textDocument"]["uri"], None)
+
+
+def server_workspace_edit(workspace_edit):
+    global SEQUENCE
+    SEQUENCE += 1
+    request_id = "apply-%d" % SEQUENCE
+    send({"id": request_id, "method": "workspace/applyEdit", "params": {"edit": workspace_edit}})
+    while True:
+        response = read()
+        if response is None:
+            raise EOFError("client left during server edit")
+        observe(response)
+        if response.get("id") == request_id:
+            return response["result"]
+        if "method" in response and "id" not in response:
+            continue
+        raise ValueError("unexpected request while awaiting server edit acknowledgement")
+
+
+def server_edit(uri):
+    return server_workspace_edit(edit(uri))
+
+
+def versioned_edit(uri, version, text="one", end=3):
+    return {"documentChanges": [{"textDocument": {"uri": uri, "version": version},
+            "edits": edit(uri, text, end)["changes"][uri]}]}
+
+
+def command_action(uri):
+    sibling = Path("sibling.lspfixture").resolve().as_uri()
+    data = {"uri": uri, "version": DOCUMENT_VERSIONS[uri],
+            "sibling": sibling, "siblingVersion": DOCUMENT_VERSIONS.get(sibling)}
+    command = {"title": "Command refactor", "command": "test.sequence", "arguments": [data]}
+    if MODE.startswith("command-inline"):
+        return {"title": "Command refactor", "kind": "refactor", "edit": edit(uri), "command": command}
+    return command
+
+
+def run_command_sequence(data):
+    uri, sibling = data["uri"], data["sibling"]
+    results = []
+    if MODE == "command-versions":
+        results.append(server_workspace_edit(versioned_edit(uri, data["version"])))
+        assert uri not in DOCUMENT_VERSIONS, "client did not retire the applied wire version"
+        results.append(server_workspace_edit(versioned_edit(uri, None, "two")))
+    elif MODE in ("command-stale", "command-unknown"):
+        target = sibling if MODE == "command-unknown" else uri
+        results.append(server_workspace_edit(versioned_edit(target, data["version"] + 1)))
+        results.append(server_edit(sibling))  # Must remain rejected, not a silent retry.
+    elif MODE == "command-inline-sibling":
+        assert Path("source.lspfixture").read_text() == "fixed\n"
+        results.append(server_workspace_edit(versioned_edit(sibling, data["siblingVersion"])))
+    elif MODE in ("command-source-drift", "command-inline-drift"):
+        Path("source.lspfixture").write_text("external\n", encoding="utf-8")
+        results.append(server_edit(sibling))
+    elif MODE == "command-between-drift":
+        results.append(server_edit(uri))
+        Path("source.lspfixture").write_text("external\n", encoding="utf-8")
+        results.append(server_workspace_edit(edit(uri, "bad", 5)))
+        results.append(server_edit(sibling))
+    elif MODE in ("command-move", "command-recreated"):
+        moved = Path("moved.lspfixture").resolve().as_uri()
+        steps = [{"kind": "rename", "oldUri": uri, "newUri": moved}]
+        if MODE == "command-move":
+            steps += versioned_edit(moved, data["version"])["documentChanges"]
+        results.append(server_workspace_edit({"documentChanges": steps}))
+        if MODE == "command-move":
+            results.append(server_workspace_edit(versioned_edit(moved, None, "two")))
+        else:
+            Path("source.lspfixture").write_text("external\n", encoding="utf-8")
+            results.append(server_workspace_edit({"documentChanges": [
+                {"kind": "create", "uri": uri, "options": {"overwrite": True}}]}))
+    elif MODE == "command-budget":
+        for _ in range(33):
+            results.append(server_workspace_edit({}))
+    else:
+        raise ValueError("unknown command fixture mode")
+    Path("command-results.json").write_text(json.dumps(results), encoding="utf-8")
+    return results
+
+
+def selection_actions(params):
+    uri = params["textDocument"]["uri"]
+    sibling = Path("sibling.lspfixture").resolve().as_uri()
+    data = {"uri": uri, "range": params["range"],
+            "version": DOCUMENT_VERSIONS[uri],
+            "siblingVersion": DOCUMENT_VERSIONS.get(sibling)}
+    # Deliberately ignore context.only: the client must filter before indexing
+    # or selection, not accidentally execute this unrelated first result.
+    return [{"title": "Unrelated fix", "kind": "quickfix", "command": "test.wrong"},
+            {"title": "Unclassified command", "command": "test.wrong"},
+            {"title": "Neighboring kind", "kind": "refactor.extractMore", "command": "test.wrong"},
+            {"title": "Extract selected expression", "kind": "refactor.extract.function", "data": data}]
+
+
+def resolve_selection(params):
+    data = params["data"]
+    version = data["version"] + (1 if MODE == "selection-stale" else 0)
+    changes = [{"textDocument": {"uri": data["uri"], "version": version}, "edits": [
+        {"range": data["range"], "newText": "extracted()"},
+        {"range": {"start": {"line": 3, "character": 0}, "end": {"line": 3, "character": 0}},
+         "newText": "fn extracted() { left + right }\n"}]}]
+    if MODE in ("selection-sibling", "selection-unknown"):
+        sibling = Path("sibling.lspfixture").resolve().as_uri()
+        changes.append({"textDocument": {"uri": sibling,
+                        "version": data["siblingVersion"] if MODE == "selection-sibling" else 999},
+                        "edits": edit(sibling)["changes"][sibling]})
+    return dict(params, edit={"documentChanges": changes},
+                command={"title": "Finish extraction", "command": "test.extracted"})
+
+
+def main():
+    global SOURCE, PULL_COUNT, PULL_VERSION, PULL_ITEMS
+    while True:
+        request = read()
+        if request is None:
+            return
+        method = request.get("method")
+        params = request.get("params", {})
+        observe(request)
+        if method == "initialize":
+            assert params["capabilities"]["textDocument"]["codeAction"]["dataSupport"]
+            capabilities = {"textDocumentSync": 1,
+                            "codeActionProvider": {"resolveProvider": True},
+                            "executeCommandProvider": {"commands": ["test.finish"]}}
+            if MODE.startswith("review-pull"):
+                capabilities["diagnosticProvider"] = {"identifier": "review-diagnostics",
+                    "interFileDependencies": False, "workspaceDiagnostics": False}
+            reply(request, {"capabilities": capabilities})
+        elif method == "textDocument/diagnostic" and MODE.startswith("review-pull"):
+            PULL_COUNT += 1
+            assert params["identifier"] == "review-diagnostics"
+            uri = params["textDocument"]["uri"]
+            version = DOCUMENT_VERSIONS[uri]
+            if MODE == "review-pull-stall":
+                Path("pull-started").write_text("started", encoding="ascii")
+                continue
+            if MODE == "review-pull-error" or (MODE == "review-pull-error-after" and PULL_COUNT > 1):
+                send({"id": request["id"], "error": {"code": -32603, "message": "diagnostic computation failed"}})
+                continue
+            if MODE == "review-pull-malformed" or (MODE == "review-pull-malformed-after" and PULL_COUNT > 1):
+                reply(request, {"kind": "full", "items": None})
+                continue
+            if MODE == "review-pull-probe":
+                probe = server_edit(Path("sibling.lspfixture").resolve().as_uri())
+                Path("pull-probe.json").write_text(json.dumps(probe), encoding="utf-8")
+            if PULL_VERSION == version:
+                assert params.get("previousResultId") == "review-report"
+                reply(request, {"kind": "unchanged", "resultId": "review-report"})
+                continue
+            assert "previousResultId" not in params
+            PULL_VERSION = version
+            PULL_ITEMS = [] if MODE == "review-pull-empty" else [{
+                "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 3}},
+                "severity": 1, "code": "needs-fix", "message": "Fix this identifier",
+                "data": {"opaque": ["λ", version], "uri": uri}}]
+            if MODE == "review-pull-drift":
+                Path("source.lspfixture").write_text("external\n", encoding="utf-8")
+            reply(request, {"kind": "full", "items": PULL_ITEMS, "resultId": "review-report"})
+        elif method in ("textDocument/didOpen", "textDocument/didChange"):
+            continue
+        elif method == "textDocument/codeAction":
+            SOURCE = params["textDocument"]["uri"]
+            if MODE.startswith("review-"):
+                reply(request, review_actions(params))
+                continue
+            if MODE.startswith("command-"):
+                reply(request, [command_action(SOURCE)])
+                continue
+            if MODE.startswith("selection"):
+                if MODE == "selection-probe":
+                    probe = server_edit(Path("sibling.lspfixture").resolve().as_uri())
+                    Path("selection-probe.json").write_text(json.dumps(probe), encoding="utf-8")
+                reply(request, selection_actions(params))
+                continue
+            action = {"title": "Finish refactoring", "kind": "refactor", "data": {"uri": SOURCE}}
+            if MODE == "disabled":
+                action["disabled"] = {"reason": "not applicable"}
+            reply(request, [action])
+        elif method == "codeAction/resolve":
+            if MODE.startswith("review-"):
+                if MODE == "review-stall":
+                    Path("resolve-started").write_text("started", encoding="ascii")
+                    continue
+                if MODE == "review-probe":
+                    result = server_edit(Path("sibling.lspfixture").resolve().as_uri())
+                    Path("review-probe.json").write_text(json.dumps(result), encoding="utf-8")
+                if MODE == "review-error":
+                    send({"id": request["id"], "error": {"code": -32603, "message": "refactor resolution failed"}})
+                    continue
+                reply(request, resolve_review(params))
+                continue
+            if MODE.startswith("selection"):
+                reply(request, resolve_selection(params))
+                continue
+            resolved = dict(params, edit=edit(params["data"]["uri"]),
+                            command={"title": "Finish", "command": "test.finish", "arguments": ["literal"]})
+            if MODE == "changed":
+                resolved["title"] = "Another action"
+            if MODE == "malformed":
+                resolved["command"]["arguments"] = {"not": "an array"}
+            reply(request, resolved)
+        elif method == "workspace/executeCommand":
+            if params["command"] == "test.sequence":
+                Path("command-started").write_text("started", encoding="ascii")
+                reply(request, run_command_sequence(params["arguments"][0]))
+                continue
+            if params["command"] == "test.extracted":
+                assert Path(unquote(urlparse(SOURCE).path)).read_text() == EXTRACTED, "command preceded extraction"
+                Path("command-started").write_text("extracted", encoding="ascii")
+                reply(request, None)
+                continue
+            assert params["command"] == "test.finish", "unrelated action was selected"
+            assert Path(unquote(urlparse(SOURCE).path)).read_text() == "fixed\n", "command preceded edit"
+            Path("command-started").write_text("started", encoding="ascii")
+            if MODE == "stall":
+                continue
+            if MODE == "error":
+                send({"id": request["id"], "error": {"code": -32801, "message": "command failed after the edit"}})
+                continue
+            result = None
+            if MODE == "callback":
+                result = server_edit(Path("sibling.lspfixture").resolve().as_uri())
+            elif MODE == "outside":
+                result = server_edit((Path.cwd().parent / "outside.lspfixture").as_uri())
+            reply(request, result)
+        elif method in ("test/unsolicited", "test/lateEdit"):
+            result = server_edit(Path("sibling.lspfixture").resolve().as_uri())
+            reply(request, result)
+        elif method == "test/versions":
+            reply(request, VERSIONS)
+        elif method == "shutdown":
+            reply(request, None)
+        elif method == "exit":
+            return
+        elif "id" in request:
+            send({"id": request["id"], "error": {"code": -32601, "message": "unknown fixture method"}})
+
+
+def review_edit(data):
+    uri = data["uri"]
+    sibling = Path("sibling.lspfixture").resolve().as_uri()
+    if MODE == "review-stale":
+        return versioned_edit(uri, data["version"] + 1)
+    if MODE == "review-known-sibling":
+        return {"documentChanges": versioned_edit(uri, data["version"], "fixed")["documentChanges"]
+                + versioned_edit(sibling, data["siblingVersion"], "fixed")["documentChanges"]}
+    if MODE == "review-resource":
+        destination = Path("generated/moved.lspfixture").resolve().as_uri()
+        return {"documentChanges": versioned_edit(uri, data["version"], "fixed")["documentChanges"]
+                + [{"kind": "rename", "oldUri": sibling, "newUri": destination}]}
+    if MODE == "review-scope":
+        return edit((Path.cwd().parent / "outside.lspfixture").as_uri())
+    if MODE == "review-oversized":
+        return edit(uri, "x" * (205 * 1024))
+    if MODE == "review-malformed":
+        return {"documentChanges": [{"kind": "unknown"}]}
+    if MODE == "review-noop":
+        return {}
+    if MODE == "review-guard":
+        return edit(sibling)
+    changes = edit(uri)["changes"]
+    changes.update(edit(sibling)["changes"])
+    return {"changes": changes}
+
+
+def review_actions(params):
+    if MODE.startswith("review-pull"):
+        assert PULL_COUNT > 0, "quick-fix request preceded diagnostics"
+        assert params["context"]["diagnostics"] == PULL_ITEMS, "diagnostic data was dropped or changed"
+    if MODE == "review-extract":
+        return selection_actions(params)
+    uri = params["textDocument"]["uri"]
+    sibling = Path("sibling.lspfixture").resolve().as_uri()
+    data = {"uri": uri, "version": DOCUMENT_VERSIONS[uri],
+            "siblingVersion": DOCUMENT_VERSIONS.get(sibling), "opaque": {"keep": [1, "two"]}}
+    action = {"title": "Review source and imports", "kind": "refactor.rewrite", "data": data}
+    if MODE.startswith("review-pull"):
+        action["kind"] = "quickfix"
+        action["title"] = "Fix reported diagnostic"
+    if MODE in ("review-inline", "review-resource", "review-command-inline"):
+        action["edit"] = review_edit(data)
+    if MODE == "review-command-inline":
+        action["command"] = {"command": "test.finish", "title": "Finish"}
+    if MODE == "review-command-only":
+        return [{"title": "Command only", "command": "test.finish"}]
+    if MODE == "review-disabled":
+        action["disabled"] = {"reason": "not available"}
+    return [action]
+
+
+def resolve_review(params):
+    if MODE == "review-extract":
+        resolved = resolve_selection(params)
+        del resolved["command"]
+        return resolved
+    resolved = dict(params, edit=review_edit(params["data"]))
+    if MODE == "review-command-lazy":
+        resolved["command"] = {"command": "test.finish", "title": "Finish"}
+    if MODE == "review-changed":
+        resolved["data"] = {"changed": True}
+    if MODE == "review-drift":
+        Path("source.lspfixture").write_text("external\n", encoding="utf-8")
+    return resolved
+
+
+if __name__ == "__main__":
+    main()

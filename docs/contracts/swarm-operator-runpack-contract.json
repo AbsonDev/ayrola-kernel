@@ -1,0 +1,363 @@
+{
+  "schema": "pi.swarm.operator_runpack_contract.v1",
+  "runpack_schema": "pi.swarm.operator_runpack.v1",
+  "scorecard_schema": "pi.swarm.safety_scorecard.v1",
+  "predictive_telemetry_ledger_schema": "pi.swarm.predictive_telemetry_ledger.v1",
+  "validation_scheduler_plan_schema": "pi.swarm.validation_scheduler_plan.v1",
+  "autopilot_handoff_schema": "pi.swarm.autopilot_handoff.v1",
+  "purpose": "operator_handoff_not_release_performance_claim",
+  "minimum_redacted_count": 1,
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "source_statuses",
+    "doctor_swarm",
+    "beads",
+    "agent_mail",
+    "rch_admission",
+    "remote_validation_proof_ledger",
+    "evidence_readiness",
+    "git_state",
+    "activity_digest",
+    "smoke_harness",
+    "temp_artifact_inventory",
+    "turn_pressure_ledger",
+    "bottleneck_attribution",
+    "predictive_telemetry_ledger",
+    "validation_scheduler_plan",
+    "swarm_scale_safety_scorecard",
+    "redaction_summary",
+    "operator_next_actions"
+  ],
+  "required_source_ids": [
+    "doctor_swarm",
+    "claim_readiness",
+    "smoke_harness",
+    "activity_digest",
+    "cargo_admission",
+    "beads",
+    "git_status"
+  ],
+  "optional_source_ids": [
+    "tail_latency",
+    "swarm_replay_preview",
+    "flight_recorder",
+    "host_preflight",
+    "hostcall_swarm_profile",
+    "session_recovery_swarm_profile",
+    "rpc_swarm_e2e",
+    "rch_artifact_sync",
+    "validation_broker",
+    "progress_slo",
+    "stale_evidence_renewal_queue",
+    "semantic_route_plan"
+  ],
+  "required_summary_paths": [
+    "doctor_swarm.agent_mail_build_slots",
+    "beads.stale",
+    "agent_mail.build_slots",
+    "rch_admission.decision",
+    "rch_admission.queue_forecast.recommended_action",
+    "remote_validation_proof_ledger.schema",
+    "remote_validation_proof_ledger.entries",
+    "remote_validation_proof_ledger.summary.clean_remote_proof_entries",
+    "remote_validation_proof_ledger.claim_boundaries.operator_evidence_only",
+    "evidence_readiness.overall_status",
+    "git_state.dirty",
+    "activity_digest.evidence_pointers",
+    "smoke_harness.artifact_manifest",
+    "smoke_harness.scenario_statuses",
+    "temp_artifact_inventory.schema",
+    "temp_artifact_inventory.entries",
+    "temp_artifact_inventory.summary.entry_count",
+    "temp_artifact_inventory.summary.emitted_deletion_command_count",
+    "temp_artifact_inventory.guards.no_filesystem_deletion",
+    "temp_artifact_inventory.guards.explicit_operator_permission_required",
+    "turn_pressure_ledger.schema",
+    "turn_pressure_ledger.status",
+    "turn_pressure_ledger.dimensions",
+    "turn_pressure_ledger.pressure_events",
+    "turn_pressure_ledger.summary.pressure_event_count",
+    "turn_pressure_ledger.guards.stable_for_action_planner_consumption",
+    "bottleneck_attribution.schema",
+    "bottleneck_attribution.status",
+    "bottleneck_attribution.surface_coverage",
+    "bottleneck_attribution.input_classification",
+    "bottleneck_attribution.bottlenecks",
+    "bottleneck_attribution.operator_notes",
+    "predictive_telemetry_ledger.schema",
+    "predictive_telemetry_ledger.status",
+    "predictive_telemetry_ledger.source_freshness",
+    "predictive_telemetry_ledger.observations",
+    "predictive_telemetry_ledger.next_bottleneck_hypotheses",
+    "predictive_telemetry_ledger.summary.highest_status",
+    "predictive_telemetry_ledger.guards.advisory_only",
+    "predictive_telemetry_ledger.guards.read_only",
+    "predictive_telemetry_ledger.guards.no_agent_mail_or_rch_mutation",
+    "predictive_telemetry_ledger.guards.not_release_or_capacity_claim_evidence",
+    "validation_scheduler_plan.schema",
+    "validation_scheduler_plan.status",
+    "validation_scheduler_plan.change_profile.profile_id",
+    "validation_scheduler_plan.rch_posture.heavy_validation_allowed",
+    "validation_scheduler_plan.command_groups",
+    "validation_scheduler_plan.would_run_order",
+    "validation_scheduler_plan.safe_to_defer",
+    "validation_scheduler_plan.local_fallback_rejections",
+    "validation_scheduler_plan.summary.heavy_validation_allowed",
+    "validation_scheduler_plan.guards.no_command_execution",
+    "validation_scheduler_plan.guards.no_rch_worker_mutation",
+    "validation_scheduler_plan.guards.heavy_cargo_requires_rch",
+    "validation_scheduler_plan.guards.local_fallback_rejected",
+    "swarm_scale_safety_scorecard.overall_status",
+    "swarm_scale_safety_scorecard.dimensions",
+    "swarm_scale_safety_scorecard.green_requires_all_required_evidence",
+    "redaction_summary.redacted_count",
+    "operator_next_actions"
+  ],
+  "optional_summary_paths": [
+    "doctor_swarm.context_intelligence",
+    "doctor_swarm.context_intelligence.graph",
+    "doctor_swarm.context_intelligence.bundle",
+    "doctor_swarm.context_intelligence.cache",
+    "doctor_swarm.context_intelligence.redaction_summary",
+    "doctor_swarm.validation_broker",
+    "doctor_swarm.validation_broker.current_slots",
+    "doctor_swarm.validation_broker.duplicate_gate_opportunities",
+    "doctor_swarm.validation_broker.stale_build_warnings",
+    "doctor_swarm.progress_slo.schema",
+    "doctor_swarm.progress_slo.progress_status",
+    "doctor_swarm.progress_slo.source_status",
+    "doctor_swarm.progress_slo.guards",
+    "validation_broker.schema",
+    "validation_broker.source_status",
+    "validation_broker.current_slots",
+    "validation_broker.duplicate_gate_opportunities",
+    "validation_broker.stale_build_warnings",
+    "validation_broker.guards",
+    "progress_slo.schema",
+    "progress_slo.progress_status",
+    "progress_slo.reason_ids",
+    "progress_slo.saturation_summary",
+    "progress_slo.guards",
+    "stale_evidence_renewal_queue.schema",
+    "stale_evidence_renewal_queue.status",
+    "stale_evidence_renewal_queue.summary.renewal_item_count",
+    "stale_evidence_renewal_queue.summary.blocked_count",
+    "stale_evidence_renewal_queue.queue",
+    "stale_evidence_renewal_queue.action_plan_integration.recommended_decision",
+    "semantic_route_plan.schema",
+    "semantic_route_plan.route_status",
+    "semantic_route_plan.decision",
+    "semantic_route_plan.profile_id",
+    "semantic_route_plan.required_group_ids",
+    "semantic_route_plan.cache_heat.route_heat_level",
+    "semantic_route_plan.coalescing_advice.recommended_order",
+    "semantic_route_plan.coordination_admission.recommended_action",
+    "semantic_route_plan.command_templates",
+    "semantic_route_plan.guards.advisory_only",
+    "semantic_route_plan.guards.no_command_execution",
+    "semantic_route_plan.guards.no_agent_mail_mutation",
+    "semantic_route_plan.guards.no_beads_mutation",
+    "semantic_route_plan.guards.no_file_deletion",
+    "tail_latency.schema",
+    "tail_latency.telemetry_enabled",
+    "tail_latency.redaction_summary",
+    "tail_latency.metrics",
+    "swarm_replay_preview.schema",
+    "swarm_replay_preview.trace_id",
+    "swarm_replay_preview.recommended_policy_id",
+    "swarm_replay_preview.comparison_rows",
+    "autopilot_handoff.schema",
+    "autopilot_handoff.input_pack.schema",
+    "autopilot_handoff.input_pack.status",
+    "autopilot_handoff.plan.schema",
+    "autopilot_handoff.plan.status",
+    "autopilot_handoff.plan.selected_action",
+    "autopilot_handoff.plan.actions",
+    "autopilot_handoff.source_provenance.source_statuses",
+    "autopilot_handoff.source_provenance.command_count"
+  ],
+  "required_source_status_fields": [
+    "size_bytes",
+    "sha256"
+  ],
+  "required_redacted_fields": [
+    "doctor_swarm.findings[0].detail"
+  ],
+  "required_next_action_fragments": [
+    "Review stale in-progress Beads",
+    "Treat cargo/RCH admission",
+    "Inspect remote validation proof ledger",
+    "Back off heavy cargo validation",
+    "Use activity-digest saturation evidence",
+    "Review turn pressure ledger",
+    "Inspect predictive telemetry ledger",
+    "Follow validation scheduler plan",
+    "Account for dirty files",
+    "Review degraded swarm-scale safety scorecard"
+  ],
+  "allowed_statuses": [
+    "ready",
+    "degraded"
+  ],
+  "allowed_scorecard_statuses": [
+    "ready",
+    "degraded"
+  ],
+  "allowed_dimension_statuses": [
+    "green",
+    "yellow",
+    "red"
+  ],
+  "required_scorecard_dimensions": [
+    "coordination_health",
+    "cargo_rch_posture",
+    "perf_evidence_freshness",
+    "dirty_worktree_tolerance",
+    "stalled_bead_hygiene",
+    "resource_governor_readiness",
+    "bottleneck_attribution_coverage",
+    "test_coverage"
+  ],
+  "must_requirements": [
+    {
+      "id": "RUNPACK-MUST-001",
+      "description": "Runpack output declares the operator runpack schema and the non-release-claim purpose.",
+      "validated_by": [
+        "schema",
+        "purpose"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-002",
+      "description": "Runpack output carries every required top-level operator summary section.",
+      "validated_by": [
+        "required_top_level_keys"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-003",
+      "description": "Runpack source status coverage names every upstream evidence source the wrapper may aggregate.",
+      "validated_by": [
+        "required_source_ids"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-004",
+      "description": "Runpack summaries preserve actionable paths for doctor, Beads, Agent Mail, RCH admission, remote validation proof, evidence readiness, git state, activity digest, smoke harness, bottleneck attribution, redaction, and next actions.",
+      "validated_by": [
+        "required_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-004A",
+      "description": "Runpack source statuses carry deterministic file size and SHA-256 fingerprints for every provided source artifact.",
+      "validated_by": [
+        "required_source_status_fields"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-005",
+      "description": "Runpack redaction evidence proves sensitive fixture content was removed before the handoff bundle is emitted.",
+      "validated_by": [
+        "minimum_redacted_count",
+        "required_redacted_fields"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-006",
+      "description": "Runpack next actions include operator-facing remediation text for stale beads, cargo/RCH admission, remote validation proof ledger review, activity saturation, and dirty git state.",
+      "validated_by": [
+        "required_next_action_fragments"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-007",
+      "description": "Runpack output includes a swarm-scale safety scorecard with coordination health, cargo/RCH posture, perf evidence freshness, dirty-worktree tolerance, stalled-Bead hygiene, resource-governor readiness, bottleneck-attribution coverage, and test coverage dimensions; every green dimension must retain required source IDs and evidence paths.",
+      "validated_by": [
+        "scorecard_schema",
+        "required_scorecard_dimensions",
+        "allowed_dimension_statuses"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-007A",
+      "description": "Runpack output includes a per-turn pressure ledger that correlates prompt, tool artifact, provider, TUI, and session write pressure without embedding raw prompt or tool payload bodies.",
+      "validated_by": [
+        "turn_pressure_ledger.schema",
+        "turn_pressure_ledger.dimensions",
+        "turn_pressure_ledger.guards"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-008",
+      "description": "When optional operator tail-latency telemetry is supplied, the runpack projects the redaction-safe timing-only summary into the handoff bundle and source statuses.",
+      "validated_by": [
+        "optional_source_ids",
+        "optional_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-009",
+      "description": "Runpack output includes a diagnostic-only bottleneck-attribution dashboard covering provider streaming, local tools, extension hostcalls, persistence, RCH sync/retrieval, queue pressure, and cgroup/NUMA context; stale optional diagnostics degrade the dashboard and schema mismatches fail closed.",
+      "validated_by": [
+        "required_summary_paths",
+        "optional_source_ids",
+        "required_scorecard_dimensions"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-010",
+      "description": "When companion autopilot input-pack and plan artifacts are requested, the runpack projects a diagnostic autopilot handoff summary that cites the autopilot schemas, selected dry-run action, artifact paths, and source provenance without replacing the authoritative source artifacts.",
+      "validated_by": [
+        "autopilot_handoff_schema",
+        "optional_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-011",
+      "description": "When an optional swarm replay preview artifact is supplied, the runpack projects the comparison summary and recommended policy without replacing replay traces, policy reports, or source evidence.",
+      "validated_by": [
+        "optional_source_ids",
+        "optional_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-012",
+      "description": "When validation-broker posture is supplied directly or through Doctor, the runpack projects source status, slot counts, stale warnings, duplicate-gate opportunities, and advisory guards without treating them as CI, RCH, Beads, Agent Mail, or release-claim authority.",
+      "validated_by": [
+        "optional_source_ids",
+        "optional_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-013",
+      "description": "Runpack output embeds the remote-validation proof ledger so operators can inspect whether each cargo/RCH gate ran remotely, refused local fallback, or carried artifact retrieval warnings before closing beads.",
+      "validated_by": [
+        "required_top_level_keys",
+        "required_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-014",
+      "description": "Runpack output embeds a read-only predictive telemetry ledger that fuses existing source evidence into ordered pressure observations and next-bottleneck hypotheses without becoming release, capacity, Agent Mail, RCH, or scheduler authority.",
+      "validated_by": [
+        "predictive_telemetry_ledger_schema",
+        "required_top_level_keys",
+        "required_summary_paths"
+      ]
+    },
+    {
+      "id": "RUNPACK-MUST-015",
+      "description": "Runpack output embeds a read-only RCH-aware validation scheduler plan that orders exact validation commands, defers or blocks heavy cargo gates under RCH pressure, and refuses local cargo fallback.",
+      "validated_by": [
+        "validation_scheduler_plan_schema",
+        "required_top_level_keys",
+        "required_summary_paths",
+        "required_next_action_fragments"
+      ]
+    }
+  ]
+}

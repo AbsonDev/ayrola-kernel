@@ -1,0 +1,176 @@
+{
+  "schema": "pi.ubs.staged_baseline_inventory.v1",
+  "bead": "bd-10rgd",
+  "generated_at": "2026-05-10T09:36:30Z",
+  "source_commit": "a6a4c7ca6016b1b9d1be292f6cab96fa9b021e61",
+  "purpose": "Document the UBS whole-file baseline that can appear during staged Rust scans so unrelated patches can rely on changed-line gating without ignoring real owner work.",
+  "policy": {
+    "changed_line_gate": "scripts/check_ubs_staged_delta.py",
+    "blocking_rule": "New warning or critical UBS findings on staged added/modified Rust lines must be fixed before commit.",
+    "baseline_rule": "Whole-file warning and critical findings outside staged changed lines are baseline inventory unless a category-specific owner bead says otherwise."
+  },
+  "scans": [
+    {
+      "name": "current_staged_rust",
+      "command": "ubs --staged --only=rust --ci .",
+      "scan_completed_at": "2026-05-10T09:33:36Z",
+      "exit_code": 0,
+      "files_scanned": [
+        "tests/ext_conformance_diff.rs"
+      ],
+      "summary": {
+        "critical": 0,
+        "warning": 91,
+        "info": 229
+      },
+      "changed_line_gate": {
+        "command": "./scripts/check_ubs_staged_delta.py",
+        "staged_rust_files": 1,
+        "changed_lines": 71,
+        "parsed_ubs_locations": 22,
+        "finding_locations_on_changed_lines": 0,
+        "verdict": "pass"
+      },
+      "warning_categories": [
+        {
+          "category": "unwrap_expect_test_harness",
+          "count": 22,
+          "sample_locations": [
+            "tests/ext_conformance_diff.rs:242",
+            "tests/ext_conformance_diff.rs:254",
+            "tests/ext_conformance_diff.rs:273",
+            "tests/ext_conformance_diff.rs:1626",
+            "tests/ext_conformance_diff.rs:1727"
+          ],
+          "disposition": "baseline_test_harness",
+          "rationale": "The sampled sites are differential-conformance setup, manifest fixture assertions, and ignored report generators. They are not production runtime paths and did not touch changed staged lines."
+        },
+        {
+          "category": "panic_assert_indexing_test_harness",
+          "count": 29,
+          "sample_locations": [
+            "tests/ext_conformance_diff.rs:274",
+            "tests/ext_conformance_diff.rs:275",
+            "tests/ext_conformance_diff.rs:281",
+            "tests/ext_conformance_diff.rs:284"
+          ],
+          "disposition": "baseline_test_harness",
+          "rationale": "The sampled sites validate fixture shape or fail tests on unexpected fixture/runtime outcomes. They are acceptable as baseline inventory for unrelated patches."
+        },
+        {
+          "category": "performance_heuristics_test_harness",
+          "count": 39,
+          "sample_locations": [
+            "tests/ext_conformance_diff.rs:292",
+            "tests/ext_conformance_diff.rs:293",
+            "tests/ext_conformance_diff.rs:298",
+            "tests/ext_conformance_diff.rs:830",
+            "tests/ext_conformance_diff.rs:850"
+          ],
+          "disposition": "baseline_test_harness",
+          "rationale": "The sampled clone/allocation warnings live in deterministic event-dispatch benchmark and manifest-walking test helpers. They are not changed-line regressions."
+        },
+        {
+          "category": "path_join_test_harness",
+          "count": 1,
+          "sample_locations": [
+            "tests/ext_conformance_diff.rs:238"
+          ],
+          "disposition": "baseline_test_harness",
+          "rationale": "The sampled path joins a test-created scope directory with static package names for the TypeScript oracle NODE_PATH setup."
+        }
+      ]
+    },
+    {
+      "name": "production_large_modules",
+      "command": "ubs --only=rust --format=text --ci src/extensions.rs src/pi_wasm.rs",
+      "scan_completed_at": "2026-05-10T09:36:30Z",
+      "exit_code": 1,
+      "files_scanned": [
+        "src/extensions.rs",
+        "src/pi_wasm.rs"
+      ],
+      "summary": {
+        "critical": 206,
+        "warning": 5179,
+        "info": 1591
+      },
+      "owner_bead": "bd-wv10l",
+      "sampled_dispositions": [
+        {
+          "category": "panic_macros",
+          "count": 53,
+          "sample_locations": [
+            "src/extensions.rs:31282",
+            "src/extensions.rs:33386",
+            "src/extensions.rs:33683",
+            "src/extensions.rs:33898",
+            "src/extensions.rs:34040"
+          ],
+          "disposition": "test_module_baseline",
+          "rationale": "Sampled panic! sites are inside #[test] support paths that intentionally fail on impossible or unexpected test outcomes."
+        },
+        {
+          "category": "secret_comparison_heuristic",
+          "count": 150,
+          "sample_locations": [
+            "src/extensions.rs:144",
+            "src/extensions.rs:241",
+            "src/extensions.rs:310"
+          ],
+          "disposition": "heuristic_false_positive",
+          "rationale": "Sampled comparisons are path/byte JSON escaping checks, not secret, token, HMAC, API key, or signature equality."
+        },
+        {
+          "category": "non_crypto_randomness_heuristic",
+          "count": 1,
+          "sample_locations": [
+            "src/extensions.rs:17643"
+          ],
+          "disposition": "heuristic_false_positive",
+          "rationale": "The sampled site records Instant::now() for warm-runtime reset latency measurement, not token or secret generation."
+        },
+        {
+          "category": "exec_command_spawn",
+          "count": 2,
+          "sample_locations": [
+            "src/extensions.rs:23379",
+            "src/extensions.rs:23546"
+          ],
+          "disposition": "guarded_production_surface",
+          "rationale": "dispatch_hostcall_ref evaluates exec mediation with evaluate_exec_mediation before reaching dispatch_hostcall_exec_ref. The remaining work is to make that guard obvious to UBS or refactor/annotate it under bd-wv10l."
+        },
+        {
+          "category": "path_archive_traversal_heuristic",
+          "count": 45,
+          "sample_locations": [
+            "src/extensions.rs:990",
+            "src/extensions.rs:992",
+            "src/extensions.rs:19611",
+            "src/extensions.rs:19626"
+          ],
+          "disposition": "needs_category_review",
+          "rationale": "Sampled sites are recursive extension source enumeration and entry resolution, not archive extraction. bd-wv10l owns category-level cleanup or explicit annotation."
+        },
+        {
+          "category": "pi_wasm_indexing_heuristic",
+          "count": 99,
+          "sample_locations": [
+            "src/pi_wasm.rs:356",
+            "src/pi_wasm.rs:382",
+            "src/pi_wasm.rs:388"
+          ],
+          "disposition": "guarded_production_surface",
+          "rationale": "caller_read_u32 reads through caller_read_bytes(offset, 4), and caller_read_c_string bounds-checks the end offset before slicing. bd-wv10l owns any annotation/refactor needed to reduce UBS noise."
+        }
+      ]
+    }
+  ],
+  "result": {
+    "verdict": "baseline_triaged",
+    "closed_by_changed_line_gate": true,
+    "remaining_owner_beads": [
+      "bd-wv10l"
+    ]
+  }
+}

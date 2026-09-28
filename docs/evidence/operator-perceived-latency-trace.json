@@ -1,0 +1,541 @@
+{
+  "cases": [
+    {
+      "degradation_class": "none",
+      "description": "Provider chunks, RPC flush, TUI frame, and operator-visible semantic text progress without pressure.",
+      "id": "balanced",
+      "low_value_coalesced_count": 0,
+      "semantic_milestones": {
+        "budget_ms": 250,
+        "first_semantic_provider_step": 1,
+        "operator_visible_step": 5,
+        "rpc_visible_step": 2,
+        "semantic_visible_by_ms": 32,
+        "tui_visible_step": 3,
+        "within_budget": true
+      },
+      "semantic_visibility_preserved": true,
+      "status": "pass",
+      "timeline": [
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "first_semantic_chunk",
+          "degradation_class": "none",
+          "elapsed_ms": 0,
+          "event": "provider_delta",
+          "step": 1,
+          "surface": "provider_stream",
+          "visibility_point": "provider_semantic_token"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_priority_flush",
+          "degradation_class": "none",
+          "elapsed_ms": 12,
+          "event": "rpc_flush",
+          "step": 2,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_semantic_message"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "frame_budget_slot",
+          "degradation_class": "none",
+          "elapsed_ms": 24,
+          "event": "frame_render",
+          "step": 3,
+          "surface": "tui_frame",
+          "visibility_point": "tui_semantic_line"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "passthrough_status",
+          "degradation_class": "none",
+          "elapsed_ms": 28,
+          "event": "tool_progress",
+          "step": 4,
+          "surface": "tool_update",
+          "visibility_point": "tool_status_line"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "rendered_message",
+          "degradation_class": "none",
+          "elapsed_ms": 32,
+          "event": "visible_text",
+          "step": 5,
+          "surface": "operator_visible",
+          "visibility_point": "operator_transcript"
+        }
+      ],
+      "timeline_kind": "deterministic_fixture_not_live_provider_trace",
+      "visibility_budget_ms": 250
+    },
+    {
+      "degradation_class": "watch",
+      "description": "A slow provider emits keepalives before the first semantic chunk; the semantic chunk remains visible within budget.",
+      "id": "provider_slow",
+      "low_value_coalesced_count": 2,
+      "semantic_milestones": {
+        "budget_ms": 250,
+        "first_semantic_provider_step": 3,
+        "operator_visible_step": 6,
+        "rpc_visible_step": 4,
+        "semantic_visible_by_ms": 180,
+        "tui_visible_step": 5,
+        "within_budget": true
+      },
+      "semantic_visibility_preserved": true,
+      "status": "pass",
+      "timeline": [
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "heartbeat_coalesced",
+          "degradation_class": "watch",
+          "elapsed_ms": 0,
+          "event": "provider_keepalive",
+          "step": 1,
+          "surface": "provider_stream",
+          "visibility_point": "provider_heartbeat"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "heartbeat_coalesced",
+          "degradation_class": "watch",
+          "elapsed_ms": 50,
+          "event": "keepalive_flush",
+          "step": 2,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_heartbeat"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "first_semantic_after_provider_wait",
+          "degradation_class": "watch",
+          "elapsed_ms": 140,
+          "event": "provider_delta",
+          "step": 3,
+          "surface": "provider_stream",
+          "visibility_point": "provider_semantic_token"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_priority_flush",
+          "degradation_class": "watch",
+          "elapsed_ms": 155,
+          "event": "rpc_flush",
+          "step": 4,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_semantic_message"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "next_frame_slot",
+          "degradation_class": "pressure",
+          "elapsed_ms": 170,
+          "event": "frame_render",
+          "step": 5,
+          "surface": "tui_frame",
+          "visibility_point": "tui_semantic_line"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "rendered_message",
+          "degradation_class": "pressure",
+          "elapsed_ms": 180,
+          "event": "visible_text",
+          "step": 6,
+          "surface": "operator_visible",
+          "visibility_point": "operator_transcript"
+        }
+      ],
+      "timeline_kind": "deterministic_fixture_not_live_provider_trace",
+      "visibility_budget_ms": 250
+    },
+    {
+      "degradation_class": "pressure",
+      "description": "Low-value RPC and tool updates are coalesced while semantic provider output forces a priority flush.",
+      "id": "rpc_flood",
+      "low_value_coalesced_count": 4,
+      "semantic_milestones": {
+        "budget_ms": 250,
+        "first_semantic_provider_step": 1,
+        "operator_visible_step": 7,
+        "rpc_visible_step": 5,
+        "semantic_visible_by_ms": 96,
+        "tui_visible_step": 6,
+        "within_budget": true
+      },
+      "semantic_visibility_preserved": true,
+      "status": "pass",
+      "timeline": [
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "first_semantic_chunk",
+          "degradation_class": "pressure",
+          "elapsed_ms": 0,
+          "event": "provider_delta",
+          "step": 1,
+          "surface": "provider_stream",
+          "visibility_point": "provider_semantic_token"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "message_delta_coalesced",
+          "degradation_class": "pressure",
+          "elapsed_ms": 8,
+          "event": "message_delta_buffered",
+          "step": 2,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_pending_delta"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "tool_progress_coalesced",
+          "degradation_class": "pressure",
+          "elapsed_ms": 16,
+          "event": "tool_progress",
+          "step": 3,
+          "surface": "tool_update",
+          "visibility_point": "tool_pending_update"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "latest_low_value_wins",
+          "degradation_class": "pressure",
+          "elapsed_ms": 24,
+          "event": "tool_update_replaced",
+          "step": 4,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_pending_tool_update"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_priority_flush_after_low_value",
+          "degradation_class": "pressure",
+          "elapsed_ms": 60,
+          "event": "rpc_flush",
+          "step": 5,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_semantic_message"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_reserved_frame",
+          "degradation_class": "pressure",
+          "elapsed_ms": 82,
+          "event": "frame_render",
+          "step": 6,
+          "surface": "tui_frame",
+          "visibility_point": "tui_semantic_line"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "rendered_message",
+          "degradation_class": "pressure",
+          "elapsed_ms": 96,
+          "event": "visible_text",
+          "step": 7,
+          "surface": "operator_visible",
+          "visibility_point": "operator_transcript"
+        }
+      ],
+      "timeline_kind": "deterministic_fixture_not_live_provider_trace",
+      "visibility_budget_ms": 250
+    },
+    {
+      "degradation_class": "pressure",
+      "description": "Frame pressure collapses low-value tool noise but reserves a semantic frame for operator-visible output.",
+      "id": "tui_frame_pressure",
+      "low_value_coalesced_count": 3,
+      "semantic_milestones": {
+        "budget_ms": 250,
+        "first_semantic_provider_step": 1,
+        "operator_visible_step": 6,
+        "rpc_visible_step": 2,
+        "semantic_visible_by_ms": 140,
+        "tui_visible_step": 5,
+        "within_budget": true
+      },
+      "semantic_visibility_preserved": true,
+      "status": "pass",
+      "timeline": [
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "first_semantic_chunk",
+          "degradation_class": "pressure",
+          "elapsed_ms": 0,
+          "event": "provider_delta",
+          "step": 1,
+          "surface": "provider_stream",
+          "visibility_point": "provider_semantic_token"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_priority_flush",
+          "degradation_class": "pressure",
+          "elapsed_ms": 18,
+          "event": "rpc_flush",
+          "step": 2,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_semantic_message"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "frame_budget_collapsed",
+          "degradation_class": "pressure",
+          "elapsed_ms": 30,
+          "event": "tool_progress",
+          "step": 3,
+          "surface": "tool_update",
+          "visibility_point": "tool_status_line"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "low_value_frame_skipped",
+          "degradation_class": "pressure",
+          "elapsed_ms": 44,
+          "event": "frame_skipped",
+          "step": 4,
+          "surface": "tui_frame",
+          "visibility_point": "tool_status_collapsed"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_reserved_frame",
+          "degradation_class": "pressure",
+          "elapsed_ms": 110,
+          "event": "frame_render",
+          "step": 5,
+          "surface": "tui_frame",
+          "visibility_point": "tui_semantic_line"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "rendered_message",
+          "degradation_class": "pressure",
+          "elapsed_ms": 140,
+          "event": "visible_text",
+          "step": 6,
+          "surface": "operator_visible",
+          "visibility_point": "operator_transcript"
+        }
+      ],
+      "timeline_kind": "deterministic_fixture_not_live_provider_trace",
+      "visibility_budget_ms": 250
+    },
+    {
+      "degradation_class": "watch",
+      "description": "A semantic event arriving after coalesced noise still flushes through RPC and TUI within the fixture budget.",
+      "id": "semantic_after_coalesced_noise",
+      "low_value_coalesced_count": 5,
+      "semantic_milestones": {
+        "budget_ms": 250,
+        "first_semantic_provider_step": 4,
+        "operator_visible_step": 7,
+        "rpc_visible_step": 5,
+        "semantic_visible_by_ms": 150,
+        "tui_visible_step": 6,
+        "within_budget": true
+      },
+      "semantic_visibility_preserved": true,
+      "status": "pass",
+      "timeline": [
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "message_delta_coalesced",
+          "degradation_class": "watch",
+          "elapsed_ms": 0,
+          "event": "message_delta_buffered",
+          "step": 1,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_pending_delta"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "tool_progress_coalesced",
+          "degradation_class": "watch",
+          "elapsed_ms": 25,
+          "event": "tool_progress",
+          "step": 2,
+          "surface": "tool_update",
+          "visibility_point": "tool_pending_update"
+        },
+        {
+          "class": "low_value",
+          "coalescing_or_flush_reason": "latest_low_value_wins",
+          "degradation_class": "watch",
+          "elapsed_ms": 50,
+          "event": "pending_update_replaced",
+          "step": 3,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_pending_delta"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "first_semantic_after_noise",
+          "degradation_class": "watch",
+          "elapsed_ms": 90,
+          "event": "provider_delta",
+          "step": 4,
+          "surface": "provider_stream",
+          "visibility_point": "provider_semantic_token"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_after_noise_forced_flush",
+          "degradation_class": "watch",
+          "elapsed_ms": 105,
+          "event": "rpc_flush",
+          "step": 5,
+          "surface": "rpc_output",
+          "visibility_point": "rpc_semantic_message"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "semantic_reserved_frame",
+          "degradation_class": "watch",
+          "elapsed_ms": 128,
+          "event": "frame_render",
+          "step": 6,
+          "surface": "tui_frame",
+          "visibility_point": "tui_semantic_line"
+        },
+        {
+          "class": "semantic",
+          "coalescing_or_flush_reason": "rendered_message",
+          "degradation_class": "watch",
+          "elapsed_ms": 150,
+          "event": "visible_text",
+          "step": 7,
+          "surface": "operator_visible",
+          "visibility_point": "operator_transcript"
+        }
+      ],
+      "timeline_kind": "deterministic_fixture_not_live_provider_trace",
+      "visibility_budget_ms": 250
+    }
+  ],
+  "claim_boundaries": {
+    "allowed_claim": "Advisory operator-perceived semantic visibility trace over deterministic fixtures only.",
+    "benchmark_claim_authorized": false,
+    "capacity_claim_authorized": false,
+    "live_provider_or_network_call_authorized": false,
+    "release_performance_claim_authorized": false,
+    "replaces_provider_rpc_tui_backpressure_evidence": false,
+    "scheduler_mutation_authorized": false,
+    "strict_dropin_or_release_claim_authorized": false
+  },
+  "decision": "trace_passed",
+  "failing_case_ids": [],
+  "generated_at": "2026-05-18T00:00:00+00:00",
+  "missing_case_ids": [],
+  "missing_surface_ids": [],
+  "negative_control_failures": [],
+  "negative_controls": [
+    {
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "semantic_visibility_delayed_beyond_budget",
+      "reason": "A surface pass is not valid when operator-visible semantic output exceeds the fixture visibility budget.",
+      "trigger": {
+        "budget_ms": 250,
+        "semantic_visible_by_ms": 400
+      },
+      "verdict": "fail"
+    },
+    {
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "surface_pass_without_visibility",
+      "reason": "Provider, RPC, or TUI success without an operator-visible semantic milestone must fail closed.",
+      "trigger": {
+        "operator_visible_step": null,
+        "surface_status": "pass"
+      },
+      "verdict": "fail"
+    },
+    {
+      "expectation_met": true,
+      "expected_status": "fail",
+      "id": "non_monotonic_timeline",
+      "reason": "Trace steps and elapsed timestamps must be monotonic so operators can reason about causality.",
+      "trigger": {
+        "elapsed_ms_sequence": [
+          0,
+          20,
+          18
+        ],
+        "step_sequence": [
+          1,
+          3,
+          2
+        ]
+      },
+      "verdict": "fail"
+    }
+  ],
+  "operator_next_actions": [
+    "Use this trace to explain when semantic output became visible to an operator.",
+    "Consult provider/RPC/TUI backpressure evidence before making pressure or fairness claims.",
+    "File follow-up beads if any case, surface, or negative control fails."
+  ],
+  "purpose": "operator_perceived_latency_trace_advisory_not_benchmark_or_capacity_claim",
+  "required_case_ids": [
+    "balanced",
+    "provider_slow",
+    "rpc_flood",
+    "tui_frame_pressure",
+    "semantic_after_coalesced_noise"
+  ],
+  "required_event_keys": [
+    "step",
+    "elapsed_ms",
+    "surface",
+    "event",
+    "class",
+    "visibility_point",
+    "coalescing_or_flush_reason",
+    "degradation_class"
+  ],
+  "required_surface_ids": [
+    "provider_stream",
+    "rpc_output",
+    "tui_frame",
+    "tool_update",
+    "operator_visible"
+  ],
+  "schema": "pi.operator.perceived_latency_trace.v1",
+  "source_bead": "bd-63x3v.11.5",
+  "source_boundaries": [
+    {
+      "description": "All timelines are deterministic fixtures and do not call live providers, networks, or terminals.",
+      "id": "fixture_backed_no_live_provider_calls",
+      "status": "pass"
+    },
+    {
+      "description": "Elapsed values are fixture ordering evidence only, not release latency, benchmark, or capacity measurements.",
+      "id": "advisory_trace_not_benchmark_or_capacity_claim",
+      "status": "pass"
+    },
+    {
+      "description": "The trace summarizes perceived semantic visibility and still depends on provider/RPC/TUI backpressure evidence for pressure claims.",
+      "id": "does_not_replace_backpressure_evidence",
+      "status": "pass"
+    },
+    {
+      "description": "The generator only emits JSON and does not mutate Beads, Agent Mail, RCH, scheduler state, cargo artifacts, or runtime queues.",
+      "id": "read_only_no_scheduler_or_runtime_mutation",
+      "status": "pass"
+    }
+  ],
+  "status": "pass",
+  "surface_ids_covered": [
+    "operator_visible",
+    "provider_stream",
+    "rpc_output",
+    "tool_update",
+    "tui_frame"
+  ],
+  "visibility_budget_ms": 250
+}

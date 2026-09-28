@@ -1,0 +1,877 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pi Session Store V2 Contract Bundle",
+  "description": "Canonical wire-format contract bundle for Session Store V2 architecture, migration, and rollback validation.",
+  "type": "object",
+  "required": [
+    "schema",
+    "manifest",
+    "segments",
+    "offsetIndex",
+    "checkpoints",
+    "migrationEvents",
+    "stateTransitions"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "pi.session_store_v2.contract.v1"
+    },
+    "manifest": {
+      "$ref": "#/$defs/manifest"
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/segment_frame"
+      }
+    },
+    "offsetIndex": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/offset_index"
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/checkpoint"
+      }
+    },
+    "migrationEvents": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/migration_event"
+      }
+    },
+    "stateTransitions": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/$defs/state_transition"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$"
+    },
+    "hex64": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "crc32c": {
+      "type": "string",
+      "pattern": "^[A-F0-9]{8}$"
+    },
+    "store_state": {
+      "type": "string",
+      "enum": [
+        "CLEAN",
+        "DIRTY",
+        "SEGMENT_SEALED",
+        "INDEXED",
+        "CHECKPOINTED",
+        "MIGRATION_STAGING",
+        "MIGRATED",
+        "ROLLED_BACK",
+        "FAILED"
+      ]
+    },
+    "manifest": {
+      "type": "object",
+      "required": [
+        "schema",
+        "storeVersion",
+        "sessionId",
+        "sourceFormat",
+        "createdAt",
+        "updatedAt",
+        "head",
+        "counters",
+        "files",
+        "integrity",
+        "invariants"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.session_store_v2.manifest.v1"
+        },
+        "storeVersion": {
+          "type": "integer",
+          "const": 2
+        },
+        "sessionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sourceFormat": {
+          "type": "string",
+          "enum": [
+            "jsonl_v3",
+            "sqlite_v1",
+            "native_v2"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "head": {
+          "type": "object",
+          "required": [
+            "segmentSeq",
+            "entrySeq",
+            "entryId"
+          ],
+          "properties": {
+            "segmentSeq": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "entrySeq": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "entryId": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "counters": {
+          "type": "object",
+          "required": [
+            "entriesTotal",
+            "messagesTotal",
+            "branchesTotal",
+            "compactionsTotal",
+            "bytesTotal"
+          ],
+          "properties": {
+            "entriesTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "messagesTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "branchesTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "compactionsTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "bytesTotal": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "files": {
+          "type": "object",
+          "required": [
+            "segmentDir",
+            "segmentCount",
+            "indexPath",
+            "checkpointDir",
+            "migrationLedgerPath"
+          ],
+          "properties": {
+            "segmentDir": {
+              "type": "string",
+              "minLength": 1
+            },
+            "segmentCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "indexPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "checkpointDir": {
+              "type": "string",
+              "minLength": 1
+            },
+            "migrationLedgerPath": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "integrity": {
+          "type": "object",
+          "required": [
+            "chainHash",
+            "manifestHash",
+            "lastCrc32c"
+          ],
+          "properties": {
+            "chainHash": {
+              "$ref": "#/$defs/hex64"
+            },
+            "manifestHash": {
+              "$ref": "#/$defs/hex64"
+            },
+            "lastCrc32c": {
+              "$ref": "#/$defs/crc32c"
+            }
+          },
+          "additionalProperties": false
+        },
+        "invariants": {
+          "type": "object",
+          "required": [
+            "parentLinksClosed",
+            "monotonicEntrySeq",
+            "monotonicSegmentSeq",
+            "indexWithinSegmentBounds",
+            "branchHeadsIndexed",
+            "checkpointsMonotonic",
+            "hashChainValid"
+          ],
+          "properties": {
+            "parentLinksClosed": {
+              "type": "boolean"
+            },
+            "monotonicEntrySeq": {
+              "type": "boolean"
+            },
+            "monotonicSegmentSeq": {
+              "type": "boolean"
+            },
+            "indexWithinSegmentBounds": {
+              "type": "boolean"
+            },
+            "branchHeadsIndexed": {
+              "type": "boolean"
+            },
+            "checkpointsMonotonic": {
+              "type": "boolean"
+            },
+            "hashChainValid": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "counters": {
+                "properties": {
+                  "entriesTotal": {
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "entriesTotal"
+                ]
+              }
+            },
+            "required": [
+              "counters"
+            ]
+          },
+          "then": {
+            "properties": {
+              "head": {
+                "properties": {
+                  "segmentSeq": {
+                    "const": 0
+                  },
+                  "entrySeq": {
+                    "const": 0
+                  },
+                  "entryId": {
+                    "const": ""
+                  }
+                }
+              },
+              "files": {
+                "properties": {
+                  "segmentCount": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "head": {
+                "properties": {
+                  "segmentSeq": {
+                    "minimum": 1
+                  },
+                  "entrySeq": {
+                    "minimum": 1
+                  },
+                  "entryId": {
+                    "$ref": "#/$defs/entry_id"
+                  }
+                }
+              },
+              "files": {
+                "properties": {
+                  "segmentCount": {
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "segment_frame": {
+      "type": "object",
+      "required": [
+        "schema",
+        "segmentSeq",
+        "frameSeq",
+        "entrySeq",
+        "entryId",
+        "entryType",
+        "timestamp",
+        "payloadSha256",
+        "payloadBytes",
+        "payload"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.session_store_v2.segment_frame.v1"
+        },
+        "segmentSeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frameSeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entrySeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entryId": {
+          "$ref": "#/$defs/entry_id"
+        },
+        "parentEntryId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/entry_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entryType": {
+          "type": "string",
+          "enum": [
+            "message",
+            "model_change",
+            "thinking_level_change",
+            "compaction",
+            "branch_summary",
+            "label",
+            "session_info",
+            "custom"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payloadSha256": {
+          "$ref": "#/$defs/hex64"
+        },
+        "payloadBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "offset_index": {
+      "type": "object",
+      "required": [
+        "schema",
+        "entrySeq",
+        "entryId",
+        "segmentSeq",
+        "frameSeq",
+        "byteOffset",
+        "byteLength",
+        "crc32c",
+        "state"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.session_store_v2.offset_index.v1"
+        },
+        "entrySeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entryId": {
+          "$ref": "#/$defs/entry_id"
+        },
+        "segmentSeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frameSeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "byteOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "crc32c": {
+          "$ref": "#/$defs/crc32c"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "compacted",
+            "superseded"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "checkpoint": {
+      "type": "object",
+      "required": [
+        "schema",
+        "checkpointSeq",
+        "at",
+        "headEntrySeq",
+        "headEntryId",
+        "snapshotRef",
+        "compactedBeforeEntrySeq",
+        "chainHash",
+        "reason"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.session_store_v2.checkpoint.v1"
+        },
+        "checkpointSeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "headEntrySeq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "headEntryId": {
+          "$ref": "#/$defs/entry_id"
+        },
+        "snapshotRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compactedBeforeEntrySeq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chainHash": {
+          "$ref": "#/$defs/hex64"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "periodic",
+            "manual",
+            "pre_migration",
+            "post_migration",
+            "recovery"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "migration_event": {
+      "type": "object",
+      "required": [
+        "schema",
+        "migrationId",
+        "phase",
+        "at",
+        "sourcePath",
+        "targetPath",
+        "sourceFormat",
+        "targetFormat",
+        "verification",
+        "outcome",
+        "correlationId"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.session_store_v2.migration_event.v1"
+        },
+        "migrationId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "planned",
+            "staging_copy",
+            "integrity_check",
+            "cutover_commit",
+            "rollback",
+            "completed",
+            "failed"
+          ]
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sourcePath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceFormat": {
+          "type": "string",
+          "enum": [
+            "jsonl_v3",
+            "sqlite_v1",
+            "native_v2"
+          ]
+        },
+        "targetFormat": {
+          "type": "string",
+          "enum": [
+            "jsonl_v3",
+            "sqlite_v1",
+            "native_v2"
+          ]
+        },
+        "verification": {
+          "type": "object",
+          "required": [
+            "entryCountMatch",
+            "hashChainMatch",
+            "indexConsistent"
+          ],
+          "properties": {
+            "entryCountMatch": {
+              "type": "boolean"
+            },
+            "hashChainMatch": {
+              "type": "boolean"
+            },
+            "indexConsistent": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "recoverable_error",
+            "fatal_error"
+          ]
+        },
+        "errorClass": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "integrity_mismatch",
+            "index_corruption",
+            "io_failure",
+            "atomicity_violation",
+            null
+          ]
+        },
+        "correlationId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "state_transition": {
+      "type": "object",
+      "required": [
+        "fromState",
+        "toState",
+        "reason",
+        "at"
+      ],
+      "properties": {
+        "fromState": {
+          "$ref": "#/$defs/store_state"
+        },
+        "toState": {
+          "$ref": "#/$defs/store_state"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "CLEAN"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "DIRTY",
+                  "MIGRATION_STAGING"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "DIRTY"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "SEGMENT_SEALED",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "SEGMENT_SEALED"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "INDEXED",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "INDEXED"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "CHECKPOINTED",
+                  "DIRTY",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "CHECKPOINTED"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "DIRTY",
+                  "MIGRATION_STAGING",
+                  "ROLLED_BACK",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "MIGRATION_STAGING"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "MIGRATED",
+                  "ROLLED_BACK",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "MIGRATED"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "DIRTY",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "ROLLED_BACK"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "DIRTY",
+                  "FAILED"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fromState": {
+                "const": "FAILED"
+              }
+            },
+            "required": [
+              "fromState"
+            ]
+          },
+          "then": {
+            "properties": {
+              "toState": {
+                "enum": [
+                  "DIRTY",
+                  "ROLLED_BACK"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

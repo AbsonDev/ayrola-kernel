@@ -1,0 +1,157 @@
+{
+  "schema": "pi.ext.reactor_queue_coverage_evidence.v1",
+  "bead_id": "bd-2zcs5.24",
+  "generated_at": "2026-05-08T22:29:40Z",
+  "status": "PASS",
+  "purpose": "Prove the ext_stress synthetic hostcall path drives the real extension hostcall reactor queues before future NUMA or lane-placement decisions use reactor metrics.",
+  "harness_changes": {
+    "file": "examples/ext_stress.rs",
+    "added_flags": [
+      "--synthetic-hostcall-root",
+      "--require-reactor-activity"
+    ],
+    "synthetic_hostcall": "agent_start handler calls pi.events(\"list_flags\", {}), which resolves to a fast-lane hostcall and is submitted through the reactor mesh when enabled.",
+    "added_report_fields": [
+      "config.synthetic_hostcall_root",
+      "config.require_reactor_activity",
+      "reactor_activity",
+      "pass.reactor_activity_ok",
+      "reactor.s3fifo",
+      "reactor.bravo"
+    ],
+    "failure_modes": [
+      "reactor_disabled",
+      "no_reactor_enqueues",
+      "no_reactor_dispatches"
+    ]
+  },
+  "usage": {
+    "command": "rch exec -- cargo run --example ext_stress -- --synthetic-hostcall-extensions 4 --synthetic-hostcall-root /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/direct-rch/synthetic --event agent_start --reactor-enabled=true --reactor-shards 4 --reactor-lane-capacity 128 --reactor-drain-budget 128 --duration-secs 2 --warmup-secs 0 --rss-interval-secs 1 --events-per-sec 2 --dispatch-timeout-ms 2000 --require-reactor-activity=true --report-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/direct-rch/ext-stress-reactor-queue-coverage.json --events-path /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/direct-rch/ext-stress-events.jsonl --run-id bd-2zcs5-24-reactor-proof --correlation-id bd-2zcs5-24-reactor-proof",
+    "notes": [
+      "Use a synthetic_hostcall_root outside docs/evidence so generated JS extension sources do not become repository artifacts.",
+      "The run should exit nonzero when --require-reactor-activity=true and either enqueue or dispatch counters remain zero.",
+      "The report keeps normal ext_stress RSS, latency, event-count, and comparison fields intact."
+    ]
+  },
+  "direct_rch_gate_proof": {
+    "completed_at": "2026-05-08T22:27:08Z",
+    "exit_code": 0,
+    "stdout": [
+      "Report written to /data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/direct-rch/ext-stress-reactor-queue-coverage.json (events=4, rss_ok=true, latency_ok=false)",
+      "Reactor activity: enabled=true, enqueued_total=16, dispatched_total=16, active_shards=4, ok=true"
+    ],
+    "reactor_activity": {
+      "enabled": true,
+      "enqueued_total": 16,
+      "dispatched_total": 16,
+      "active_shards": 4,
+      "ok": true
+    },
+    "artifact_note": "The direct RCH command wrote the JSON report on the remote worker under /data/tmp; the stdout gate result is the direct remote proof retained here."
+  },
+  "captured_report_metrics": {
+    "source_report_path": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/stdout-proof/ext-stress-reactor-queue-coverage.json",
+    "generated_at": "2026-05-08T22:21:24Z",
+    "correlation_id": "bd-2zcs5-24-reactor-proof",
+    "config": {
+      "synthetic_hostcall_extensions": 4,
+      "synthetic_hostcall_root": "/data/tmp/pi_agent_rust_cargo/rusticgorge-bd-2zcs5-24/stdout-proof/synthetic",
+      "event": "agent_start",
+      "reactor_enabled": true,
+      "reactor_shards": 4,
+      "reactor_lane_capacity": 128,
+      "reactor_drain_budget": 128,
+      "reactor_core_ids": null,
+      "duration_secs": 2,
+      "warmup_secs": 0,
+      "rss_interval_secs": 1,
+      "events_per_sec": 2,
+      "dispatch_timeout_ms": 2000,
+      "require_reactor_activity": true
+    },
+    "events": {
+      "count": 4,
+      "target_count": 4,
+      "min_count": 4,
+      "errors": 0,
+      "sample_errors": []
+    },
+    "reactor": {
+      "enabled": true,
+      "shard_count": 4,
+      "total_enqueued_by_shard": [
+        4,
+        4,
+        4,
+        4
+      ],
+      "total_dispatched": 16,
+      "active_shards": 4,
+      "queue_depths_final": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "max_queue_depths": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "rejected_enqueues": 0,
+      "numa_pool_active": false,
+      "affinity_advisory_count": 0,
+      "migration_events_total": 0,
+      "stall_reasons": {},
+      "s3fifo": {
+        "mode": "Active",
+        "fallback_reason": null,
+        "fairness_budget_rejections": 0,
+        "lane_overflow_rejections": 0,
+        "fallback_event_total": 0
+      },
+      "bravo": {
+        "mode": "Balanced",
+        "transitions": 0,
+        "rollbacks": 0,
+        "writer_recovery_remaining": 0
+      }
+    },
+    "latency_us": {
+      "count": 4,
+      "min": 1612,
+      "p50": 1742,
+      "p95": 2033,
+      "p99": 2033,
+      "p999": 2033,
+      "max": 2033,
+      "mean": 1813
+    },
+    "rss": {
+      "initial_bytes": 64167936,
+      "max_bytes": 65138688,
+      "growth_pct": 0.015128303332056683
+    },
+    "cpu": {
+      "process_mean_pct": 1.502347469329834,
+      "process_max_pct": 3.004694938659668
+    },
+    "pass": {
+      "events_ok": true,
+      "rss_ok": true,
+      "latency_ok": true,
+      "reactor_activity_ok": true,
+      "overall": true
+    }
+  },
+  "coverage": {
+    "unit_tests": [
+      "synthetic_hostcall_source_uses_agent_start_events_hostcall",
+      "require_reactor_activity_fails_when_counters_stay_zero",
+      "require_reactor_activity_fails_when_dispatches_stay_zero",
+      "require_reactor_activity_accepts_enqueues_and_dispatches"
+    ],
+    "targeted_command": "rch exec -- cargo test --example ext_stress -- --nocapture"
+  }
+}

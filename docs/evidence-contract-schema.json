@@ -1,0 +1,1191 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "pi.qa.evidence_contract.v1",
+  "title": "Evidence Contract",
+  "description": "Audit trail linking test results to artifact locations. Each full e2e run produces one evidence_contract.json that maps suite outcomes to their structured artifacts, enabling post-hoc traceability from CI dashboards to per-suite JSONL logs.",
+  "type": "object",
+  "required": [
+    "schema",
+    "generated_at",
+    "correlation_id",
+    "run_summary",
+    "environment",
+    "suite_evidence",
+    "aggregate_artifacts"
+  ],
+  "perf_schema_registry": {
+    "description": "Registry of all performance evidence schemas referenced by the DSR perf recipe. Each entry pins a schema identifier to its required fields, providing machine-checkable contracts for the preflight harness.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "budget_summary": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.budget_summary.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 5, "maxItems": 5,
+            "items": { "type": "string", "enum": ["schema", "generated_at", "git_commit", "correlation_id", "claim_readiness"] }
+          }
+        }
+      },
+      "budget_preflight": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.budget_preflight.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 4, "maxItems": 4,
+            "items": { "type": "string", "enum": ["schema", "missing_inputs", "expected_artifact_paths", "rch_commands"] }
+          }
+        }
+      },
+      "evidence_cache": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.evidence_cache.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 5, "maxItems": 5,
+            "items": { "type": "string", "enum": ["schema", "ttl_hours", "entries", "git_commit", "build_profile"] }
+          }
+        }
+      },
+      "phase1_matrix_validation": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.phase1_matrix_validation.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 6, "maxItems": 6,
+            "items": { "type": "string", "enum": ["schema", "generated_at", "correlation_id", "scale_points", "weighted_attribution", "confidence_intervals_95"] }
+          }
+        }
+      },
+      "host_topology_fingerprint": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.host_topology_fingerprint.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 7, "maxItems": 7,
+            "items": { "type": "string", "enum": ["schema", "generated_at", "cgroup_v2_cpu_quota", "cpuset_size", "numa_node_count", "memory_limit_bytes", "budget_profile"] }
+          }
+        }
+      },
+      "pijs_workload_measurement": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.pijs_workload.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 9, "maxItems": 9,
+            "items": { "type": "string", "enum": ["embedded_timestamp", "source_commit", "source_dirty", "run_id", "correlation_id", "iteration", "tool_name", "latency_us", "throughput_calls_per_sec"] }
+          }
+        }
+      },
+      "binary_size_canonical": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.binary_size.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 8, "maxItems": 8,
+            "items": { "type": "string", "enum": ["schema", "generated_at", "binary_path", "binary_sha256", "size_bytes", "cargo_profile", "compiled_profile_family", "strip"] }
+          }
+        }
+      },
+      "ext_cold_load_complex_estimate": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.criterion_estimate.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 5, "maxItems": 5,
+            "items": { "type": "string", "enum": ["schema", "fixture", "budget_name", "p95_us", "status"] }
+          }
+        }
+      },
+      "event_dispatch_scenario": {
+        "type": "object",
+        "required": ["schema", "required_fields"],
+        "additionalProperties": false,
+        "properties": {
+          "schema": { "type": "string", "const": "pi.perf.scenario_runner.v1" },
+          "required_fields": {
+            "type": "array", "uniqueItems": true, "minItems": 6, "maxItems": 6,
+            "items": { "type": "string", "enum": ["schema", "scenario", "event_count", "latency_p99_us", "budget_p99_us", "status"] }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "pi.qa.evidence_contract.v1",
+      "description": "Schema identifier. Must be exactly pi.qa.evidence_contract.v1."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this evidence contract was generated."
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this run. In CI, set via CI_CORRELATION_ID env var. Locally, a 32-char hex trace ID."
+    },
+    "run_summary": {
+      "type": "object",
+      "required": ["total_suites", "passed", "failed", "skipped", "elapsed_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "total_suites": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of suites executed in this run."
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of suites that passed."
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of suites that failed."
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of suites that were skipped."
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total wall-clock time for the run in milliseconds."
+        }
+      },
+      "description": "Aggregate pass/fail/skip counts for the run."
+    },
+    "environment": {
+      "type": "object",
+      "required": ["profile", "rustc_version", "git_sha", "git_branch", "os"],
+      "additionalProperties": true,
+      "properties": {
+        "profile": {
+          "type": "string",
+          "description": "Build profile used (e.g. debug, release)."
+        },
+        "shard_kind": {
+          "type": "string",
+          "description": "Shard partitioning strategy (e.g. provider, suite)."
+        },
+        "shard_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based shard index for this run."
+        },
+        "shard_total": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total number of shards in this CI job."
+        },
+        "rustc_version": {
+          "type": "string",
+          "description": "Rust compiler version string."
+        },
+        "cargo_target_dir": {
+          "type": "string",
+          "description": "CARGO_TARGET_DIR used for this run."
+        },
+        "vcr_mode": {
+          "type": "string",
+          "enum": ["record", "playback", "disabled"],
+          "description": "VCR mode: record, playback, or disabled."
+        },
+        "git_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "Git commit SHA (short or full) for the source under test."
+        },
+        "git_branch": {
+          "type": "string",
+          "description": "Git branch name."
+        },
+        "os": {
+          "type": "string",
+          "description": "Operating system identifier (e.g. linux, macos)."
+        }
+      },
+      "description": "Build and runtime environment metadata. Matches replay_bundle.environment fields."
+    },
+    "suite_evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/suite_entry"
+      },
+      "description": "Per-suite evidence entries. One entry per suite executed."
+    },
+    "parity_contract": {
+      "$ref": "#/definitions/parity_contract",
+      "description": "Optional embedded contract descriptor for cross-suite parity test/logging requirements."
+    },
+    "benchmark_protocol": {
+      "$ref": "#/definitions/benchmark_protocol",
+      "description": "Optional benchmark protocol contract overlay for performance evidence partitions, dataset sizes, replay inputs, metadata requirements, and evidence labels."
+    },
+    "aggregate_artifacts": {
+      "type": "object",
+      "required": ["summary", "environment"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Path to summary.json (aggregate pass/fail counts, timing)."
+        },
+        "environment": {
+          "type": "string",
+          "description": "Path to environment.json (toolchain, OS, git SHA, VCR mode)."
+        },
+        "replay_bundle": {
+          "type": ["string", "null"],
+          "description": "Path to replay_bundle.json, or null if not generated (clean runs)."
+        }
+      },
+      "description": "Paths to per-run aggregate artifacts."
+    }
+  },
+  "definitions": {
+    "suite_entry": {
+      "type": "object",
+      "required": ["suite_id", "status", "artifacts", "elapsed_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "suite_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique identifier for the test suite (e.g. provider name or workflow ID)."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "skip"],
+          "description": "Suite outcome."
+        },
+        "artifacts": {
+          "$ref": "#/definitions/suite_artifacts"
+        },
+        "trace_id": {
+          "type": "string",
+          "description": "Trace ID linking to JSONL records in test-log.jsonl for this suite."
+        },
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Wall-clock time for this suite in milliseconds."
+        },
+        "failure_digest": {
+          "oneOf": [
+            { "$ref": "#/definitions/failure_digest" },
+            { "type": "null" }
+          ],
+          "description": "Failure digest for failed suites. Null or absent for passing suites."
+        }
+      },
+      "description": "Evidence record for a single test suite."
+    },
+    "suite_artifacts": {
+      "type": "object",
+      "required": ["test_log", "artifact_index", "result", "output_log"],
+      "additionalProperties": false,
+      "properties": {
+        "test_log": {
+          "type": ["string", "null"],
+          "description": "Path to test-log.jsonl (pi.test.log.v2 schema)."
+        },
+        "artifact_index": {
+          "type": ["string", "null"],
+          "description": "Path to artifact-index.jsonl (pi.test.artifact.v1 schema)."
+        },
+        "result": {
+          "type": ["string", "null"],
+          "description": "Path to result.json (pass/fail summary with exit code)."
+        },
+        "output_log": {
+          "type": ["string", "null"],
+          "description": "Path to output.log (stdout+stderr capture)."
+        }
+      },
+      "description": "Paths to per-suite required artifacts. Null when artifact was not produced (indicates a gap)."
+    },
+    "parity_contract": {
+      "type": "object",
+      "required": [
+        "schema",
+        "suite_taxonomy_ref",
+        "log_record_schema",
+        "artifact_record_schema",
+        "failure_digest_schema",
+        "trace_model",
+        "triage_required_fields"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.parity.test_logging_contract.v1",
+          "description": "Versioned contract identifier for cross-suite parity test/logging policy."
+        },
+        "suite_taxonomy_ref": {
+          "type": "string",
+          "description": "Reference path documenting suite taxonomy (typically tests/suite_classification.toml)."
+        },
+        "log_record_schema": {
+          "type": "string",
+          "const": "pi.test.log.v2",
+          "description": "Schema used for JSONL log records."
+        },
+        "artifact_record_schema": {
+          "type": "string",
+          "const": "pi.test.artifact.v1",
+          "description": "Schema used for JSONL artifact-index records."
+        },
+        "failure_digest_schema": {
+          "type": "string",
+          "const": "pi.e2e.failure_digest.v1",
+          "description": "Schema used for per-suite failure triage digests."
+        },
+        "trace_model": {
+          "type": "object",
+          "required": [
+            "correlation_id_field",
+            "trace_id_field",
+            "span_id_field",
+            "parent_span_id_field"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "correlation_id_field": {
+              "type": "string",
+              "const": "correlation_id"
+            },
+            "trace_id_field": {
+              "type": "string",
+              "const": "trace_id"
+            },
+            "span_id_field": {
+              "type": "string",
+              "const": "span_id"
+            },
+            "parent_span_id_field": {
+              "type": "string",
+              "const": "parent_span_id"
+            }
+          },
+          "description": "Canonical field names used to correlate run-level and per-suite events."
+        },
+        "triage_required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 3,
+          "description": "Failure-digest fields that must be present for deterministic triage."
+        }
+      },
+      "description": "Versioned parity test/logging contract overlay. Backward-compatible and optional for producers."
+    },
+    "benchmark_protocol": {
+      "type": "object",
+      "required": [
+        "schema",
+        "version",
+        "partition_tags",
+        "realistic_session_sizes",
+        "matched_state_scenarios",
+        "realistic_replay_inputs",
+        "required_metadata_fields",
+        "evidence_labels",
+        "budget_input_negative_controls",
+        "partition_weighting",
+        "partition_interpretation",
+        "user_perceived_sli_catalog",
+        "scenario_sli_matrix"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.bench.protocol.v1",
+          "description": "Versioned benchmark protocol schema identifier."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic version of the benchmark protocol contract."
+        },
+        "partition_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "string",
+            "enum": ["matched-state", "realistic"]
+          },
+          "description": "Allowed benchmark partition tags."
+        },
+        "realistic_session_sizes": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "integer",
+            "enum": [100000, 200000, 500000, 1000000, 5000000]
+          },
+          "description": "Canonical realistic workload matrix in message counts."
+        },
+        "matched_state_scenarios": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": ["scenario", "replay_input"],
+            "additionalProperties": false,
+            "properties": {
+              "scenario": {
+                "type": "string",
+                "enum": ["cold_start", "warm_start", "tool_call", "event_dispatch"]
+              },
+              "replay_input": { "type": "object" }
+            }
+          },
+          "description": "Matched-state scenarios with explicit replay input payloads."
+        },
+        "realistic_replay_inputs": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "required": ["scenario_id", "partition", "session_messages", "replay_input"],
+            "additionalProperties": false,
+            "properties": {
+              "scenario_id": { "type": "string" },
+              "partition": {
+                "type": "string",
+                "const": "realistic"
+              },
+              "session_messages": {
+                "type": "integer",
+                "enum": [100000, 200000, 500000, 1000000, 5000000]
+              },
+              "replay_input": { "type": "object" }
+            }
+          },
+          "description": "Replay inputs for the realistic workload matrix."
+        },
+        "required_metadata_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "enum": [
+              "runtime",
+              "build_profile",
+              "host",
+              "scenario_id",
+              "correlation_id"
+            ]
+          },
+          "description": "Required metadata keys on benchmark artifact records."
+        },
+        "evidence_labels": {
+          "type": "object",
+          "required": ["evidence_class", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "evidence_class": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "enum": ["measured", "inferred"]
+              }
+            },
+            "confidence": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "enum": ["high", "medium", "low"]
+              }
+            }
+          },
+          "description": "Evidence class and confidence label vocabulary for benchmark claims."
+        },
+        "budget_input_negative_controls": {
+          "type": "object",
+          "required": [
+            "scope",
+            "control_schema_version",
+            "unproven_input_status",
+            "release_binary",
+            "idle_rss",
+            "criterion_cold_load"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "string",
+              "const": "release_budget_inputs"
+            },
+            "control_schema_version": {
+              "type": "string",
+              "const": "v1"
+            },
+            "unproven_input_status": {
+              "type": "string",
+              "const": "NO_DATA"
+            },
+            "release_binary": {
+              "type": "object",
+              "required": ["schema", "required_fields"],
+              "additionalProperties": false,
+              "properties": {
+                "schema": {
+                  "type": "string",
+                  "const": "pi.perf.binary_size_measurement.v1"
+                },
+                "required_fields": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 8,
+                  "maxItems": 8,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "binary_path",
+                      "binary_sha256",
+                      "size_bytes",
+                      "cargo_profile",
+                      "compiled_profile_family",
+                      "compiled_opt_level",
+                      "strip",
+                      "profile_source"
+                    ]
+                  }
+                }
+              }
+            },
+            "idle_rss": {
+              "type": "object",
+              "required": ["schema", "required_fields"],
+              "additionalProperties": false,
+              "properties": {
+                "schema": {
+                  "type": "string",
+                  "const": "pi.perf.idle_rss_measurement.v1"
+                },
+                "required_fields": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 17,
+                  "maxItems": 17,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "generated_at",
+                      "pid",
+                      "process_name",
+                      "allocator",
+                      "binary_path",
+                      "binary_sha256",
+                      "rss_bytes",
+                      "idle_state",
+                      "cargo_profile",
+                      "build_command",
+                      "sample_count",
+                      "samples",
+                      "rss_spread_bytes",
+                      "settle_ms",
+                      "bench_env_source",
+                      "bench_env",
+                      "bench_env_sha256"
+                    ]
+                  }
+                }
+              }
+            },
+            "criterion_cold_load": {
+              "type": "object",
+              "required": ["schema", "required_fields", "max_noise_score"],
+              "additionalProperties": false,
+              "properties": {
+                "schema": {
+                  "type": "string",
+                  "const": "pi.perf.cold_load_measurement.v1"
+                },
+                "required_fields": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 7,
+                  "maxItems": 7,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "bench_env_source",
+                      "bench_env_sha256",
+                      "governor",
+                      "aslr",
+                      "thp",
+                      "noise_score",
+                      "artifact_sha256"
+                    ]
+                  }
+                },
+                "max_noise_score": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
+            }
+          },
+          "description": "Release-budget negative controls. Numeric inputs without the required hash-bound proof are NO_DATA, never measurements."
+        },
+        "regression_gate_admission": {
+          "type": "object",
+          "required": [
+            "scope",
+            "required_record_fields",
+            "load_scenario_required_fields",
+            "allowed_measurement_methods",
+            "allowed_measurement_boundaries",
+            "eligible_measurement_boundaries",
+            "allowed_disk_cache_policies",
+            "allowed_host_page_cache_policies",
+            "required_eligible_provenance_fields",
+            "eligible_evidence_class",
+            "eligible_confidence",
+            "eligible_measurement_method",
+            "required_eligible_host_page_cache_policy",
+            "positive_sample_count_fields",
+            "require_positive_sample_count",
+            "uncontrolled_host_page_cache_eligible"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "string",
+              "const": "generic_benchmark_record"
+            },
+            "required_record_fields": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 7,
+              "maxItems": 7,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "evidence_class",
+                  "confidence",
+                  "eligible_for_regression_gate",
+                  "measurement_method",
+                  "measurement_boundary",
+                  "measurement_contract_version",
+                  "disk_cache_policy"
+                ]
+              }
+            },
+            "load_scenario_required_fields": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "enum": ["disk_cache_policy", "host_page_cache_policy"]
+              }
+            },
+            "allowed_measurement_methods": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "wall_clock_observation",
+                  "synthetic_seed_projection"
+                ]
+              }
+            },
+            "allowed_measurement_boundaries": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 5,
+              "maxItems": 5,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "in_process_preview",
+                  "production_extension_manager",
+                  "production_extension_runtime",
+                  "synthetic_seed_generation",
+                  "synthetic_seed_projection"
+                ]
+              }
+            },
+            "eligible_measurement_boundaries": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "production_extension_manager",
+                  "production_extension_runtime"
+                ]
+              }
+            },
+            "allowed_disk_cache_policies": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "disabled",
+                  "not_applicable",
+                  "not_applicable_synthetic",
+                  "unique_per_scenario_shared_across_warmup_and_runs"
+                ]
+              }
+            },
+            "allowed_host_page_cache_policies": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "not_applicable_measured_region",
+                  "not_applicable_synthetic",
+                  "uncontrolled"
+                ]
+              }
+            },
+            "required_eligible_provenance_fields": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 16,
+              "maxItems": 16,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "source_commit",
+                  "source_dirty",
+                  "build_profile",
+                  "executable_build_profile",
+                  "executable_profile_verified",
+                  "build_fingerprint_verified",
+                  "build_profile_verified",
+                  "build_fingerprint_contract",
+                  "compiled_profile_family",
+                  "compiled_opt_level",
+                  "compiled_debug",
+                  "compiled_features",
+                  "binary_path",
+                  "binary_sha256",
+                  "debug_assertions",
+                  "config_hash"
+                ]
+              }
+            },
+            "eligible_evidence_class": {
+              "type": "string",
+              "const": "measured"
+            },
+            "eligible_confidence": {
+              "type": "string",
+              "const": "high"
+            },
+            "eligible_measurement_method": {
+              "type": "string",
+              "const": "wall_clock_observation"
+            },
+            "required_eligible_host_page_cache_policy": {
+              "type": "string",
+              "const": "not_applicable_measured_region"
+            },
+            "positive_sample_count_fields": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "string",
+                "enum": ["runs", "iterations", "total_calls"]
+              }
+            },
+            "require_positive_sample_count": {
+              "type": "boolean",
+              "const": true
+            },
+            "uncontrolled_host_page_cache_eligible": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "description": "Generic additive metadata admission contract for benchmark records that declare regression-gate eligibility. This policy does not by itself authorize any workload-specific release gate. Legacy v1 records without the eligibility marker retain their original validation semantics."
+        },
+        "pijs_regression_gate_admission": {
+          "type": "object",
+          "required": [
+            "scope",
+            "inherits",
+            "required_record_fields",
+            "required_schema",
+            "required_tool",
+            "required_scenario",
+            "required_runtime_engine",
+            "required_build_profile",
+            "required_build_profile_verified",
+            "required_iterations",
+            "required_tool_calls_per_iteration",
+            "required_measurement_boundary",
+            "required_measurement_contract_version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "string",
+              "const": "pi.perf.workload.v1/pijs_workload"
+            },
+            "inherits": {
+              "type": "string",
+              "const": "regression_gate_admission"
+            },
+            "required_record_fields": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 25,
+              "maxItems": 25,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "timestamp",
+                  "run_id",
+                  "correlation_id",
+                  "source_commit",
+                  "source_dirty",
+                  "binary_path",
+                  "executable_build_profile",
+                  "executable_profile_verified",
+                  "binary_sha256",
+                  "build_profile_verified",
+                  "build_fingerprint_contract",
+                  "build_fingerprint_verified",
+                  "debug_assertions",
+                  "compiled_profile_family",
+                  "compiled_opt_level",
+                  "compiled_debug",
+                  "compiled_features",
+                  "config_hash",
+                  "allocator_requested",
+                  "allocator_request_source",
+                  "allocator_effective",
+                  "allocator_fallback_reason",
+                  "elapsed_us",
+                  "elapsed_us_f64",
+                  "per_call_us_f64"
+                ]
+              }
+            },
+            "required_schema": {
+              "type": "string",
+              "const": "pi.perf.workload.v1"
+            },
+            "required_tool": {
+              "type": "string",
+              "const": "pijs_workload"
+            },
+            "required_scenario": {
+              "type": "string",
+              "const": "tool_call_roundtrip"
+            },
+            "required_runtime_engine": {
+              "type": "string",
+              "const": "quickjs"
+            },
+            "required_build_profile": {
+              "type": "string",
+              "const": "perf"
+            },
+            "required_build_profile_verified": {
+              "type": "boolean",
+              "const": true
+            },
+            "required_iterations": {
+              "type": "integer",
+              "const": 2000
+            },
+            "required_tool_calls_per_iteration": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "enum": [1, 10]
+              }
+            },
+            "required_measurement_boundary": {
+              "type": "string",
+              "const": "production_extension_manager"
+            },
+            "required_measurement_contract_version": {
+              "type": "string",
+              "const": "production_extension_manager.v1"
+            }
+          },
+          "description": "PiJS-specific release regression admission layered on the generic metadata policy: exact 2000-iteration path-verified perf-profile QuickJS measurements for the 1-call mean-latency and 10-call throughput lanes."
+        },
+        "partition_weighting": {
+          "type": "object",
+          "required": ["matched-state", "realistic", "weights_sum_to"],
+          "additionalProperties": false,
+          "properties": {
+            "matched-state": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "realistic": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0
+            },
+            "weights_sum_to": {
+              "type": "number",
+              "const": 1.0
+            }
+          },
+          "description": "Machine-readable weighting policy for partition aggregation and prioritization."
+        },
+        "partition_interpretation": {
+          "type": "object",
+          "required": [
+            "primary_partition",
+            "secondary_partition",
+            "global_claim_requires_partitions",
+            "forbid_single_partition_conclusion",
+            "interpretation_notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "primary_partition": {
+              "type": "string",
+              "const": "realistic"
+            },
+            "secondary_partition": {
+              "type": "string",
+              "const": "matched-state"
+            },
+            "global_claim_requires_partitions": {
+              "type": "array",
+              "uniqueItems": true,
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "enum": ["matched-state", "realistic"]
+              }
+            },
+            "forbid_single_partition_conclusion": {
+              "type": "boolean",
+              "const": true
+            },
+            "interpretation_notes": {
+              "type": "object",
+              "required": ["matched-state", "realistic"],
+              "additionalProperties": false,
+              "properties": {
+                "matched-state": { "type": "string" },
+                "realistic": { "type": "string" }
+              }
+            }
+          },
+          "description": "Interpretation guardrails that prevent release conclusions from a single partition."
+        },
+        "user_perceived_sli_catalog": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "required": [
+              "sli_id",
+              "label",
+              "unit",
+              "objective",
+              "ux_interpretation"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "sli_id": {
+                "type": "string",
+                "enum": [
+                  "interactive_turn_p95_ms",
+                  "resume_session_p95_ms",
+                  "extension_dispatch_p95_ms",
+                  "tool_roundtrip_p95_ms",
+                  "tail_stability_p99_over_p50_ratio"
+                ]
+              },
+              "label": { "type": "string" },
+              "unit": {
+                "type": "string",
+                "enum": ["ms", "ratio", "percent", "ops_per_sec"]
+              },
+              "objective": {
+                "type": "object",
+                "required": ["comparator", "threshold"],
+                "additionalProperties": false,
+                "properties": {
+                  "comparator": {
+                    "type": "string",
+                    "enum": ["<=", ">="]
+                  },
+                  "threshold": { "type": "number" }
+                }
+              },
+              "ux_interpretation": {
+                "type": "object",
+                "required": ["good", "degraded", "critical"],
+                "additionalProperties": false,
+                "properties": {
+                  "good": { "type": "string" },
+                  "degraded": { "type": "string" },
+                  "critical": { "type": "string" }
+                }
+              }
+            }
+          },
+          "description": "Versioned user-perceived SLI catalog and UX interpretation guidance."
+        },
+        "scenario_sli_matrix": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 9,
+          "items": {
+            "type": "object",
+            "required": [
+              "partition",
+              "scenario_id",
+              "sli_ids",
+              "phase_validation_beads",
+              "ux_outcome"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "partition": {
+                "type": "string",
+                "enum": ["matched-state", "realistic"]
+              },
+              "scenario_id": { "type": "string" },
+              "sli_ids": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "interactive_turn_p95_ms",
+                    "resume_session_p95_ms",
+                    "extension_dispatch_p95_ms",
+                    "tool_roundtrip_p95_ms",
+                    "tail_stability_p99_over_p50_ratio"
+                  ]
+                }
+              },
+              "phase_validation_beads": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^bd-3ar8v\\."
+                }
+              },
+              "ux_outcome": { "type": "string" }
+            }
+          },
+          "description": "Canonical benchmark scenario-to-SLI UX acceptance matrix consumed by phase validation tasks."
+        }
+      },
+      "description": "Benchmark protocol overlay for partition-aware evidence and replay contracts."
+    },
+    "failure_digest": {
+      "type": "object",
+      "required": ["schema", "suite", "root_cause_class", "first_failing_assertion"],
+      "additionalProperties": true,
+      "properties": {
+        "schema": {
+          "type": "string",
+          "const": "pi.e2e.failure_digest.v1",
+          "description": "Schema identifier for failure digests."
+        },
+        "suite": {
+          "type": "string",
+          "description": "Suite that failed."
+        },
+        "root_cause_class": {
+          "type": "string",
+          "enum": ["timeout", "assertion_failure", "permission_denied", "network_io", "missing_file", "panic"],
+          "description": "Classified root cause from the defined taxonomy."
+        },
+        "impacted_scenario_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Scenario IDs impacted by this failure."
+        },
+        "first_failing_assertion": {
+          "type": "string",
+          "description": "Text of the first failing assertion or error message."
+        },
+        "remediation_pointer": {
+          "type": "object",
+          "properties": {
+            "replay_command": { "type": "string" },
+            "suite_replay_command": { "type": "string" },
+            "targeted_test_replay_command": { "type": "string" }
+          },
+          "description": "Commands to reproduce and investigate the failure."
+        }
+      },
+      "description": "Structured failure analysis for a failed suite (pi.e2e.failure_digest.v1)."
+    }
+  }
+}

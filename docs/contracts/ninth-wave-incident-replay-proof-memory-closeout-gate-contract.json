@@ -1,0 +1,134 @@
+{
+  "schema": "pi.swarm.incident_replay_proof_memory.closeout_gate_contract.v1",
+  "decision_gate_schema": "pi.swarm.incident_replay_proof_memory.closeout_gate.v1",
+  "purpose": "prompt_to_artifact_ninth_wave_incident_replay_proof_memory_closeout_gate_not_source_of_truth",
+  "allowed_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_check_statuses": [
+    "pass",
+    "fail"
+  ],
+  "allowed_decisions": [
+    "close_final_gate_and_parent_epic",
+    "file_follow_up_beads_before_closing_epic"
+  ],
+  "required_top_level_keys": [
+    "schema",
+    "generated_at",
+    "status",
+    "purpose",
+    "parent_epic",
+    "final_gate_bead",
+    "operator_summary",
+    "required_checks",
+    "child_artifact_map",
+    "source_boundary_checks",
+    "quality_gate_results",
+    "checklist",
+    "missing_checks",
+    "remaining_follow_ups",
+    "known_limitations",
+    "claim_boundaries",
+    "follow_up_required",
+    "follow_up_beads",
+    "decision",
+    "epic_can_close_after_this_commit"
+  ],
+  "required_child_bead_ids": [
+    "bd-9yq7i.1",
+    "bd-9yq7i.2",
+    "bd-9yq7i.3",
+    "bd-9yq7i.4",
+    "bd-9yq7i.5",
+    "bd-9yq7i.6",
+    "bd-9yq7i.7"
+  ],
+  "required_check_ids": [
+    "child_beads_closed",
+    "child_artifact_mapping",
+    "remaining_follow_ups_tracked",
+    "incident_corpus_contract",
+    "incident_replay_harness",
+    "validation_proof_memory_index",
+    "operator_work_recommendation",
+    "operator_smoothness_slo",
+    "extension_resource_firewall_matrix",
+    "incident_replay_e2e",
+    "source_boundaries",
+    "pushed_commits",
+    "quality_gates"
+  ],
+  "required_source_boundary_ids": [
+    "beads_are_source_of_truth",
+    "agent_mail_is_coordination_only",
+    "read_only_gate",
+    "rch_required_for_heavy_cargo",
+    "staged_ubs_required",
+    "beads_ledger_required",
+    "no_file_deletion_authority",
+    "no_release_performance_capacity_or_dropin_claims",
+    "no_live_service_mutation",
+    "no_local_heavy_cargo_fallback",
+    "prior_wave_evidence_not_replaced",
+    "closeout_does_not_replace_child_artifacts"
+  ],
+  "required_quality_gate_ids": [
+    "py_compile",
+    "runpack_self_test",
+    "json_contracts",
+    "git_diff_check",
+    "staged_ubs",
+    "beads_ledger_reconcile"
+  ],
+  "required_false_claim_boundary_flags": [
+    "strict_dropin_or_release_claim_authorized",
+    "performance_or_capacity_claim_authorized",
+    "benchmark_claim_authorized",
+    "closeout_mutates_sources",
+    "closeout_mutates_agent_mail_rch_or_runtime",
+    "closeout_authorizes_file_deletion",
+    "closeout_runs_live_provider_or_network_calls",
+    "closeout_rewrites_prior_wave_artifacts",
+    "closeout_replaces_child_artifacts",
+    "closeout_replaces_source_artifacts",
+    "live_agent_mail_or_rch_mutation_authorized",
+    "local_heavy_cargo_fallback_authorized",
+    "parent_can_close_before_closeout_commit_is_pushed"
+  ],
+  "requirements": [
+    {
+      "id": "child_artifact_mapping",
+      "description": "Every ninth-wave child bead must map to source paths, tests or fixtures, evidence artifacts, validation commands, close reasons, pushed commits, negative controls, and claim-boundary text."
+    },
+    {
+      "id": "prompt_to_artifact_coverage",
+      "description": "The checklist must cover incident corpus, incident replay, validation proof-memory index, operator work recommendation, operator smoothness SLO, extension resource firewall matrix, incident replay E2E evidence, source boundaries, pushed refs, and quality gates."
+    },
+    {
+      "id": "safe_close_behavior",
+      "description": "A passing gate may close the final gate and parent epic only after the closeout commit lands and the branch is pushed. A failing gate must emit follow-up Beads instead of optimistic closeout."
+    },
+    {
+      "id": "source_boundary_checks",
+      "description": "The gate must record that it does not mutate Agent Mail, RCH workers, Beads outside the normal closeout flow, runtime state, installed extensions, temp artifacts, source files, or production services."
+    },
+    {
+      "id": "quality_gate_evidence",
+      "description": "The gate must record Python compilation, script self-test, JSON validation, git diff cleanliness, staged UBS posture, and Beads ledger reconciliation."
+    },
+    {
+      "id": "not_source_of_truth",
+      "description": "The closeout gate is evidence over Beads, git, docs, tests, generated artifacts, RCH, Agent Mail health, UBS, and child artifacts. It does not replace those sources of truth."
+    },
+    {
+      "id": "claim_boundaries",
+      "description": "The closeout gate must not make release-facing performance, capacity, benchmark, strict drop-in, live-swarm safety, or local heavyweight Cargo fallback claims."
+    },
+    {
+      "id": "prior_wave_boundary",
+      "description": "The ninth-wave gate may reference prior-wave authority boundaries but must not rewrite those contracts or evidence."
+    }
+  ]
+}

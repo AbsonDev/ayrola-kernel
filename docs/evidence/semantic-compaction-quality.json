@@ -1,0 +1,101 @@
+{
+  "schema": "pi.session.semantic_compaction_quality.v1",
+  "bead": "bd-63x3v.11.3",
+  "producer": "src/compaction.rs compaction::tests::semantic_compaction_quality_* and tests/compaction.rs semantic_compaction_quality_*",
+  "contract": "docs/contracts/semantic-compaction-quality-contract.json",
+  "summary": "Deterministic compaction quality evidence for structured semantic marker preservation across compaction and replay views.",
+  "marker_coverage": {
+    "kinds": [
+      "task",
+      "file_reference",
+      "decision",
+      "tool_output",
+      "constraint",
+      "handoff_fact",
+      "agent_mail_degraded",
+      "beads_claim",
+      "interruption",
+      "truncation_notice"
+    ],
+    "happy_path_expected": 10,
+    "happy_path_preserved": 10,
+    "happy_path_coverage_bps": 10000
+  },
+  "loss_classes": [
+    "pre_compaction_marker_absent",
+    "missing_marker",
+    "wrong_branch",
+    "wrong_turn",
+    "truncation_receipt_missing",
+    "metadata_mismatch",
+    "duplicate_baseline_marker",
+    "duplicate_candidate_marker",
+    "unexpected_marker",
+    "false_positive_control"
+  ],
+  "fail_closed_fixtures": [
+    {
+      "test": "compaction::tests::semantic_compaction_quality_missing_file_reference_fails_closed",
+      "loss": "missing_marker",
+      "verdict": "fail"
+    },
+    {
+      "test": "compaction::tests::semantic_compaction_quality_wrong_branch_fails_closed",
+      "loss": "wrong_branch",
+      "verdict": "fail"
+    },
+    {
+      "test": "compaction::tests::semantic_compaction_quality_stale_beads_turn_fails_closed",
+      "loss": "wrong_turn",
+      "verdict": "fail"
+    },
+    {
+      "test": "compaction::tests::semantic_compaction_quality_large_tool_output_marker_must_survive",
+      "loss": "missing_marker",
+      "verdict": "fail"
+    },
+    {
+      "test": "compaction::tests::semantic_compaction_quality_false_positive_control_detects_invented_marker",
+      "loss": "false_positive_control",
+      "verdict": "fail"
+    },
+    {
+      "test": "semantic_compaction_quality_missing_file_reference_fails_closed",
+      "loss": "missing_marker",
+      "verdict": "fail"
+    },
+    {
+      "test": "semantic_compaction_quality_wrong_branch_marker_fails_closed",
+      "loss": "wrong_branch",
+      "verdict": "fail"
+    },
+    {
+      "test": "semantic_compaction_quality_stale_beads_handoff_marker_fails_closed",
+      "loss": "missing_marker",
+      "verdict": "fail"
+    },
+    {
+      "test": "semantic_compaction_quality_large_tool_output_requires_truncation_receipt",
+      "loss": "truncation_receipt_missing",
+      "verdict": "fail"
+    },
+    {
+      "test": "semantic_compaction_quality_false_positive_controls_do_not_satisfy_missing_marker",
+      "loss": "missing_marker",
+      "verdict": "fail"
+    }
+  ],
+  "redaction": {
+    "report_policy": "marker payload text is represented by marker_digest or content_fingerprint and full prompt/tool bodies are not serialized into JSON or JSONL reports",
+    "checked_by": "semantic_compaction_quality_happy_path_preserves_markers and compaction::tests::semantic_compaction_quality_preserves_structured_markers"
+  },
+  "claim_boundary": "This artifact is deterministic compaction/replay quality evidence only. It is not release, performance, capacity, or drop-in certification evidence.",
+  "validation_commands": [
+    "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/tmp cargo test semantic_compaction_quality -- --nocapture",
+    "cargo fmt --check",
+    "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/tmp cargo check --all-targets",
+    "rch exec -- env CARGO_TARGET_DIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/target TMPDIR=/data/tmp/pi_agent_rust_cargo/codex_semantic/tmp cargo clippy --all-targets -- -D warnings",
+    "timeout 60s ubs --staged --only=rust .",
+    "./scripts/reconcile_beads_ledger.sh"
+  ]
+}
