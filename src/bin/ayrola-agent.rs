@@ -14,6 +14,7 @@
 //!   ayrola-agent                  # stdio MCP server (default)
 //!   ayrola-agent --http 20130     # HTTP MCP server na porta 20130
 
+use std::net::TcpListener;
 use std::io::{BufRead, BufReader, Write};
 use std::process::exit;
 
@@ -282,5 +283,50 @@ fn run_stdio() {
 
 fn main() {
     init_tracing();
-    run_stdio();
+
+    // Check for --http flag
+    let args: Vec<String> = std::env::args().collect();
+    let http_port = args.iter().position(|a| a == "--http")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|p| p.parse::<u16>().ok());
+
+    match http_port {
+        Some(port) => run_http(port),
+        None => run_stdio(),
+    }
+}
+
+/// HTTP mode: serve MCP over TCP (JSON-RPC line-delimited).
+fn run_http(port: u16) {
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = match std::net::TcpListener::bind(&addr) {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("Failed to bind {}: {}", addr, e);
+            std::process::exit(1);
+        }
+    };
+    println!("Ayrola MCP HTTP on {}", addr);
+    for stream in listener.incoming() {
+        match stream {
+            Ok(s) => {
+                let reader = BufReader::new(&s);
+                let mut lines = reader.lines();
+                if let Some(Ok(line)) = lines.next() {
+                    if !line.trim().is_empty() {
+                        let req: JsonRpcRequest = match serde_json::from_str(&line) {
+                            Ok(r) => r,
+                            Err(_) => continue,
+                        };
+                        let resp = process_request(req);
+                        let json = serde_json::to_string(&resp).unwrap_or_default();
+                        let mut s = s;
+                        let _ = writeln!(s, "{}", json);
+                        let _ = s.flush();
+                    }
+                }
+            }
+            Err(_) => {}
+        }
+    }
 }
