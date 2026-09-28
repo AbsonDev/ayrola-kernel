@@ -15,6 +15,7 @@ pub mod memory;
 pub mod refine;
 pub mod sandbox;
 pub mod rlm;
+pub mod cert;
 pub mod shadow;
 pub mod bench;
 pub mod config;
