@@ -321,7 +321,7 @@ impl Llm {
         if !matched {
             let json_part = trimmed.trim_end_matches("data: [DONE]").trim();
             let obj: serde_json::Value = serde_json::from_str(json_part)
-                .map_err(|e| format!("9Router parse error: {{e}} | body: {{preview}}"))?;
+                .map_err(|e| "9Router parse error: ".to_string())?;
             matched = true;
             text = extract_text(&obj, false);
             let (ci, co) = tokens(&obj);
