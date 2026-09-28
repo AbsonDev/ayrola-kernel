@@ -302,13 +302,7 @@ pub fn run_task(task: &BenchTask) -> BenchResult {
 
 /// Executa suite completa e retorna scoreboard.
 pub fn run_suite(tasks: &[BenchTask]) -> Scoreboard {
-    let mut sb = Scoreboard::new();
-    for task in tasks {
-        let result = run_task(task);
-        sb.add(result);
-    }
-    sb
-}
+
 
 /// Executa uma BenchTask via OpenCode headless (`opencode -p "prompt"`).
 ///
@@ -319,47 +313,14 @@ pub fn run_task_opencode(task: &BenchTask) -> BenchResult {
 
     let start = Instant::now();
 
-    // Executa com timeout via thread + canal: opencode pode ficar pendurado
-    // esperando input interativo, mesmo em modo headless.
-    let (tx, rx) = std::sync::mpsc::channel();
-    let prompt = task.prompt.clone();
-    let task_id = task.id.clone();
-    let task_name = task.name.clone();
-    let task_type = task.task_type.clone();
+    let mut cmd = std::process::Command::new("opencode");
+    cmd.args(["--prompt", &task.prompt])
+       .args(["--auto"])
+       .args(["-q"]) // quiet mode se disponivel
+       .stdout(std::process::Stdio::piped())
+       .stderr(std::process::Stdio::piped());
 
-    std::thread::spawn(move || {
-        let out = std::process::Command::new("opencode")
-            .args(["--prompt", &prompt])
-            .arg("--auto")
-            .output();
-        let _ = tx.send(out);
-    });
-
-    // Timeout de 90s: acima disso o baseline nao e comparavel.
-    let output = match rx.recv_timeout(std::time::Duration::from_secs(90)) {
-        Ok(res) => res,
-        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            let timeout_task = BenchTask::new(
-                task_id,
-                task_name,
-                task_type,
-                "",
-            );
-            return BenchResult::real(
-                &timeout_task,
-                false,
-                duration_ms,
-                "timeout after 90s".to_string(),
-                None,
-            );
-        }
-        Err(_) => {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            return BenchResult::stub(task, false, duration_ms);
-        }
-    };
-
+    let output = cmd.output();
     let duration_ms = start.elapsed().as_millis() as u64;
 
     match output {
@@ -373,11 +334,37 @@ pub fn run_task_opencode(task: &BenchTask) -> BenchResult {
                 success,
                 duration_ms,
                 output_text,
-                Some(duration_ms),
+                Some(duration_ms), // baseline = proprio OpenCode
             )
         }
-        Err(_) => BenchResult::stub(task, false, duration_ms),
+        Err(e) => BenchResult::stub(task, false, duration_ms),
     }
+}
+
+        let mut sb = Scoreboard::new();
+    for task in tasks {
+        let result = run_task(task);
+        sb.add(result);
+    }
+    sb
+    #[test]
+    fn opencode_baseline_compares_latency() {
+        let task = BenchTask::new(
+            "opencode-baseline-1",
+            "OpenCode latency baseline",
+            BenchTaskType::CodeWrite,
+            "Write a hello world function in Rust",
+        );
+
+        let result = run_task_opencode(&task);
+        // OpenCode deve responder em menos de 30s (headless mode)
+        assert!(result.duration_ms < 30_000, 
+            "OpenCode took {}ms, expected < 30s", result.duration_ms);
+        // Latencia e registrada no scoreboard
+        println!("OpenCode baseline: {}ms, quality: {}", 
+            result.duration_ms, result.quality_score);
+    }
+
 }
 
 #[cfg(test)]
@@ -430,31 +417,6 @@ mod tests {
             sb.add(BenchResult::stub(&task, true, 100));
         }
         assert!((sb.resolve_rate() - 1.0).abs() < 1e-9);
-    }
-
-    /// Requer `opencode` instalado e reativo. Roda manualmente:
-    /// `cargo test opencode_baseline_measures_latency -- --ignored --nocapture`
-    #[test]
-    #[ignore = "requer opencode headless; rodar com --ignored"]
-    fn opencode_baseline_measures_latency() {
-        let task = BenchTask::new(
-            "opencode-baseline-1",
-            "OpenCode latency baseline",
-            BenchTaskType::CodeWrite,
-            "Write a hello world function in Rust",
-        );
-
-        let result = run_task_opencode(&task);
-        // OpenCode deve responder em menos de 60s (headless mode)
-        assert!(
-            result.duration_ms < 60_000,
-            "OpenCode took {}ms, expected < 60s",
-            result.duration_ms
-        );
-        println!(
-            "OpenCode baseline: {}ms, quality: {}",
-            result.duration_ms, result.quality_score
-        );
     }
 
     #[test]
@@ -573,5 +535,25 @@ mod tests {
         let task = default_suite()[0].clone();
         let res = BenchResult::real(&task, true, 0, "ok", Some(50));
         assert_eq!(res.improvement_factor, Some(1.0));
+    }
+    #[test]
+    fn opencode_baseline_compares_latency() {
+        let task = BenchTask::new(
+            "opencode-baseline-1",
+            "OpenCode latency baseline",
+            BenchTaskType::CodeWrite,
+            "Write a hello world function in Rust",
+        );
+
+        let result = run_task_opencode(&task);
+        assert!(
+            result.duration_ms < 60_000,
+            "OpenCode took {}ms, expected < 60s",
+            result.duration_ms
+        );
+        println!(
+            "OpenCode baseline: {}ms, quality: {}",
+            result.duration_ms, result.quality_score
+        );
     }
 }
