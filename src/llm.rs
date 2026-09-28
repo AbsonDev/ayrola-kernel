@@ -193,10 +193,9 @@ impl Llm {
         let response = String::from_utf8_lossy(&output.stdout);
         let response = response.trim();
 
-        // 9Router returns JSON + trailing "data: [DONE]" — extract first JSON object
-        let json_part = response
-            .lines()
-            .next()
+        // 9Router returns JSON + trailing "data: [DONE]" (no newline) — strip it
+        let json_part = response.strip_suffix("data: [DONE]")
+            .map(|s| s.trim())
             .unwrap_or(response)
             .trim();
 
