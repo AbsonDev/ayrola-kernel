@@ -162,28 +162,71 @@ impl ShadowExecutor {
 
     /// Executa um candidato contra o golden set.
     ///
-    /// Phase 0 (stub): simula execução — sempre passa se o caso tem expected_output.
-    /// Phase 1 (Railway VM): executa em sandbox isolado.
+    /// Phase 1: avaliador real com 3 estrategias:
+    /// 1. Comparacao exata (JSON equality)
+    /// 2. Comparacao numerica com tolerancia
+    /// 3. Comparacao de strings normalizadas
     pub fn execute(&self, candidate_name: &str) -> ShadowReport {
         let mut report = ShadowReport::new(candidate_name);
 
         for (id, case) in &self.golden_set.cases {
-            // Compara input e expected_output diretamente
-            let result = if case.expected_output.is_null() || case.input == case.expected_output {
-                ShadowResult::pass(id, case.input.clone())
-            } else {
-                ShadowResult::fail(
-                    id,
-                    case.input.clone(),
-                    case.expected_output.clone(),
-                    "input != expected (stub comparison)",
-                )
-            };
+            let result = self.evaluate_case(id, case);
             report.add_result(result);
         }
 
         report.promoted = report.should_promote();
         report
+    }
+
+    /// Avalia um caso individual usando multiplas estrategias.
+    fn evaluate_case(&self, id: &str, case: &GoldenCase) -> ShadowResult {
+        let input = &case.input;
+        let expected = &case.expected_output;
+
+        // Regra 0: expected null = sempre passa (sem expectativa definida)
+        if expected.is_null() {
+            return ShadowResult::pass(id, input.clone());
+        }
+
+        // Estrategia 1: comparacao exata
+        if input == expected {
+            return ShadowResult::pass(id, expected.clone());
+        }
+
+        // Estrategia 2: comparacao numerica com tolerancia
+        if let (Some(inp_num), Some(exp_num)) = (
+            input.as_f64(),
+            expected.as_f64(),
+        ) {
+            let diff = (inp_num - exp_num).abs();
+            if diff <= case.tolerance {
+                return ShadowResult::pass(id, expected.clone());
+            } else {
+                return ShadowResult::fail(
+                    id,
+                    input.clone(),
+                    expected.clone(),
+                    &format!("numeric diff {} > tolerance {}", diff, case.tolerance),
+                );
+            }
+        }
+
+        // Estrategia 3: comparacao de strings normalizadas (apenas se ambos sao strings)
+        if let (Some(inp_str), Some(exp_str)) = (input.as_str(), expected.as_str()) {
+            let input_str = inp_str.to_lowercase().trim().to_string();
+            let expected_str = exp_str.to_lowercase().trim().to_string();
+            if input_str == expected_str {
+                return ShadowResult::pass(id, expected.clone());
+            }
+        }
+
+        // Falha: nenhuma estrategia passou
+        ShadowResult::fail(
+            id,
+            input.clone(),
+            expected.clone(),
+            "no evaluation strategy matched",
+        )
     }
 
     /// Executa candidato e faz rollback se necessário.
@@ -348,5 +391,56 @@ mod tests {
         let json = serde_json::to_string(&report).unwrap();
         let back: ShadowReport = serde_json::from_str(&json).unwrap();
         assert_eq!(back.passed, report.passed);
+    }
+
+    #[test]
+    fn shadow_numeric_tolerance_passes_within_tolerance() {
+        let mut gs = GoldenSet::new();
+        // input 1.0, expected 1.005, tolerance 0.01 → deve passar
+        let mut case = GoldenCase::new("c1", "numeric tolerance",
+            serde_json::json!(1.0), serde_json::json!(1.005));
+        case.tolerance = 0.01;
+        gs.add(case);
+        let exec = ShadowExecutor::new(gs);
+        let report = exec.execute("candidate");
+        assert_eq!(report.passed, 1);
+        assert_eq!(report.failed, 0);
+    }
+
+    #[test]
+    fn shadow_numeric_tolerance_fails_outside_tolerance() {
+        let mut gs = GoldenSet::new();
+        // input 1.0, expected 1.5, tolerance 0.01 → deve falhar
+        let mut case = GoldenCase::new("c1", "numeric outside tolerance",
+            serde_json::json!(1.0), serde_json::json!(1.5));
+        case.tolerance = 0.01;
+        gs.add(case);
+        let exec = ShadowExecutor::new(gs);
+        let report = exec.execute("candidate");
+        assert_eq!(report.passed, 0);
+        assert_eq!(report.failed, 1);
+    }
+
+    #[test]
+    fn shadow_string_normalization_ignores_case_and_whitespace() {
+        let mut gs = GoldenSet::new();
+        gs.add(GoldenCase::new("c1", "string normalization",
+            serde_json::json!("  Hello World  "),
+            serde_json::json!("hello world")));
+        let exec = ShadowExecutor::new(gs);
+        let report = exec.execute("candidate");
+        assert_eq!(report.passed, 1);
+        assert_eq!(report.failed, 0);
+    }
+
+    #[test]
+    fn shadow_null_expected_always_passes() {
+        let mut gs = GoldenSet::new();
+        gs.add(GoldenCase::new("c1", "null expected",
+            serde_json::json!({"anything": true}),
+            serde_json::json!(null)));
+        let exec = ShadowExecutor::new(gs);
+        let report = exec.execute("candidate");
+        assert_eq!(report.passed, 1);
     }
 }
