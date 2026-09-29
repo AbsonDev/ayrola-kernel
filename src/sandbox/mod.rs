@@ -192,7 +192,24 @@ impl SandboxExecutor {
             for arg in command.split_whitespace().skip(1) {
                 if arg.starts_with('/')
                     && !self.config.allowed_paths.iter().any(|p| {
-                        arg.starts_with(p.as_str())
+                        let pb = p.as_str();
+                        // Require the path to be exactly the allowed directory
+                        // or a file/dir inside it (boundary on '/').
+                        // Also canonicalize to block ".." traversal.
+                        let arg_canon = std::fs::canonicalize(arg).ok();
+                        let allowed_canon = std::fs::canonicalize(pb).ok();
+                        match (arg_canon, allowed_canon) {
+                            (Some(a), Some(b)) => a.starts_with(&b),
+                            _ => {
+                                // canonicalize failed (e.g. path doesn't exist yet).
+                                // Reject any argument that contains ".." components,
+                                // because prefix-match alone cannot detect traversal.
+                                if arg.split('/').any(|c| c == "..") {
+                                    return false;
+                                }
+                                arg == pb || arg.starts_with(&format!("{}/", pb))
+                            }
+                        }
                     }) {
                     return false;
                 }
@@ -398,7 +415,24 @@ impl RemoteSandboxExecutor {
             for arg in command.split_whitespace().skip(1) {
                 if arg.starts_with('/')
                     && !self.config.allowed_paths.iter().any(|p| {
-                        arg.starts_with(p.as_str())
+                        let pb = p.as_str();
+                        // Require the path to be exactly the allowed directory
+                        // or a file/dir inside it (boundary on '/').
+                        // Also canonicalize to block ".." traversal.
+                        let arg_canon = std::fs::canonicalize(arg).ok();
+                        let allowed_canon = std::fs::canonicalize(pb).ok();
+                        match (arg_canon, allowed_canon) {
+                            (Some(a), Some(b)) => a.starts_with(&b),
+                            _ => {
+                                // canonicalize failed (e.g. path doesn't exist yet).
+                                // Reject any argument that contains ".." components,
+                                // because prefix-match alone cannot detect traversal.
+                                if arg.split('/').any(|c| c == "..") {
+                                    return false;
+                                }
+                                arg == pb || arg.starts_with(&format!("{}/", pb))
+                            }
+                        }
                     }) {
                     return false;
                 }
@@ -533,7 +567,6 @@ mod tests {
         println!("[OK] RemoteSandboxExecutor: {}ms, output: {}", result.duration_ms, result.stdout.trim());
     }
 
-}
     #[test]
     fn sandbox_rejects_chained_commands() {
         // REGRESSION (Bug 30): shell metacharacters like `;` let the first-word
@@ -756,3 +789,39 @@ mod tests {
         assert_eq!(exec.estimated_memory(), 512);
         assert_eq!(exec.config.max_cpu_percent, 75);
     }
+
+#[test]
+    fn sandbox_allowed_paths_rejects_prefix_only_traversal() {
+        let dir = std::env::temp_dir().join("ayrola-sandbox-test-prefix");
+        let _ = std::fs::create_dir_all(&dir);
+        let allowed = dir.join("allowed").to_string_lossy().to_string();
+        let cfg = SandboxConfig {
+            allowed_paths: vec![allowed],
+            ..SandboxConfig::default()
+        };
+        let ex = SandboxExecutor::new(cfg);
+        // Exact match: allowed
+        let ok = dir.join("allowed").join("ok").to_string_lossy().to_string();
+        assert!(ex.is_allowed(&format!("cat {}", ok)));
+        // Prefix-only escape: ".../allowedX" must be rejected
+        let escape = dir.join("allowedX").to_string_lossy().to_string();
+        assert!(!ex.is_allowed(&format!("cat {}", escape)));
+    }
+
+    #[test]
+    fn sandbox_allowed_paths_rejects_dotdot_traversal() {
+        let dir = std::env::temp_dir().join("ayrola-sandbox-test-dotdot");
+        let allowed_dir = dir.join("allowed");
+        let _ = std::fs::create_dir_all(&allowed_dir);
+        let allowed = allowed_dir.to_string_lossy().to_string();
+        let cfg = SandboxConfig {
+            allowed_paths: vec![allowed],
+            ..SandboxConfig::default()
+        };
+        let ex = SandboxExecutor::new(cfg);
+        // ".." traversal must be rejected after canonicalization
+        let traversal = allowed_dir.join("..").join("..").join("etc").join("passwd");
+        let traversal_s = traversal.to_string_lossy().to_string();
+        assert!(!ex.is_allowed(&format!("cat {}", traversal_s)));
+    }
+}
