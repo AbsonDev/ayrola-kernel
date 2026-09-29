@@ -499,14 +499,13 @@ impl DecisionEngine {
             return ans;
         }
 
-        // Tier 1: pre-filter ONNX
-        if let Some(threshold) = self.prefilter.classify(question)
-            && threshold > 0.95
-        {
-            return Answer::YesNo {
-                yes: true,
-                confidence: threshold,
-            };
+        // Tier 1: pre-filter heuristico
+        if let Some(threshold) = self.prefilter.classify(question) {
+            if threshold > 0.95 {
+                return Answer::YesNo { yes: true, confidence: threshold };
+            } else if threshold < 0.05 {
+                return Answer::YesNo { yes: false, confidence: 1.0 - threshold };
+            }
         }
 
         // Tier 1.5: time-travel — busca decisoes passadas semanticamente
@@ -514,16 +513,15 @@ impl DecisionEngine {
         if let Some(mem) = self.memory.as_deref_mut() {
             let past = mem.recall(&format!("decision {}", question), 1)
                 .unwrap_or_default();
-            if let Some(hit) = past.first() {
-                // Reusa a decisao passada se o score for alto o suficiente.
-                if hit.score > 0.7 {
-                    let answer = Answer::YesNo {
-                        yes: true,
-                        confidence: hit.score,
-                    };
-                    self.cache.insert(question, answer.clone());
-                    return answer;
-                }
+            if let Some(hit) = past.first() && hit.score > 0.7 {
+                let yes = hit.event.payload
+                    .get("answer")
+                    .and_then(|v| v.get("yes"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                let answer = Answer::YesNo { yes, confidence: hit.score };
+                self.cache.insert(question, answer.clone());
+                return answer;
             }
         }
 
