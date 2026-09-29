@@ -227,10 +227,10 @@ impl Llm {
     /// Campos de texto attemptados, em ordem: `content`, `reasoning_content`, `reasoning`.
     fn parse_9router(response: &str) -> Result<(String, u32, u32), String> {
         /// Extrai o texto de um objeto JSON de completion.
-        fn extract_text(obj: &serde_json::Value, from_delta: bool) -> String {
+        fn extract_text(obj: &serde_json::Value, from_delta: bool) -> Result<String, String> {
             let choices = match obj.get("choices").and_then(|c| c.as_array()) {
                 Some(c) if !c.is_empty() => c,
-                _ => return String::new(),
+                _ => return Err("9Router response missing choices".to_string()),
             };
             let container = if from_delta {
                 choices[0].get("delta")
@@ -239,16 +239,16 @@ impl Llm {
             };
             let container = match container {
                 Some(c) => c,
-                None => return String::new(),
+                None => return Err("9Router response missing message/delta".to_string()),
             };
             for field in ["content", "reasoning_content", "reasoning"] {
                 if let Some(text) = container.get(field).and_then(|v| v.as_str()) {
                     if !text.trim().is_empty() {
-                        return text.trim().to_string();
+                        return Ok(text.trim().to_string());
                     }
                 }
             }
-            String::new()
+            Err("9Router response has empty content".to_string())
         }
 
         fn tokens(obj: &serde_json::Value) -> (u32, u32) {
@@ -294,6 +294,9 @@ impl Llm {
                     continue;
                 };
                 matched = true;
+                if let Some(err) = obj.get("error").and_then(|e| e.as_str()) {
+                    return Err(format!("9Router error: {}", err));
+                }
                 if let Some(choices) = obj.get("choices").and_then(|c| c.as_array()) {
                     if let Some(delta) = choices.first().and_then(|ch| ch.get("delta")) {
                         if let Some(c) = delta.get("content").and_then(|v| v.as_str()) {
@@ -324,14 +327,21 @@ impl Llm {
             let obj: serde_json::Value = serde_json::from_str(json_part)
                 .map_err(|_| "9Router parse error".to_string())?;
             matched = true;
-            text = extract_text(&obj, false);
+            if let Some(err) = obj.get("error").and_then(|e| e.as_str()) {
+                return Err(format!("9Router error: {}", err));
+            }
+            text = extract_text(&obj, false)?;
             let (ci, co) = tokens(&obj);
             in_t = ci;
             out_t = co;
         }
 
         let _ = matched;
-        Ok((text.trim().to_string(), in_t, out_t))
+        let final_text = text.trim().to_string();
+        if final_text.is_empty() {
+            return Err("9Router returned no content".to_string());
+        }
+        Ok((final_text, in_t, out_t))
     }
 
     fn read_9router_key(db_path: &str) -> Result<String, String> {
@@ -434,4 +444,25 @@ mod tests {
         assert_eq!(resp.cost_usd, 0.0);
     }
 
+
+
+    #[test]
+    fn parse_9router_error_payload_returns_error() {
+        // Regression: HTTP error payloads (no "choices" field) must NOT
+        // silently return Ok(("", ...)). A 401/500 response body should
+        // propagate as an error so the caller knows the LLM call failed.
+        let payload = r#"{"error":{"message":"Unauthorized","type":"invalid_request_error"}}"#;
+        let result = Llm::parse_9router(payload);
+        assert!(result.is_err(),
+            "error payload without choices must return Err, got {:?}", result);
+    }
+
+    #[test]
+    fn parse_9router_empty_choices_returns_error() {
+        // Choices array present but empty = no completion generated.
+        let payload = r#"{"choices":[],"usage":{"prompt_tokens":0,"completion_tokens":0}}"#;
+        let result = Llm::parse_9router(payload);
+        assert!(result.is_err(),
+            "empty choices must return Err, got {:?}", result);
+    }
 }
