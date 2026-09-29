@@ -34,13 +34,13 @@ subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 
 ```
 spawn_subagent single — 200 runs
-  mean: 0.013ms   p50: 0.010ms   p95: 0.028ms   p99: 0.050ms   max: 0.060ms
+  mean: 0.022ms   p50: 0.005ms   p95: 0.009ms   p99: 0.753ms   max: 2.660ms
 
 spawn_parallel fan-out
-   1 subagente: p50  0.017ms
-   3 subagentes: p50  0.043ms
-   5 subagentes: p50  0.068ms
-  10 subagentes: p50  0.127ms
+   1 subagente: p50  0.018ms
+   3 subagentes: p50  0.066ms
+   5 subagentes: p50  0.097ms
+  10 subagentes: p50  0.217ms
 ```
 
 Gates: single < 150ms ✅ · 10-parallel < 100ms ✅
@@ -85,7 +85,7 @@ cargo run -- spawn --task "review the PR"
 1. **Memória event-sourced** — `event_store` + `memory`. Append-only, hash chain,
    replay verificado. Nada de estado mutável entre requests.
 2. **Subagentes sub-100ms** — `agent` + `rlm`. `spawn_parallel` com `JoinSet`.
-   Medido: 0.127ms p50 para 10 subagentes.
+   Medido: 0.217ms p50 para 10 subagentes.
 3. **Auto-melhoria nível 3** — `refine` + `shadow`. Candidatos validados contra
    golden set imutável; falha em qualquer caso → rollback. Sem reward hacking.
 4. **Sandbox per-agent** — `sandbox`. Linux namespaces via Railway VM
