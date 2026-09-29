@@ -111,10 +111,6 @@ impl SandboxExecutor {
 
         let start = std::time::Instant::now();
 
-        if command.is_empty() {
-            return SandboxResult::success("empty command", 0);
-        }
-
         let output = std::process::Command::new("sh")
                 .arg("-c")
                 .arg(command)
@@ -429,6 +425,23 @@ mod tests {
     }
 
 }
+    #[test]
+    fn local_sandbox_blocks_network_when_disabled() {
+        let cfg = SandboxConfig { allow_network: false, ..Default::default() };
+        let ex = SandboxExecutor::new(cfg);
+        let r = ex.run("curl http://example.com");
+        assert!(!r.success, "curl must be blocked when allow_network=false");
+        assert_eq!(r.exit_code, 126);
+    }
+
+    #[test]
+    fn local_sandbox_empty_command_succeeds() {
+        let ex = SandboxExecutor::new(SandboxConfig::default());
+        let r = ex.run("");
+        assert!(r.success);
+        assert!(r.stdout.contains("empty command"));
+    }
+
 
     #[test]
     fn sandbox_run_executes_real_command() {
