@@ -252,36 +252,48 @@ impl ToolExecutor {
                     Some(u) if !u.is_empty() => u,
                     _ => return ToolResult::err(ToolType::WebFetch, "missing url"),
                 };
-                // Block SSRF: private/internal/loopback IPs and metadata endpoints.
-                if url.starts_with("http://127.")
-                    || url.starts_with("http://localhost")
-                    || url.starts_with("http://169.254")
-                    || url.starts_with("http://10.")
-                    || url.starts_with("http://172.16.")
-                    || url.starts_with("http://172.17.")
-                    || url.starts_with("http://172.18.")
-                    || url.starts_with("http://172.19.")
-                    || url.starts_with("http://172.20.")
-                    || url.starts_with("http://172.21.")
-                    || url.starts_with("http://172.22.")
-                    || url.starts_with("http://172.23.")
-                    || url.starts_with("http://172.24.")
-                    || url.starts_with("http://172.25.")
-                    || url.starts_with("http://172.26.")
-                    || url.starts_with("http://172.27.")
-                    || url.starts_with("http://172.28.")
-                    || url.starts_with("http://172.29.")
-                    || url.starts_with("http://172.30.")
-                    || url.starts_with("http://172.31.")
-                    || url.starts_with("http://192.168.")
-                    || url.starts_with("http://0.")
-                    || url.starts_with("http://[::1]")
-                    || url.starts_with("http://[fe80:")
-                {
+                // Proper SSRF guard: parse URL, extract host, resolve to IP, block RFC1918/loopback/link-local/ipv6.
+                use std::net::ToSocketAddrs;
+                let Ok(parsed) = url::Url::parse(url) else {
+                    return ToolResult::err(ToolType::WebFetch, "invalid url");
+                };
+                if !matches!(parsed.scheme(), "http" | "https") {
+                    return ToolResult::err(ToolType::WebFetch, "scheme must be http or https");
+                }
+                let host = match parsed.host_str() {
+                    Some(h) => h,
+                    None => return ToolResult::err(ToolType::WebFetch, "missing host"),
+                };
+                // Strip userinfo (defense in depth).
+                let host = host.split('@').next_back().unwrap_or(host);
+                let is_private = match host.parse::<std::net::Ipv4Addr>() {
+                    Ok(ip) => {
+                        ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified()
+                    }
+                    Err(_) => match host.parse::<std::net::Ipv6Addr>() {
+                        Ok(ip) => ip.is_loopback() || ip.is_unspecified(),
+                        Err(_) => {
+                            // Hostname: resolve via DNS and check each resulting IP.
+                            let addrs = (host, parsed.port_or_known_default().unwrap_or(80))
+                                .to_socket_addrs();
+                            match addrs {
+                                Ok(mut iter) => iter.any(|a| {
+                                    match a.ip() {
+                                        std::net::IpAddr::V4(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_private() || ip.is_link_local(),
+                                        std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified(),
+                                    }
+                                }),
+                                Err(_) => true, // cannot resolve -> treat as private to avoid blind SSRF
+                            }
+                        }
+                    },
+                };
+                if is_private {
                     return ToolResult::err(ToolType::WebFetch, "url blocked: internal/private address");
                 }
+                // Curl must fail on HTTP >= 400 and must not follow unexpected protocol redirects.
                 let output = std::process::Command::new("curl")
-                    .args(["-sL", "--max-time", "10", url])
+                    .args(["-sLf", "--proto", "=http,https", "--proto-redir", "=http,https", "--max-time", "10", url])
                     .output();
                 let duration = start.elapsed().as_millis() as u64;
 
@@ -569,5 +581,105 @@ mod tests {
         let res = exec.dispatch(ToolType::WebFetch, &["http://example.com/"]);
         // May succeed or fail on network, but should not be "blocked"
         assert!(!res.content.contains("blocked"), "false positive: {}", res.content);
+    }
+
+    // ── REGRESSION (Bug 40): o blocklist era prefix-match de string crua.
+    // Bypassava com https://, userinfo (@), IP decimal/octal/hex e
+    // IPv6-mapped. O teste de bypass abaixo falhava com a versao antiga.
+
+    #[test]
+    fn web_fetch_blocks_https_metadata_endpoint() {
+        // A versao anterior so checava prefixos "http://", entao https://
+        // passava direto para o curl.
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::WebFetch, &["https://169.254.169.254/latest/meta-data/"]);
+        assert!(!res.success, "https metadata endpoint must be blocked");
+        assert!(res.content.contains("blocked"), "{}", res.content);
+    }
+
+    #[test]
+    fn web_fetch_blocks_userinfo_trick() {
+        // "http://anything.com@127.0.0.1/" — curl conecta em 127.0.0.1,
+        // o userinfo antes do @ engana o prefix-match.
+        let exec = ToolExecutor::new();
+        for url in [
+            "http://anything.com@127.0.0.1/",
+            "http://x@169.254.169.254/",
+            "http://foo@10.0.0.1/",
+        ] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "userinfo trick must be blocked: {}", url);
+        }
+    }
+
+    #[test]
+    fn web_fetch_blocks_non_ip_literal_encodings() {
+        // IP decimal/octal/hex nao casam com os prefixos literais.
+        // Url::parse normaliza decimal->dotted, octal->dotted, hex->dotted.
+        let exec = ToolExecutor::new();
+        for url in [
+            "http://2130706433/",   // decimal 127.0.0.1
+            "http://017700000001/", // octal 127.0.0.1
+            "http://0x7f000001/",   // hex 127.0.0.1
+        ] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "non-standard IP encoding must be blocked: {}", url);
+            assert!(res.content.contains("blocked"), "{}: {}", url, res.content);
+        }
+    }
+
+    #[test]
+    fn web_fetch_blocks_ipv6_mapped_loopback() {
+        // [::ffff:127.0.0.1] mapeia para 127.0.0.1 mas nao casa com "http://[::1]".
+        let exec = ToolExecutor::new();
+        for url in ["http://[::ffff:127.0.0.1]/", "http://[0:0:0:0:0:ffff:127.0.0.1]/"] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "IPv6-mapped loopback must be blocked: {}", url);
+        }
+    }
+
+    #[test]
+    fn web_fetch_rejects_non_http_schemes() {
+        // Sem restricao de esquema, curl trataria file:// e gopher://.
+        let exec = ToolExecutor::new();
+        for url in [
+            "file:///etc/passwd",
+            "gopher://127.0.0.1:6379/_INFO",
+            "ftp://example.com/x",
+            "dict://127.0.0.1:11211/stat",
+        ] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "non-http scheme must be rejected: {}", url);
+            assert!(
+                res.content.contains("scheme must be") || res.content.contains("invalid url"),
+                "{}: {}",
+                url,
+                res.content
+            );
+        }
+    }
+
+    #[test]
+    fn web_fetch_rejects_malformed_url() {
+        let exec = ToolExecutor::new();
+        for url in ["not-a-url", "http://", "://missing-scheme", "http://[invalid"] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "malformed url must be rejected: {}", url);
+        }
+    }
+
+    #[test]
+    fn web_fetch_allows_public_https_url() {
+        // Contra-regressao: a guarda nova nao pode bloquear trafego publico.
+        let exec = ToolExecutor::new();
+        for url in ["https://example.com/", "http://example.com/"] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(
+                !res.content.contains("blocked") && !res.content.contains("scheme must be"),
+                "public url false positive: {} -> {}",
+                url,
+                res.content
+            );
+        }
     }
 }

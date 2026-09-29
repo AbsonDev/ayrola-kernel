@@ -124,37 +124,45 @@ fn handle_webfetch(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
     if url.is_empty() {
         return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing url".into() }], is_error: Some(true) });
     }
-    // Block SSRF: private/internal/loopback IPs and metadata endpoints.
-    if url.starts_with("http://127.")
-        || url.starts_with("http://localhost")
-        || url.starts_with("http://169.254")
-        || url.starts_with("http://10.")
-        || url.starts_with("http://172.16.")
-        || url.starts_with("http://172.17.")
-        || url.starts_with("http://172.18.")
-        || url.starts_with("http://172.19.")
-        || url.starts_with("http://172.20.")
-        || url.starts_with("http://172.21.")
-        || url.starts_with("http://172.22.")
-        || url.starts_with("http://172.23.")
-        || url.starts_with("http://172.24.")
-        || url.starts_with("http://172.25.")
-        || url.starts_with("http://172.26.")
-        || url.starts_with("http://172.27.")
-        || url.starts_with("http://172.28.")
-        || url.starts_with("http://172.29.")
-        || url.starts_with("http://172.30.")
-        || url.starts_with("http://172.31.")
-        || url.starts_with("http://192.168.")
-        || url.starts_with("http://0.")
-        || url.starts_with("http://[::1]")
-        || url.starts_with("http://[fe80:")
-    {
+    // Proper SSRF guard: parse URL, extract host, resolve to IP, block private/loopback/link-local/unspecified.
+    use std::net::ToSocketAddrs;
+    let parsed = match url::Url::parse(url) {
+        Ok(u) => u,
+        Err(_) => return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "invalid url".into() }], is_error: Some(true) }),
+    };
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "scheme must be http or https".into() }], is_error: Some(true) });
+    }
+    let host = match parsed.host_str() {
+        Some(h) => h,
+        None => return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing host".into() }], is_error: Some(true) }),
+    };
+    let host = host.split('@').next_back().unwrap_or(host);
+    let is_private = match host.parse::<std::net::Ipv4Addr>() {
+        Ok(ip) => ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified(),
+        Err(_) => match host.parse::<std::net::Ipv6Addr>() {
+            Ok(ip) => ip.is_loopback() || ip.is_unspecified(),
+            Err(_) => {
+                let addrs = (host, parsed.port_or_known_default().unwrap_or(80)).to_socket_addrs();
+                match addrs {
+                    Ok(mut iter) => iter.any(|a| {
+                        match a.ip() {
+                            std::net::IpAddr::V4(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_private() || ip.is_link_local(),
+                            std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified(),
+                        }
+                    }),
+                    Err(_) => true, // cannot resolve -> block to avoid blind SSRF
+                }
+            }
+        },
+    };
+    if is_private {
         return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "url blocked: internal/private address".into() }], is_error: Some(true) });
     }
     let start = std::time::Instant::now();
+    // -f fails on HTTP >= 400, --proto restricts to http/https + redirects.
     let output = std::process::Command::new("curl")
-        .args(["-sL", "--max-time", "10", url])
+        .args(["-sLf", "--proto", "=http,https", "--proto-redir", "=http,https", "--max-time", "10", url])
         .output();
     let duration = start.elapsed().as_millis() as u64;
 
