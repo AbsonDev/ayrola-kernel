@@ -270,20 +270,12 @@ impl ToolExecutor {
                 let start = std::time::Instant::now();
                 let command = args.first().copied().unwrap_or("");
 
-                // Tenta o sandbox remoto (Railway VM) primeiro.
-                let remote = crate::sandbox::RemoteSandboxExecutor::new(
+                // Usa o sandbox local com allowlist de segurança.
+                let sandbox = crate::sandbox::SandboxExecutor::new(
                     crate::sandbox::SandboxConfig::default(),
                 );
-                let res = remote.run(command);
+                let res = sandbox.run(command);
                 let duration = start.elapsed().as_millis() as u64;
-
-                // Detecta "claim_required" do Railway: o build window expirou.
-                if res.stdout.contains("claim_required") {
-                    return ToolResult::err(
-                        ToolType::Run,
-                        "remote sandbox expired (Railway claim_required); provision a new box with railway_vm.provision()",
-                    );
-                }
 
                 if res.exit_code == 0 {
                     ToolResult::ok(ToolType::Run, res.stdout, duration, 0.0)
