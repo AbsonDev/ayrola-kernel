@@ -124,6 +124,34 @@ fn handle_webfetch(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
     if url.is_empty() {
         return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing url".into() }], is_error: Some(true) });
     }
+    // Block SSRF: private/internal/loopback IPs and metadata endpoints.
+    if url.starts_with("http://127.")
+        || url.starts_with("http://localhost")
+        || url.starts_with("http://169.254")
+        || url.starts_with("http://10.")
+        || url.starts_with("http://172.16.")
+        || url.starts_with("http://172.17.")
+        || url.starts_with("http://172.18.")
+        || url.starts_with("http://172.19.")
+        || url.starts_with("http://172.20.")
+        || url.starts_with("http://172.21.")
+        || url.starts_with("http://172.22.")
+        || url.starts_with("http://172.23.")
+        || url.starts_with("http://172.24.")
+        || url.starts_with("http://172.25.")
+        || url.starts_with("http://172.26.")
+        || url.starts_with("http://172.27.")
+        || url.starts_with("http://172.28.")
+        || url.starts_with("http://172.29.")
+        || url.starts_with("http://172.30.")
+        || url.starts_with("http://172.31.")
+        || url.starts_with("http://192.168.")
+        || url.starts_with("http://0.")
+        || url.starts_with("http://[::1]")
+        || url.starts_with("http://[fe80:")
+    {
+        return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "url blocked: internal/private address".into() }], is_error: Some(true) });
+    }
     let start = std::time::Instant::now();
     let output = std::process::Command::new("curl")
         .args(["-sL", "--max-time", "10", url])

@@ -248,7 +248,38 @@ impl ToolExecutor {
             },
             ToolType::WebFetch => {
                 let start = std::time::Instant::now();
-                let url = args.first().copied().unwrap_or("");
+                let url = match args.first() {
+                    Some(u) if !u.is_empty() => u,
+                    _ => return ToolResult::err(ToolType::WebFetch, "missing url"),
+                };
+                // Block SSRF: private/internal/loopback IPs and metadata endpoints.
+                if url.starts_with("http://127.")
+                    || url.starts_with("http://localhost")
+                    || url.starts_with("http://169.254")
+                    || url.starts_with("http://10.")
+                    || url.starts_with("http://172.16.")
+                    || url.starts_with("http://172.17.")
+                    || url.starts_with("http://172.18.")
+                    || url.starts_with("http://172.19.")
+                    || url.starts_with("http://172.20.")
+                    || url.starts_with("http://172.21.")
+                    || url.starts_with("http://172.22.")
+                    || url.starts_with("http://172.23.")
+                    || url.starts_with("http://172.24.")
+                    || url.starts_with("http://172.25.")
+                    || url.starts_with("http://172.26.")
+                    || url.starts_with("http://172.27.")
+                    || url.starts_with("http://172.28.")
+                    || url.starts_with("http://172.29.")
+                    || url.starts_with("http://172.30.")
+                    || url.starts_with("http://172.31.")
+                    || url.starts_with("http://192.168.")
+                    || url.starts_with("http://0.")
+                    || url.starts_with("http://[::1]")
+                    || url.starts_with("http://[fe80:")
+                {
+                    return ToolResult::err(ToolType::WebFetch, "url blocked: internal/private address");
+                }
                 let output = std::process::Command::new("curl")
                     .args(["-sL", "--max-time", "10", url])
                     .output();
@@ -502,4 +533,41 @@ mod tests {
 
 
 
+
+
+    #[test]
+    fn web_fetch_rejects_empty_url() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::WebFetch, &[]);
+        assert!(!res.success);
+        assert!(res.content.contains("missing url"));
+    }
+
+    #[test]
+    fn web_fetch_blocks_private_ips() {
+        let exec = ToolExecutor::new();
+        for url in [
+            "http://127.0.0.1/",
+            "http://localhost/",
+            "http://192.168.1.1/",
+            "http://10.0.0.1/",
+            "http://172.16.0.1/",
+            "http://169.254.169.254/",  // AWS metadata
+            "http://[::1]/",
+        ] {
+            let res = exec.dispatch(ToolType::WebFetch, &[url]);
+            assert!(!res.success, "should block {}", url);
+            assert!(res.content.contains("blocked"), "{}", res.content);
+        }
+    }
+
+    #[test]
+    fn web_fetch_allows_public_urls() {
+        let exec = ToolExecutor::new();
+        // These won't actually connect in tests, but should not be blocked.
+        // We test the filter logic, not the actual network call.
+        let res = exec.dispatch(ToolType::WebFetch, &["http://example.com/"]);
+        // May succeed or fail on network, but should not be "blocked"
+        assert!(!res.content.contains("blocked"), "false positive: {}", res.content);
+    }
 }
