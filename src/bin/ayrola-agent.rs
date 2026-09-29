@@ -157,17 +157,13 @@ fn handle_run(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
     if command.is_empty() {
         return anyhow::Ok(ToolResult { content: vec![ContentBlock { kind: "text".into(), text: "missing command".into() }], is_error: Some(true) });
     }
-    let exec = ayrola_kernel::sandbox::RemoteSandboxExecutor::new(
+    // Usa o sandbox LOCAL com allowlist de seguranca.
+    // RemoteSandboxExecutor exigiria um claim humano na Railway e nao e
+    // acessivel a partir de um cliente MCP sem intervencao manual.
+    let exec = ayrola_kernel::sandbox::SandboxExecutor::new(
         ayrola_kernel::sandbox::SandboxConfig::default(),
     );
     let res = exec.run(command);
-
-    if res.stdout.contains("claim_required") {
-        return Ok(ToolResult {
-            content: vec![ContentBlock { kind: "text".into(), text: "sandbox expired (Railway claim_required)".into() }],
-            is_error: Some(true),
-        });
-    }
 
     Ok(ToolResult {
         content: vec![ContentBlock { kind: "text".into(), text: format!("exit {} | stdout: {} | stderr: {}", res.exit_code, res.stdout.trim(), res.stderr.trim()) }],
@@ -414,7 +410,7 @@ fn process_request(req: JsonRpcRequest) -> JsonRpcResponse {
                 }),
                 serde_json::json!({
                     "name": "run",
-                    "description": "Run shell command in remote sandbox (Railway VM)",
+                    "description": "Run allowlisted shell command in sandbox (cat/ls/grep/find/wc/echo/sleep/true)",
                     "inputSchema": {
                         "type": "object",
                         "properties": { "command": { "type": "string" } },
