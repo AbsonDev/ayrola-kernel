@@ -192,7 +192,7 @@ async fn main() {
             println!("Ayrola Kernel v{}", info.version);
             println!("Edition: {}", info.edition);
             println!("Decision tiers: {}", info.tiers);
-            println!("Phase: 1 (real — opt-in LLM via --llm, 24 files, 216 tests, 106 commits)");
+            println!("Phase: 1 (real — opt-in LLM via --llm, 24 files, 224 tests, 109 commits)");
         }
         Commands::Decide { question, qtype, llm, no_memory } => {
             let qtype = match qtype.as_str() {
