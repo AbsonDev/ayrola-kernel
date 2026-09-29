@@ -328,11 +328,17 @@ impl Tier2LLM {
         }
 
         let lower = content.to_lowercase();
-        let bytes = lower.as_bytes();
 
         // 1) HEAD: resposta direta nos primeiros 200 chars.
-        let head_len = 200.min(bytes.len());
-        let head = &lower[..head_len];
+        // Usa char_indices para evitar panic em limite de bytes (ex: 'ã' tem 2 bytes).
+        // char_indices().nth(200) da o indice de byte do 201o char, que e
+        // sempre um char boundary. Evita panic com texto multi-byte (ex: 'a').
+        let head_end = lower
+            .char_indices()
+            .nth(200)
+            .map(|(i, _)| i)
+            .unwrap_or(lower.len());
+        let head = &lower[..head_end];
 
         // Procura "yes" ou "no" como palavra inteira no head.
         let yes_words = ["yes", "sim", "true", "correct"];
@@ -371,7 +377,14 @@ impl Tier2LLM {
         }
 
         // 2) TAIL: last-match-wins nos ultimos 600 chars.
-        let tail_start = bytes.len().saturating_sub(600);
+        // Usa char_indices para evitar panic em limite de bytes.
+        // Primeiro char boundary >= (len - 600), evitando panic multi-byte.
+        let tail_cutoff = lower.len().saturating_sub(600);
+        let tail_start = lower
+            .char_indices()
+            .map(|(i, _)| i)
+            .find(|i| *i >= tail_cutoff)
+            .unwrap_or(lower.len());
         let tail = &lower[tail_start..];
 
         let mut last_yes: Option<usize> = None;
@@ -380,8 +393,10 @@ impl Tier2LLM {
         for word in &yes_words {
             if let Some(pos) = tail.rfind(word) {
                 let abs_pos = tail_start + pos;
-                let before_ok = pos == 0 || !lower.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
-                let after_ok = abs_pos + word.len() >= bytes.len() || !bytes[abs_pos + word.len()].is_ascii_alphanumeric();
+                let lower_bytes = lower.as_bytes();
+                let before_ok = abs_pos == 0 || !lower_bytes[abs_pos - 1].is_ascii_alphanumeric();
+                let after_ok = abs_pos + word.len() >= lower_bytes.len()
+                    || !lower_bytes[abs_pos + word.len()].is_ascii_alphanumeric();
                 if before_ok && after_ok {
                     last_yes = Some(last_yes.map_or(abs_pos, |p| p.max(abs_pos)));
                 }
@@ -390,8 +405,10 @@ impl Tier2LLM {
         for word in &no_words {
             if let Some(pos) = tail.rfind(word) {
                 let abs_pos = tail_start + pos;
-                let before_ok = pos == 0 || !lower.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
-                let after_ok = abs_pos + word.len() >= bytes.len() || !bytes[abs_pos + word.len()].is_ascii_alphanumeric();
+                let lower_bytes = lower.as_bytes();
+                let before_ok = abs_pos == 0 || !lower_bytes[abs_pos - 1].is_ascii_alphanumeric();
+                let after_ok = abs_pos + word.len() >= lower_bytes.len()
+                    || !lower_bytes[abs_pos + word.len()].is_ascii_alphanumeric();
                 if before_ok && after_ok {
                     last_no = Some(last_no.map_or(abs_pos, |p| p.max(abs_pos)));
                 }
@@ -856,6 +873,15 @@ mod tests {
             _ => panic!("expected YesNo from 9Router"),
         }
     }
+
+
+#[test]
+fn parse_llm_response_handles_multibyte_at_byte_boundary() {
+    // 199 ASCII + 'ã' (2 bytes) => byte 200 is the continuation byte of 'ã'
+    let content = format!("{}ã{} yes", "a".repeat(199), "b".repeat(50));
+    let a = Tier2LLM::parse_llm_response(&content);
+    assert!(matches!(a, Answer::YesNo { .. }), "must not panic on multibyte boundary");
+}
 
     #[test]
     fn parse_llm_response_handles_json() {
