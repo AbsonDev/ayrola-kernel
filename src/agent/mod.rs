@@ -175,21 +175,17 @@ impl Agent {
         ids
     }
 
-    /// Decide usando a decision layer (ContainsSpawn heuristic).
+    /// Decide usando o DecisionEngine compartilhado (S21).
     ///
-    /// Em producao, substitua por DecisionEngine compartilhado:
-    /// ```no_run
-    /// use std::sync::{Arc, RwLock};
-    /// use ayrola_kernel::decision::DecisionEngine;
-    ///
-    /// let engine = Arc::new(RwLock::new(DecisionEngine::with_llm()));
-    /// // ... passa engine para o AgentState ...
-    /// ```
-    pub async fn decide(&self, _qtype: crate::decision::QuestionType, question: &str) -> crate::decision::Answer {
-        use crate::decision::{DecisionLayer, ContainsSpawn};
-        let _state = self.state.read().await;
-        let layer = ContainsSpawn;
-        layer.ask(_qtype, question)
+    /// O engine reside em `AgentState` e suporta:
+    /// - Tier 0: cache semantico
+    /// - Tier 1: prefilter heuristic
+    /// - Tier 1.5: time-travel via MemoryIndex (se configurado)
+    /// - Tier 2: LLM real (9Router) ou heuristic fallback
+    pub async fn decide(&self, qtype: crate::decision::QuestionType, question: &str) -> crate::decision::Answer {
+        let state = self.state.read().await;
+        let mut engine = state.decision_engine.write().await;
+        engine.ask(qtype, question)
     }
 }
 
