@@ -317,22 +317,32 @@ impl Tier2LLM {
 
     /// Extrai {"answer":"yes"} ou {"answer":"no"} de uma resposta JSON.
     fn parse_json_answer(content: &str) -> Option<bool> {
+        // Extrai a resposta JSON no formato {"answer": "yes"/"no"} (ou boolean true/false).
+        // Tambem trata respostas com campos extras — corta no delimitador apos o valor.
         let lower = content.to_lowercase();
         let key_pos = lower.find("\"answer\"")?;
-        // Busca o ':' apos a chave "answer"
-        let after_key = &content[key_pos + 7..];
+        // Opera sobre `lower` para evitar mismatch de indices de byte entre
+        // `content` e sua versao lowercase (ex: 'İ' -> 3 bytes), que causava
+        // panic de slice.
+        let after_key = &lower[key_pos + "\"answer\"".len()..];
         let colon_pos = after_key.find(':')?;
-        let after_colon = &after_key[colon_pos + 1..].trim_start();
-        let value_pos = after_colon.find("yes").or_else(|| after_colon.find("no"))?;
-        let snippet = &after_colon[value_pos..];
-        let lower_snip = snippet.to_lowercase();
-        if lower_snip.starts_with("yes") {
-            Some(true)
-        } else if lower_snip.starts_with("no") {
-            Some(false)
-        } else {
-            None
+        let after_colon = after_key[colon_pos + 1..].trim_start();
+        // Extrai o valor JSON (string ou boolean) ate o proximo delimitador.
+        let end = after_colon.find([',', '}', '\n']).unwrap_or(after_colon.len());
+        let value = &after_colon[..end].trim_matches('"');
+        if value.eq_ignore_ascii_case("true") {
+            return Some(true);
         }
+        if value.eq_ignore_ascii_case("false") {
+            return Some(false);
+        }
+        // Casa yes/no com fronteira de palavra (evita "yesterday"=>yes,
+        // "nothing"=>"no") usando o helper de word boundary.
+        find_first_word(
+            value,
+            &["yes", "sim", "true", "correct", "no", "nao", "não", "false"],
+        )
+        .map(|(_, is_yes)| is_yes)
     }
 
     /// Parseia resposta do LLM em `Answer::YesNo`.
@@ -427,8 +437,11 @@ impl Tier2LLM {
             (None, Some(_)) => Answer::YesNo { yes: false, confidence: 0.85 },
             _ => {
                 // 3) Fallback: conta keywords no texto inteiro.
-                let yes = lower.contains("yes") || lower.contains("sim") || lower.contains("true");
-                let no = lower.contains("no") || lower.contains("não") || lower.contains("false");
+                // REGRESSION: usava `contains()` cru, sem fronteira de palavra,
+                // entao "yesterday" (contem "yes") virava yes e "nothing"
+                // (contem "no") virava no. Agora usa find_first_word.
+                let yes = find_first_word(&lower, &yes_words).is_some();
+                let no = find_first_word(&lower, &no_words).is_some();
                 if yes && !no {
                     Answer::YesNo { yes: true, confidence: 0.75 }
                 } else if no && !yes {
@@ -1164,5 +1177,61 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
             }
             _ => panic!("expected YesNo"),
         }
+    }
+
+    #[test]
+    fn parse_json_answer_requires_word_boundary() {
+        // REGRESSION: o parser antigo buscava "yes"/"no" sem fronteira de
+        // palavra, entao "yesterday" virava yes=true (0.9) e "nothing"
+        // virava no=false (0.9). Agora nao ha match de palavra inteira
+        // dentro desses tokens — cai no fallback conservador 0.5.
+        let yesterday = Tier2LLM::parse_llm_response(r#"{"answer":"yesterday"}"#);
+        assert!(
+            !matches!(yesterday, Answer::YesNo { yes: true, confidence: 0.9, .. }),
+            "\"yesterday\" nao pode ser veredito yes=0.9 — got {:?}",
+            yesterday
+        );
+
+        let nothing = Tier2LLM::parse_llm_response(r#"{"answer":"nothing"}"#);
+        assert!(
+            !matches!(nothing, Answer::YesNo { yes: false, confidence: 0.9, .. }),
+            "\"nothing\" nao pode ser veredito no=0.9 — got {:?}",
+            nothing
+        );
+    }
+
+    #[test]
+    fn parse_json_answer_handles_boolean_json() {
+        // O prompt forcado pede string, mas alguns modelos devolvem JSON booleano.
+        // Antes isso caia no fallback (confidence 0.5); agora e interpretado.
+        let t = Tier2LLM::parse_llm_response(r#"{"answer":true}"#);
+        assert!(matches!(t, Answer::YesNo { yes: true, .. }), "boolean true: got {:?}", t);
+
+        let f = Tier2LLM::parse_llm_response(r#"{"answer":false}"#);
+        assert!(matches!(f, Answer::YesNo { yes: false, .. }), "boolean false: got {:?}", f);
+    }
+
+    #[test]
+    fn parse_json_answer_ignores_fields_after_value() {
+        // REGRESSION: com campos extras, o parser antigo varria o objeto
+        // inteiro e podia ler o "yes" de um campo posterior.
+        let content = r#"{"answer":"no","note":"yes it is confusing"}"#;
+        let a = Tier2LLM::parse_llm_response(content);
+        assert!(
+            matches!(a, Answer::YesNo { yes: false, .. }),
+            "campo posterior nao pode sobrepor o valor de answer — got {:?}",
+            a
+        );
+    }
+
+    #[test]
+    fn parse_json_answer_is_multibyte_safe() {
+        // REGRESSION: o parser antigo localizava a chave em `content`
+        // (lowercased em `lower`) e indexava `content` com offsets de
+        // `lower`. Com 'İ' (2 bytes -> 3 bytes em lowercase) o offset
+        // diverge e o slice pode entrar no meio de um char.
+        let content = "{\"note\":\"İ\",\"answer\":\"yes\"}".to_string();
+        let a = Tier2LLM::parse_llm_response(&content);
+        assert!(matches!(a, Answer::YesNo { yes: true, .. }), "multibyte prefix: got {:?}", a);
     }
 
