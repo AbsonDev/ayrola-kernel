@@ -160,6 +160,27 @@ async fn run_doctor() {
     println!("\nDoctor complete.");
 }
 
+/// Counts .rs files under `src/`, recursing into subdirectories.
+/// Non-recursive counting reported 7 of 24 files, understating the codebase.
+fn count_src_files() -> usize {
+    fn walk(dir: &std::path::Path) -> usize {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return 0;
+        };
+        entries.filter_map(|e| e.ok()).map(|e| {
+            let path = e.path();
+            if path.is_dir() {
+                walk(&path)
+            } else if path.extension().map(|ext| ext == "rs").unwrap_or(false) {
+                1
+            } else {
+                0
+            }
+        }).sum()
+    }
+    walk(std::path::Path::new("src"))
+}
+
 fn count_tests(output: &str) -> usize {
     output.lines()
         .filter(|l| l.contains("test result:"))
@@ -192,7 +213,9 @@ async fn main() {
             println!("Ayrola Kernel v{}", info.version);
             println!("Edition: {}", info.edition);
             println!("Decision tiers: {}", info.tiers);
-            println!("Phase: 1 (real — opt-in LLM via --llm, 24 files, 224 tests, 111 commits)");
+            let src_files = count_src_files();
+            println!("Phase: 1 (real — opt-in LLM via --llm, {} src files, {} commits)",
+                src_files, info.commits);
         }
         Commands::Decide { question, qtype, llm, no_memory } => {
             let qtype = match qtype.as_str() {

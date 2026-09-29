@@ -33,14 +33,25 @@ pub struct KernelInfo {
     pub version: &'static str,
     pub edition: &'static str,
     pub tiers: u8,
+    pub commits: usize,
 }
 
 impl KernelInfo {
+    /// Collects live metadata: version from cargo, commit count from git.
+    /// Returns 0 when git is unavailable (e.g. outside a checkout).
     pub fn info() -> Self {
+        let commits = std::process::Command::new("git")
+            .args(["rev-list", "--count", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0);
         KernelInfo {
             version: VERSION,
             edition: "2024",
             tiers: 3,
+            commits,
         }
     }
 }
