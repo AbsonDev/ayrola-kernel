@@ -174,6 +174,15 @@ impl MemoryIndex {
 }
 
 
+impl std::fmt::Debug for MemoryIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemoryIndex")
+            .field("events", &self.store.len().unwrap_or(0))
+            .field("snapshots", &self.manager.list().len())
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

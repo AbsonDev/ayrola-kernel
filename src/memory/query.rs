@@ -70,7 +70,12 @@ pub fn count_by_kind(store: &EventStore) -> std::io::Result<std::collections::BT
 ///
 /// Uso:
 /// ```
+/// use ayrola_kernel::event_store::EventStore;
+/// use std::env;
+/// let p = env::temp_dir().join("ayrola_doc_test.ndjson");
+/// let store = EventStore::open(&p).unwrap();
 /// let results = search_semantic(&store, "spawn subagent for code review", 5);
+/// std::fs::remove_file(&p).ok();
 /// ```
 pub fn search_semantic(
     store: &EventStore,

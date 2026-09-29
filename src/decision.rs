@@ -431,16 +431,36 @@ impl Tier2LLM {
 // ── Ensemble 3 tiers ─────────────────────────────────────────────
 
 /// Motor de decisao ensemble: Tier 0 -> Tier 1 -> Tier 2.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct DecisionEngine {
     pub prefilter: Tier1PreFilter,
     cache: Tier0Cache,
     llm: Tier2LLM,
+    /// S20: MemoryIndex opcional para time-travel semantic recall.
+    memory: Option<Box<crate::memory::MemoryIndex>>,
+}
+
+impl Default for DecisionEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DecisionEngine {
     pub fn new() -> Self {
-        DecisionEngine::default()
+        DecisionEngine {
+            prefilter: Tier1PreFilter,
+            cache: Tier0Cache::new(),
+            llm: Tier2LLM::new(),
+            memory: None,
+        }
+    }
+
+    /// Habilita time-travel: passa um MemoryIndex para buscar
+    /// decisoes passadas semanticamente similares antes do LLM.
+    pub fn with_memory(mut self, memory: crate::memory::MemoryIndex) -> Self {
+        self.memory = Some(Box::new(memory));
+        self
     }
 
     /// Cria engine com LLM real habilitado (tier 2 usa subprocess).
@@ -451,6 +471,7 @@ impl DecisionEngine {
             cache: Tier0Cache::new(),
             prefilter: Tier1PreFilter,
             llm: Tier2LLM::with_llm(),
+            memory: None,
         }
     }
 
@@ -469,6 +490,24 @@ impl DecisionEngine {
                 yes: true,
                 confidence: threshold,
             };
+        }
+
+        // Tier 1.5: time-travel — busca decisoes passadas semanticamente
+        // similares no MemoryIndex (Pilar 1, S20).
+        if let Some(mem) = self.memory.as_deref_mut() {
+            let past = mem.recall(&format!("decision {}", question), 1)
+                .unwrap_or_default();
+            if let Some(hit) = past.first() {
+                // Reusa a decisao passada se o score for alto o suficiente.
+                if hit.score > 0.7 {
+                    let answer = Answer::YesNo {
+                        yes: true,
+                        confidence: hit.score,
+                    };
+                    self.cache.insert(question, answer.clone());
+                    return answer;
+                }
+            }
         }
 
         // Tier 2: LLM
