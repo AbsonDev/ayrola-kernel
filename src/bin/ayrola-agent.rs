@@ -501,7 +501,7 @@ fn run_stdio() {
                 let err = JsonRpcResponse::err(
                     req_id,
                     -32603,
-                    &format!("response serialization failed: {}", e),
+                    format!("response serialization failed: {}", e),
                 );
                 serde_json::to_string(&err).unwrap_or_else(|_| {
                     "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}"
@@ -563,7 +563,7 @@ fn run_http(port: u16) {
                 let err = JsonRpcResponse::err(
                     req_id,
                     -32603,
-                    &format!("response serialization failed: {}", e),
+                    format!("response serialization failed: {}", e),
                 );
                 serde_json::to_string(&err).unwrap_or_else(|_| {
                     "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}"
