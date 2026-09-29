@@ -21,7 +21,10 @@ pub fn create_snapshot_from(
     from_seq: u64,
 ) -> Result<Snapshot, std::io::Error> {
     let state = store.replay_from(from_seq)?;
-    let seq = state.event_count + from_seq;
+    // replay_from applies events with seq >= from_seq, so the last applied
+    // event's seq is (from_seq + event_count - 1). Adding event_count
+    // directly pointed one past the end of the chain.
+    let seq = from_seq + state.event_count.saturating_sub(1);
     Ok(Snapshot::from_replay(seq, &state))
 }
 
@@ -101,5 +104,39 @@ mod tests {
 
         std::fs::remove_file(&p).ok();
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn create_snapshot_from_points_at_last_applied_event() {
+        let p = tmp_path("from");
+        let mut store = EventStore::open(&p).unwrap();
+        for i in 0..5 {
+            store.append("test", serde_json::json!({"v": i})).unwrap();
+        }
+
+        // events have seq 0,1,2,3,4. Replaying from 2 applies seq 2,3,4
+        // (3 events). The last applied event is seq 4, so the snapshot
+        // must record seq == 4, not 5.
+        let s = create_snapshot_from(&store, 2).unwrap();
+        assert_eq!(s.seq, 4, "snapshot seq must be the last applied event's seq");
+        assert_eq!(s.state.get("event_count").and_then(|v| v.as_u64()), Some(3),
+            "replay_from(2) applies 3 events");
+
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn create_snapshot_from_zero_matches_full_replay() {
+        let p = tmp_path("from0");
+        let mut store = EventStore::open(&p).unwrap();
+        store.append("test", serde_json::json!({"v": 1})).unwrap();
+        store.append("test", serde_json::json!({"v": 2})).unwrap();
+
+        let full = create_snapshot(&store).unwrap();
+        let from0 = create_snapshot_from(&store, 0).unwrap();
+        assert_eq!(full.seq, from0.seq,
+            "from_seq=0 must agree with a full replay");
+
+        std::fs::remove_file(&p).ok();
     }
 }
