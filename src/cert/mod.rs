@@ -30,6 +30,7 @@ impl std::fmt::Display for DecisionId {
 pub enum DecisionTier {
     Tier0,
     Tier1,
+    Tier1_5,
     Tier2,
 }
 
@@ -38,6 +39,7 @@ impl std::fmt::Display for DecisionTier {
         match self {
             DecisionTier::Tier0 => write!(f, "tier0"),
             DecisionTier::Tier1 => write!(f, "tier1"),
+            DecisionTier::Tier1_5 => write!(f, "tier1_5"),
             DecisionTier::Tier2 => write!(f, "tier2"),
         }
     }

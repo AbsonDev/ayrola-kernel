@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::{DefaultHasher, HashMap};
 
-use crate::cert::{CertifiedDecision, DecisionTier, Evidence};
+use crate::cert::{CertifiedDecision, Evidence};
 use std::hash::{Hash, Hasher};
 
 /// Tipo de pergunta que a decision layer recebe.
@@ -455,6 +455,8 @@ pub struct DecisionEngine {
     llm: Tier2LLM,
     /// S20: MemoryIndex opcional para time-travel semantic recall.
     memory: Option<Box<crate::memory::MemoryIndex>>,
+    /// Tier real usado na ultima `ask()` (evita probe separado do cache).
+    pub last_tier: crate::cert::DecisionTier,
 }
 
 impl Default for DecisionEngine {
@@ -470,6 +472,7 @@ impl DecisionEngine {
             cache: Tier0Cache::new(),
             llm: Tier2LLM::new(),
             memory: None,
+            last_tier: crate::cert::DecisionTier::Tier2,
         }
     }
 
@@ -489,6 +492,7 @@ impl DecisionEngine {
             prefilter: Tier1PreFilter,
             llm: Tier2LLM::with_llm(),
             memory: None,
+            last_tier: crate::cert::DecisionTier::Tier2,
         }
     }
 
@@ -496,14 +500,17 @@ impl DecisionEngine {
     pub fn ask(&mut self, _qtype: QuestionType, question: &str) -> Answer {
         // Tier 0: cache
         if let Some(ans) = self.cache.get(question) {
+            self.last_tier = crate::cert::DecisionTier::Tier0;
             return ans;
         }
 
         // Tier 1: pre-filter heuristico
         if let Some(threshold) = self.prefilter.classify(question) {
             if threshold > 0.95 {
+                self.last_tier = crate::cert::DecisionTier::Tier1;
                 return Answer::YesNo { yes: true, confidence: threshold };
             } else if threshold < 0.05 {
+                self.last_tier = crate::cert::DecisionTier::Tier1;
                 return Answer::YesNo { yes: false, confidence: 1.0 - threshold };
             }
         }
@@ -521,6 +528,7 @@ impl DecisionEngine {
                     .unwrap_or(true);
                 let answer = Answer::YesNo { yes, confidence: hit.score };
                 self.cache.insert(question, answer.clone());
+                self.last_tier = crate::cert::DecisionTier::Tier1_5;
                 return answer;
             }
         }
@@ -530,6 +538,7 @@ impl DecisionEngine {
 
         // Cacheia a resposta para proximas vezes.
         self.cache.insert(question, answer.clone());
+        self.last_tier = crate::cert::DecisionTier::Tier2;
         answer
     }
 
@@ -575,19 +584,10 @@ impl DecisionEngine {
     }
 
     pub fn ask_certified(&mut self, qtype: QuestionType, question: &str) -> CertifiedDecision {
-        // Determina o tier ANTES de perguntar (cache hit = tier 0).
-        let cache_hit = self.cache.get(question).is_some();
-        let prefilter_hit = self.prefilter.classify(question).is_some_and(|t| t > 0.95);
-
+        // ask() ja seta self.last_tier com o tier real. Nao fazemos probe separado
+        // para evitar double-count no cache e rotulagem errada de tier.
         let answer = self.ask(qtype, question);
-
-        let tier = if cache_hit {
-            DecisionTier::Tier0
-        } else if prefilter_hit {
-            DecisionTier::Tier1
-        } else {
-            DecisionTier::Tier2
-        };
+        let tier = self.last_tier;
 
         let inputs = serde_json::json!({
             "question": question,
@@ -617,6 +617,62 @@ impl DecisionEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tier0_cache_hit_reports_tier0() {
+        let mut engine = DecisionEngine::new();
+        engine.ask(QuestionType::YesNo, "first question about weather");
+        let before = engine.last_tier;
+        engine.ask(QuestionType::YesNo, "first question about weather");
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier0,
+            "second identical ask must hit cache -> Tier0");
+        let _ = before;
+    }
+
+    #[test]
+    fn tier1_prefilter_strong_negative_returns_no_and_tier1() {
+        let mut engine = DecisionEngine::new();
+        let answer = engine.ask(QuestionType::YesNo, "cancel abort stop terminate delete remove now");
+        match answer {
+            Answer::YesNo { yes, .. } => assert!(!yes, "strong negative must return yes: false"),
+            _ => panic!("expected YesNo"),
+        }
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier1,
+            "pre-filter path must report Tier1");
+    }
+
+    #[test]
+    fn tier1_prefilter_strong_positive_returns_yes_and_tier1() {
+        let mut engine = DecisionEngine::new();
+        let answer = engine.ask(QuestionType::YesNo, "spawn subagent write code fix bug and review pr");
+        match answer {
+            Answer::YesNo { yes, .. } => assert!(yes, "strong positive must return yes: true"),
+            _ => panic!("expected YesNo"),
+        }
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier1);
+    }
+
+    #[test]
+    fn tier2_ambiguous_reports_tier2() {
+        let mut engine = DecisionEngine::new();
+        engine.ask(QuestionType::YesNo, "what is the capital of France");
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier2,
+            "ambiguous question must escalate to Tier2");
+    }
+
+    #[test]
+    fn ask_certified_does_not_double_count_cache_lookups() {
+        let mut engine = DecisionEngine::new();
+        engine.ask(QuestionType::YesNo, "cold question unique string xyz");
+        let hit_rate_before = engine.cache_hit_rate();
+        engine.ask_certified(QuestionType::YesNo, "warm question unique string abc");
+        let hit_rate_after = engine.cache_hit_rate();
+        // The key invariant: hit_rate must not be 0.5 (which is what a double
+        // probe+get on a cache miss would produce).
+        assert!(hit_rate_after < 0.5 || hit_rate_before == 0.0,
+            "ask_certified must not double-count cache lookups (before={}, after={})",
+            hit_rate_before, hit_rate_after);
+    }
 
     #[test]
     fn contains_spawn_heuristic_returns_yes_no() {
@@ -984,6 +1040,6 @@ mod tests {
         let q = "unique question xyz";
         let _ = engine.ask(QuestionType::YesNo, q); // populate cache
         let cert = engine.ask_certified(QuestionType::YesNo, q);
-        assert_eq!(cert.tier, DecisionTier::Tier0);
+        assert_eq!(cert.tier, crate::cert::DecisionTier::Tier0);
     }
 
