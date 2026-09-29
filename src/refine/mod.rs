@@ -181,6 +181,10 @@ impl Pruner {
             if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
                 let name = Self::extract_fn_name(trimmed);
                 if let Some(name) = name {
+                    // main e entry point — nunca e dead code mesmo se aparece so uma vez
+                    if name == "main" {
+                        continue;
+                    }
                     // Conta ocorrencias no arquivo inteiro
                     let count = source.matches(&name).count();
                     if count <= 1 {
@@ -482,8 +486,7 @@ fn main() {}
         let source = "fn main() {}
 ";
         let dead = pruner.find_dead_symbols(source);
-        // main e especial, mas a heuristica simples pode marca-lo
-        // O importante que nao panic
-        let _ = dead;
+        // main nao deve ser reportado como dead (entry point)
+        assert!(!dead.iter().any(|s| s.contains("main")), "main should not be dead: {:?}", dead);
     }
 }
