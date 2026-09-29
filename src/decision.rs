@@ -494,6 +494,10 @@ pub struct DecisionEngine {
     memory: Option<Box<crate::memory::MemoryIndex>>,
     /// Tier real usado na ultima `ask()` (evita probe separado do cache).
     pub last_tier: crate::cert::DecisionTier,
+    /// Tier 0 cache habilitado via config (decision.t0_cache_enabled).
+    pub t0_cache_enabled: bool,
+    /// Tier 1 prefilter habilitado via config (decision.t1_prefilter_enabled).
+    pub t1_prefilter_enabled: bool,
 }
 
 impl Default for DecisionEngine {
@@ -510,6 +514,8 @@ impl DecisionEngine {
             llm: Tier2LLM::new(),
             memory: None,
             last_tier: crate::cert::DecisionTier::Tier2,
+            t0_cache_enabled: true,
+            t1_prefilter_enabled: true,
         }
     }
 
@@ -530,19 +536,45 @@ impl DecisionEngine {
             llm: Tier2LLM::with_llm(),
             memory: None,
             last_tier: crate::cert::DecisionTier::Tier2,
+            t0_cache_enabled: true,
+            t1_prefilter_enabled: true,
+        }
+    }
+
+    /// Cria engine a partir de configuracao YAML.
+    ///
+    /// Lê `t0_cache_enabled` e `t1_prefilter_enabled` da secao `decision`.
+    pub fn from_config(cfg: &crate::config::KernelConfig) -> Self {
+        DecisionEngine {
+            prefilter: Tier1PreFilter,
+            cache: Tier0Cache::new(),
+            llm: Tier2LLM::new(),
+            memory: None,
+            last_tier: crate::cert::DecisionTier::Tier2,
+            t0_cache_enabled: cfg.decision.t0_cache_enabled,
+            t1_prefilter_enabled: cfg.decision.t1_prefilter_enabled,
+        }
+    }
+
+    /// Cacheia a resposta, respeitando `t0_cache_enabled`.
+    fn cache_write(&mut self, question: &str, answer: &Answer) {
+        if self.t0_cache_enabled {
+            self.cache.insert(question, answer.clone());
         }
     }
 
     /// Faz uma pergunta, percorrendo os tiers.
     pub fn ask(&mut self, _qtype: QuestionType, question: &str) -> Answer {
-        // Tier 0: cache
-        if let Some(ans) = self.cache.get(question) {
+        // Tier 0: cache (desabilitavel via config)
+        if self.t0_cache_enabled
+            && let Some(ans) = self.cache.get(question) {
             self.last_tier = crate::cert::DecisionTier::Tier0;
             return ans;
         }
 
-        // Tier 1: pre-filter heuristico
-        if let Some(threshold) = self.prefilter.classify(question) {
+        // Tier 1: pre-filter heuristico (desabilitavel via config)
+        if self.t1_prefilter_enabled
+            && let Some(threshold) = self.prefilter.classify(question) {
             if threshold > 0.95 {
                 self.last_tier = crate::cert::DecisionTier::Tier1;
                 return Answer::YesNo { yes: true, confidence: threshold };
@@ -569,12 +601,12 @@ impl DecisionEngine {
                     // Nao achamos o campo esperado — nao usamos este hit.
                     // Cai para LLM e marca corretamente o tier.
                     let answer = self.llm.query(question);
-                    self.cache.insert(question, answer.clone());
+                    self.cache_write(question, &answer);
                     self.last_tier = crate::cert::DecisionTier::Tier2;
                     return answer;
                 };
                 let answer = Answer::YesNo { yes, confidence: hit.score };
-                self.cache.insert(question, answer.clone());
+                self.cache_write(question, &answer);
                 self.last_tier = crate::cert::DecisionTier::Tier1_5;
                 return answer;
             }
@@ -584,7 +616,7 @@ impl DecisionEngine {
         let answer = self.llm.query(question);
 
         // Cacheia a resposta para proximas vezes.
-        self.cache.insert(question, answer.clone());
+        self.cache_write(question, &answer);
         self.last_tier = crate::cert::DecisionTier::Tier2;
         answer
     }
@@ -1325,5 +1357,83 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
         std::fs::remove_file(&p).ok();
     }
 
+
+    // ── REGRESSION: config fields must actually gate tier behavior.
+    // Before this fix, t0_cache_enabled / t1_prefilter_enabled were
+    // declared in KernelConfig but never read by DecisionEngine.
+
+    #[test]
+    fn from_config_reads_tier_flags() {
+        let mut cfg = crate::config::KernelConfig::default();
+        cfg.decision.t0_cache_enabled = false;
+        cfg.decision.t1_prefilter_enabled = false;
+        let engine = DecisionEngine::from_config(&cfg);
+        assert!(!engine.t0_cache_enabled, "t0_cache_enabled must come from config");
+        assert!(!engine.t1_prefilter_enabled, "t1_prefilter_enabled must come from config");
+    }
+
+    #[test]
+    fn t0_cache_disabled_skips_cache_lookup() {
+        let mut cfg = crate::config::KernelConfig::default();
+        cfg.decision.t0_cache_enabled = false;
+        let mut engine = DecisionEngine::from_config(&cfg);
+
+        // Prime the cache via a normal engine, then ask the disabled engine.
+        let mut warm = DecisionEngine::new();
+        warm.ask(QuestionType::YesNo, "unique_cache_probe_question");
+        // Copy the cache entry by asking the same question on the disabled engine
+        // with cache re-enabled first, then disable and re-ask.
+        engine.t0_cache_enabled = true;
+        engine.ask(QuestionType::YesNo, "unique_cache_probe_question");
+        engine.t0_cache_enabled = false;
+
+        // With cache disabled, the answer must come from Tier 2 (heuristic),
+        // not Tier 0 — proven by last_tier.
+        let ans = engine.ask(QuestionType::YesNo, "unique_cache_probe_question");
+        assert_eq!(
+            engine.last_tier,
+            crate::cert::DecisionTier::Tier2,
+            "cache disabled must not report Tier0, got {:?}",
+            engine.last_tier
+        );
+        let _ = ans;
+    }
+
+    #[test]
+    fn t1_prefilter_disabled_skips_prefilter() {
+        let mut cfg = crate::config::KernelConfig::default();
+        cfg.decision.t1_prefilter_enabled = false;
+        let mut engine = DecisionEngine::from_config(&cfg);
+
+        // "spawn" is a high-confidence Tier 1 yes-pattern. With the prefilter
+        // disabled, it must fall through to Tier 2 instead of answering at Tier 1.
+        let ans = engine.ask(QuestionType::YesNo, "spawn a subagent now");
+        assert_eq!(
+            engine.last_tier,
+            crate::cert::DecisionTier::Tier2,
+            "prefilter disabled must not report Tier1, got {:?}",
+            engine.last_tier
+        );
+        let _ = ans;
+    }
+
+    #[test]
+    fn cache_disabled_does_not_write_cache() {
+        let mut cfg = crate::config::KernelConfig::default();
+        cfg.decision.t0_cache_enabled = false;
+        let mut engine = DecisionEngine::from_config(&cfg);
+
+        engine.ask(QuestionType::YesNo, "cache_write_probe_question");
+        // A second identical ask must NOT hit the cache (it was never written),
+        // so last_tier must be Tier2 again rather than Tier0.
+        let ans = engine.ask(QuestionType::YesNo, "cache_write_probe_question");
+        assert_eq!(
+            engine.last_tier,
+            crate::cert::DecisionTier::Tier2,
+            "cache disabled must not write, so second ask is Tier2, got {:?}",
+            engine.last_tier
+        );
+        let _ = ans;
+    }
 }
 

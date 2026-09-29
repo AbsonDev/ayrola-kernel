@@ -19,6 +19,7 @@ use std::process::exit;
 
 use ayrola_kernel::{
     bench::default_suite,
+    config::ConfigLoader,
     decision::{DecisionEngine, QuestionType},
     obs::init_tracing,
     tools::{GrepTool, ToolReader},
@@ -314,10 +315,12 @@ fn handle_decide(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
         _ => QuestionType::YesNo,
     };
 
+    let cfg = ConfigLoader::load_or_default("config/default.yaml")
+        .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
     let mut engine = if use_llm {
         DecisionEngine::with_llm()
     } else {
-        DecisionEngine::new()
+        DecisionEngine::from_config(&cfg)
     };
 
     let answer = engine.ask(qt, question);

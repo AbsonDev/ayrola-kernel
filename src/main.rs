@@ -6,6 +6,7 @@
 //! - ayrola test: executa testes internos rapidos
 
 use clap::{Parser, Subcommand};
+use ayrola_kernel::config::ConfigLoader;
 use ayrola_kernel::decision::{DecisionEngine, QuestionType};
 use ayrola_kernel::obs::{health_check, init_tracing};
 
@@ -230,10 +231,12 @@ async fn main() {
 
             // Usa DecisionEngine: with_llm() habilita LLM real (subprocess).
             // Time-travel via MemoryIndex quando disponível (AYROLA_EVENT_STORE).
+            let cfg = ConfigLoader::load_or_default("config/default.yaml")
+                .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
             let mut engine = if llm {
                 DecisionEngine::with_llm()
             } else {
-                DecisionEngine::new()
+                DecisionEngine::from_config(&cfg)
             };
             if !no_memory {
                 let p = std::env::var("AYROLA_EVENT_STORE")
