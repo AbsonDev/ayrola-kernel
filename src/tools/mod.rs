@@ -242,8 +242,8 @@ impl ToolExecutor {
                 None => ToolResult::err(ToolType::List, "missing path argument"),
             },
             ToolType::Grep => match (args.first(), args.get(1)) {
-                (Some(path), Some(pattern)) => self.grep.grep_file(path, pattern),
-                (Some(path), None) => self.grep.grep_dir(path, ""),
+                (Some(_path), Some(pattern)) => self.grep.grep_file(_path, pattern),
+                (Some(_), None) => ToolResult::err(ToolType::Grep, "missing pattern argument"),
                 _ => ToolResult::err(ToolType::Grep, "missing path or pattern"),
             },
             ToolType::WebFetch => {
@@ -429,6 +429,23 @@ mod tests {
         let res = tool.grep_file("/nonexistent/file.txt", "pattern");
         assert!(!res.success);
     }
+    #[test]
+    fn grep_dir_finds_pattern_in_cargo_toml_dir() {
+        let tool = GrepTool::new();
+        let res = tool.grep_dir(".", "ayrola");
+        assert!(res.success, "should find 'ayrola' in project root");
+        assert!(res.content.contains("ayrola"), "content should contain match");
+    }
+
+    #[test]
+    fn grep_without_pattern_returns_error() {
+        let exec = ToolExecutor::new();
+        let res = exec.dispatch(ToolType::Grep, &["Cargo.toml"]);
+        assert!(!res.success, "missing pattern must return error");
+        assert!(res.content.contains("pattern"), "error must mention pattern");
+    }
+
+
 
     #[tokio::test]
     async fn tool_executor_dispatches_read() {
