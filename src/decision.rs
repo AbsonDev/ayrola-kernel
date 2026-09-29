@@ -788,6 +788,23 @@ mod tests {
 
 
     #[test]
+    
+    #[test]
+    fn parse_llm_response_handles_9router_real() {
+use crate::decision::Tier2LLM;
+        
+        let llm = Tier2LLM::with_llm();
+        let resp = llm.query("Answer with ONLY the word: yes");
+        match resp {
+            crate::decision::Answer::YesNo { yes, confidence } => {
+                assert!(yes, "9Router should answer yes to a trivial question");
+                assert!(confidence > 0.5, "confidence should be > 0.5, got {}", confidence);
+            }
+            _ => panic!("expected YesNo from 9Router"),
+        }
+    }
+
+    #[test]
     fn parse_llm_response_handles_json() {
         // Prompt estruturado: resposta ideal
         let a = Tier2LLM::parse_llm_response(r#"{"answer":"yes"}"#);
