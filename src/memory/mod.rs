@@ -44,9 +44,12 @@ pub struct Snapshot {
 
 impl Snapshot {
     /// Cria um snapshot a partir de um `ReplayState`.
+    ///
+    /// Hash cobre (seq + state) para que o ponto no tempo seja integro.
+    /// Antes: so state era hasheado — seq podia ser adulterado sem falhar verify().
     pub fn from_replay(seq: u64, state: &crate::event_store::ReplayState) -> Self {
         let state = canonical_state(state);
-        let hash = sha256_hex(&serde_json::to_string(&state).unwrap_or_default());
+        let hash = Self::compute_hash(seq, &state);
         Snapshot {
             hash,
             seq,
@@ -55,9 +58,18 @@ impl Snapshot {
         }
     }
 
-    /// Recalcula o hash do estado gravado e compara com o hash declarado.
+    /// Recalcula o hash de (seq + state) e compara com o hash declarado.
     pub fn verify(&self) -> bool {
-        sha256_hex(&serde_json::to_string(&self.state).unwrap_or_default()) == self.hash
+        Self::compute_hash(self.seq, &self.state) == self.hash
+    }
+
+    /// Hash canônico do snapshot: cobre seq (ponto no tempo) + state.
+    fn compute_hash(seq: u64, state: &serde_json::Value) -> String {
+        let canonical = serde_json::json!({
+            "seq": seq,
+            "state": state,
+        });
+        sha256_hex(&serde_json::to_string(&canonical).unwrap_or_default())
     }
 }
 
@@ -224,6 +236,34 @@ mod tests {
         let mut snap = Snapshot::from_replay(1, &state_with(1));
         snap.hash = "deadbeef".to_string();
         assert!(!snap.verify(), "hash adulterado nao deve verificar");
+    }
+
+    #[test]
+    fn snapshot_verify_detects_tampered_seq() {
+        // REGRESSION (Bug 33): o hash cobria apenas `state`, entao o `seq`
+        // (ponto no tempo) podia ser adulterado e verify() continuava true.
+        // Isso quebrava a garantia de imutabilidade do snapshot: um snapshot
+        // seq=1 seria aceito como se fosse seq=99.
+        let mut snap = Snapshot::from_replay(1, &state_with(1));
+        assert!(snap.verify(), "snapshot intacto deve verificar");
+
+        snap.seq = 99;
+        assert!(
+            !snap.verify(),
+            "seq adulterado nao deve verificar — hash deve cobrir seq"
+        );
+    }
+
+    #[test]
+    fn snapshot_hash_differs_for_different_seq_same_state() {
+        // Dois snapshots com o MESMO estado mas seq diferente nao podem
+        // compartilhar hash — o seq identifica o ponto no tempo.
+        let a = Snapshot::from_replay(1, &state_with(1));
+        let b = Snapshot::from_replay(2, &state_with(1));
+        assert_ne!(
+            a.hash, b.hash,
+            "mesmo estado com seq diferente deve gerar hash diferente"
+        );
     }
 
     #[test]
