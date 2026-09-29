@@ -335,16 +335,30 @@ impl LlmShadowRunner {
     fn grade(&self, id: &str, case: &GoldenCase, actual_text: &str) -> ShadowResult {
         let actual = serde_json::Value::String(actual_text.trim().to_string());
 
-        if let (Ok(actual_num), Some(exp_num)) = (actual_text.parse::<f64>(), case.expected_output.as_f64()) {
-            let diff = (actual_num - exp_num).abs();
-            if diff <= case.tolerance {
-                return ShadowResult::pass(id, case.expected_output.clone());
+        if let Some(exp_num) = case.expected_output.as_f64() {
+            // Tenta extrair o primeiro numero do texto (LLM pode responder "100 degrees" em vez de "100").
+            let actual_num = actual_text
+                .split(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                .filter(|s| !s.is_empty())
+                .find_map(|s| s.parse::<f64>().ok());
+            if let Some(actual_num) = actual_num {
+                let diff = (actual_num - exp_num).abs();
+                if diff <= case.tolerance {
+                    return ShadowResult::pass(id, case.expected_output.clone());
+                }
+                return ShadowResult::fail(
+                    id,
+                    actual,
+                    case.expected_output.clone(),
+                    format!("numeric diff {diff} > tolerance {}", case.tolerance),
+                );
             }
+            // No number found in response
             return ShadowResult::fail(
                 id,
                 actual,
                 case.expected_output.clone(),
-                format!("numeric diff {diff} > tolerance {}", case.tolerance),
+                format!("expected numeric {exp_num} but got no parseable number"),
             );
         }
 
@@ -883,4 +897,12 @@ mod tests {
         let report = exec.execute("candidate");
         assert_eq!(report.passed, 1);
     }
+    #[test]
+    fn grade_extracts_number_from_text_response() {
+        let runner = LlmShadowRunner::new(GoldenSet::new());
+        let case = GoldenCase::new("t", "num", serde_json::json!("q"), serde_json::json!(42));
+        let r = runner.grade("t", &case, "The answer is 42 degrees");
+        assert!(r.passed, "should extract 42 from text");
+    }
+
 }
