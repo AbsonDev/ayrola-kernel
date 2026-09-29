@@ -622,7 +622,13 @@ impl DecisionEngine {
                 "cost_usd": certified.cost_usd,
                 "hash": certified.hash,
             });
-            store.append("decision.made", payload).ok()
+            match store.append("decision.made", payload) {
+                Ok(ev) => Some(ev),
+                Err(e) => {
+                    tracing::warn!("failed to append decision event: {}", e);
+                    None
+                }
+            }
         } else {
             None
         };
