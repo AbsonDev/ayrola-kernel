@@ -104,7 +104,7 @@ impl Llm {
         use std::time::Duration;
 
         let timeout = Duration::from_millis(500);
-        TcpStream::connect_timeout(&"127.0.0.1:20128".parse().unwrap(), timeout)
+        TcpStream::connect_timeout(&"127.0.0.1:20128".parse().expect("const addr must parse"), timeout)
             .map(|_| true)
             .unwrap_or(false)
     }

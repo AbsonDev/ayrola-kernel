@@ -543,17 +543,17 @@ pub fn throughput_bench(iterations: usize) -> Vec<ThroughputResult> {
     // 4. Event store read
     {
         let dir = std::env::temp_dir().join(format!("ayrola-bench-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&dir).expect("failed to create temp dir for throughput bench");
         let path = dir.join("events.jsonl");
-        let mut store = EventStore::open(&path).unwrap();
+        let mut store = EventStore::open(&path).expect("failed to open event store for throughput bench");
         for i in 0..10 {
-            let _ = store.append("bench", serde_json::json!({"i": i})).unwrap();
+            let _ = store.append("bench", serde_json::json!({"i": i})).expect("failed to append bench event");
         }
         let mut latencies = Vec::with_capacity(iterations);
         let start = Instant::now();
         for _ in 0..iterations {
             let t0 = Instant::now();
-            let _ = store.read_all().unwrap();
+            let _ = store.read_all().expect("failed to read events for throughput bench");
             latencies.push(t0.elapsed().as_micros() as f64);
         }
         let total_us = start.elapsed().as_micros() as f64;
