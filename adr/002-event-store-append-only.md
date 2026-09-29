@@ -26,7 +26,7 @@ Verificação: `verify_chain()` percorre todos os eventos e confirma que `hash =
 
 ## Consequências
 
-- `event_store.rs`: 328 linhas, 5 testes
+- `event_store.rs`: 224 linhas, 5 testes
 - Formato: NDJSON (um JSON por linha) em arquivo
 - `replay()`: reconstrói `ReplayState` a partir do log
 - `snapshot`: ponto de verificação do estado (Pilar 1)

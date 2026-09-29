@@ -30,7 +30,7 @@ Medições reais (release build):
 
 ## Consequências
 
-- `bench/mod.rs`: 780 linhas, 19 testes
+- `bench/mod.rs`: 585 linhas, 19 testes
 - Scoreboard serializa para JSON (`serde_json::to_string_pretty`)
 - Baseline OpenCode: ainda não medido (gate substituído por latência de spawn)
 - Fase 1: integrar com OpenCode via MCP para comparação real

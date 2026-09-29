@@ -4,9 +4,9 @@ Kernel do **Ayrola Harness** — agente Rust-native com memória event-sourced,
 subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 
 **Status:** Semanas 1-8 do ROADMAP concluídas.
-**Testes:** 267 (260 lib + 4 e2e + 2 doc + 1 integração) — todos verdes.
+**Testes:** 270 (263 lib + 4 e2e + 2 doc + 1 integração) — todos verdes.
 **Clippy:** `cargo clippy -- -D warnings` limpo.
-**Linhas:** 9.874 (source).
+**Linhas:** 9,904 (source).
 
 ---
 
