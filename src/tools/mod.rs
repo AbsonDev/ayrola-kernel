@@ -280,7 +280,7 @@ impl ToolExecutor {
                                 Ok(mut iter) => iter.any(|a| {
                                     match a.ip() {
                                         std::net::IpAddr::V4(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_private() || ip.is_link_local(),
-                                        std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified(),
+                                        std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_unique_local() || ip.is_unicast_link_local(),
                                     }
                                 }),
                                 Err(_) => true, // cannot resolve -> treat as private to avoid blind SSRF
@@ -682,4 +682,19 @@ mod tests {
             );
         }
     }
+#[test]
+    fn web_fetch_blocks_ipv6_link_local() {
+        let exec = ToolExecutor::new();
+        let r = exec.dispatch(ToolType::WebFetch, &["http://[fe80::1]/"]);
+        assert!(!r.success, "IPv6 link-local must be blocked: {:?}", r);
+    }
+
+
+    #[test]
+    fn web_fetch_blocks_ipv6_unique_local() {
+        let exec = ToolExecutor::new();
+        let r = exec.dispatch(ToolType::WebFetch, &["http://[fc00::1]/"]);
+        assert!(!r.success, "IPv6 unique-local must be blocked: {:?}", r);
+    }
+
 }

@@ -148,7 +148,7 @@ fn handle_webfetch(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
                     Ok(mut iter) => iter.any(|a| {
                         match a.ip() {
                             std::net::IpAddr::V4(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_private() || ip.is_link_local(),
-                            std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified(),
+                            std::net::IpAddr::V6(ip) => ip.is_loopback() || ip.is_unspecified() || ip.is_unique_local() || ip.is_unicast_link_local(),
                         }
                     }),
                     Err(_) => true, // cannot resolve -> block to avoid blind SSRF
