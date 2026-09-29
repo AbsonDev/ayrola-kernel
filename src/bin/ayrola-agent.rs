@@ -493,8 +493,22 @@ fn run_stdio() {
             Err(_) => continue,
         };
 
+        let req_id = req.id.clone();
         let resp = process_request(req);
-        let json = serde_json::to_string(&resp).unwrap_or_default();
+        let json = match serde_json::to_string(&resp) {
+            Ok(j) => j,
+            Err(e) => {
+                let err = JsonRpcResponse::err(
+                    req_id,
+                    -32603,
+                    &format!("response serialization failed: {}", e),
+                );
+                serde_json::to_string(&err).unwrap_or_else(|_| {
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}"
+                        .to_string()
+                })
+            }
+        };
         if !json.is_empty() {
             writeln!(stdout, "{}", json).ok();
             let _ = stdout.flush();
@@ -540,8 +554,23 @@ fn run_http(port: u16) {
             Ok(r) => r,
             Err(_) => continue,
         };
+        let req_id = req.id.clone();
         let resp = process_request(req);
-        let json = serde_json::to_string(&resp).unwrap_or_default();
+        let json = match serde_json::to_string(&resp) {
+            Ok(j) => j,
+            Err(e) => {
+                // Serialization failure must surface as a JSON-RPC error, not silence.
+                let err = JsonRpcResponse::err(
+                    req_id,
+                    -32603,
+                    &format!("response serialization failed: {}", e),
+                );
+                serde_json::to_string(&err).unwrap_or_else(|_| {
+                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"serialize failed\"}}"
+                        .to_string()
+                })
+            }
+        };
         let mut s = s;
         let _ = writeln!(s, "{}", json);
         let _ = s.flush();
