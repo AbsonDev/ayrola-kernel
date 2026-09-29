@@ -235,7 +235,7 @@ impl Scoreboard {
         // Guarda para results vazio: o campo e u64 e o scoreboard pode
         // estar vazio, produzindo inf/NaN no summary.
         if !self.results.is_empty() {
-            let avg_us = self.results.iter().map(|r| r.duration_ms * 1000).sum::<u64>() as f64
+            let avg_us = self.results.iter().map(|r| r.duration_ms.saturating_mul(1000)).sum::<u64>() as f64
                 / self.results.len() as f64;
             if avg_us < 1000.0 && avg_us > 0.0 {
                 s.push_str(&format!(" ({:.0}us)", avg_us));
@@ -295,7 +295,7 @@ pub fn run_task(task: &BenchTask) -> BenchResult {
     let total_us = start.elapsed().as_micros() as u64;
 
     // Converte para ms (armazenado como u64, com resolucao de us preservada no output)
-    let duration_ms = (total_us + 500) / 1000;
+    let duration_ms = total_us.saturating_add(500) / 1000;
     let baseline_ms = Some((harness_overhead_us + 500) / 1000);
 
     let success = true;

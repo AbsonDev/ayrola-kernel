@@ -605,7 +605,7 @@ impl CodeShadowRunner {
         CodeShadowReport {
             total,
             passed,
-            failed: total - passed,
+            failed: total.saturating_sub(passed),
             results,
             promoted: passed == total && total > 0,
             total_ms: start.elapsed().as_millis() as u64,

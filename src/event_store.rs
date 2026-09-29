@@ -113,7 +113,7 @@ impl EventStore {
                 && let Ok(ev) = serde_json::from_str::<Event>(&line)
                 && ev.verify()
             {
-                self.next_seq = ev.seq + 1;
+                self.next_seq = ev.seq.saturating_add(1);
                 self.last_hash = ev.hash.clone();
             }
         }
@@ -144,7 +144,7 @@ impl EventStore {
         writeln!(file, "{}", line)?;
         file.flush()?;
 
-        self.next_seq += 1;
+        self.next_seq = self.next_seq.saturating_add(1);
         self.last_hash = ev.hash.clone();
         Ok(ev)
     }

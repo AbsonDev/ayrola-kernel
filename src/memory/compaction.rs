@@ -27,7 +27,7 @@ pub fn compaction_report(
         .iter()
         .filter(|e| e.seq <= snapshot_seq)
         .count() as u64;
-    let kept = total - to_compact;
+    let kept = total.saturating_sub(to_compact);
 
     Ok(CompactionReport {
         total_events: total,
