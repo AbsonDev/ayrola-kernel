@@ -65,9 +65,8 @@ pub fn count_by_kind(store: &EventStore) -> std::io::Result<std::collections::BT
 /// Busca semantica por similaridade de cosseno (TF-IDF).
 ///
 /// Phase 2 — S11: substitui busca exata por similaridade semantica.
-/// Implementacao: TF-IDF + cosine similarity, sem dependencias externas.
-/// Para cada evento, extrai texto do payload, tokeniza, pondera por TF-IDF,
-/// e retorna os top-N mais similares a query.
+/// Implementacao: TF-IDF + cosine similarity sobre HashMap (alinhamento
+/// correto de termos), sem dependencias externas.
 ///
 /// Uso:
 /// ```
@@ -90,6 +89,7 @@ pub fn search_semantic(
             let mut text = e.kind.clone();
             if let Some(obj) = e.payload.as_object() {
                 for (k, v) in obj {
+                    // Pula _text (e nosso indice proprio) para nao poluir.
                     text.push(' ');
                     text.push_str(k);
                     text.push(' ');
@@ -125,8 +125,8 @@ pub fn search_semantic(
         *idf.entry(tok.clone()).or_insert(0.0) = (n_docs / *df as f64).ln();
     }
 
-    // Vetor da query
-    let query_vec = tfidf_vector(&query_tokens, &idf);
+    // Vetor da query (HashMap para alinhamento correto de termos)
+    let query_vec = tfidf_map(&query_tokens, &idf);
 
     // Similaridade de cosseno para cada evento
     let mut results: Vec<SearchResult> = events
@@ -134,8 +134,8 @@ pub fn search_semantic(
         .zip(event_texts.iter())
         .map(|(event, text)| {
             let tokens = tokenize(text);
-            let vec = tfidf_vector(&tokens, &idf);
-            let score = cosine_similarity(&query_vec, &vec);
+            let vec = tfidf_map(&tokens, &idf);
+            let score = cosine_similarity_maps(&query_vec, &vec);
             SearchResult { event, score }
         })
         .filter(|r| r.score > 0.0)
@@ -148,13 +148,27 @@ pub fn search_semantic(
 }
 
 /// Tokeniza texto em palavras lowercase (sem stopwords basicas).
+///
+/// Mantem termos curtos com significado (>2 chars).
+/// Pula stopwords comuns que nao contribuem para busca semantica.
 fn tokenize(text: &str) -> Vec<String> {
-    let stopwords = ["the", "a", "an", "is", "are", "was", "were", "be", "been",
-                     "being", "have", "has", "had", "do", "does", "did", "will",
-                     "would", "could", "should", "may", "might", "can", "to", "of",
-                     "in", "for", "on", "with", "at", "by", "from", "as", "into",
-                     "and", "or", "but", "not", "no", "if", "then", "than", "that",
-                     "this", "it", "its"];
+    let stopwords: std::collections::HashSet<&str> = [
+        "the", "a", "an", "is", "are", "was", "were", "be", "been",
+        "being", "have", "has", "had", "do", "does", "did", "will",
+        "would", "could", "should", "may", "might", "can", "to", "of",
+        "in", "for", "on", "with", "at", "by", "from", "as", "into",
+        "and", "or", "but", "not", "no", "if", "then", "than", "that",
+        "this", "it", "its", "about", "into", "through", "during",
+        "before", "after", "above", "below", "between", "each", "few",
+        "more", "most", "other", "some", "such", "only", "own", "same",
+        "so", "than", "too", "very", "just", "because", "while", "both",
+        "either", "neither", "nor", "not", "only", "own", "same", "she",
+        "he", "her", "him", "his", "hers", "their", "theirs", "what",
+        "which", "who", "whom", "whose", "when", "where", "why", "how",
+        "all", "any", "both", "each", "every", "many", "much", "few",
+        "more", "most", "other", "some", "such", "no", "nor", "not",
+        "only", "own", "same", "so", "than", "too", "very",
+    ].iter().cloned().collect();
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
         .filter(|s| !s.is_empty() && s.len() > 2 && !stopwords.contains(s))
@@ -162,40 +176,54 @@ fn tokenize(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Calcula vetor TF-IDF para uma lista de tokens.
-fn tfidf_vector(tokens: &[String], idf: &std::collections::HashMap<String, f64>) -> Vec<f64> {
+/// Calcula vetor TF-IDF como HashMap (termo -> peso).
+///
+/// Usa sublinear TF (0.5 + 0.5 * tf/max_tf) e log IDF.
+fn tfidf_map(tokens: &[String], idf: &std::collections::HashMap<String, f64>) -> std::collections::HashMap<String, f64> {
     let mut tf: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
     for tok in tokens {
         *tf.entry(tok.clone()).or_insert(0.0) += 1.0;
     }
     let max_tf = tf.values().cloned().fold(1.0, f64::max);
 
-    let mut vec: Vec<(String, f64)> = tf
-        .iter()
+    tf.iter()
         .map(|(tok, count)| {
             let tf_weight = 0.5 + 0.5 * *count / max_tf;
             let idf_weight = idf.get(tok).copied().unwrap_or(0.0);
             (tok.clone(), tf_weight * idf_weight)
         })
         .filter(|(_, w)| *w > 0.0)
-        .collect();
-
-    vec.sort_by(|a, b| a.0.cmp(&b.0));
-    vec.into_iter().map(|(_, w)| w).collect()
+        .collect()
 }
 
-/// Similaridade de cosseno entre dois vetores.
-fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
+/// Similaridade de cosseno entre dois vetores esparsos (HashMap).
+///
+/// Itera sobre a uniao das chaves para alinhar corretamente os termos.
+fn cosine_similarity_maps(a: &std::collections::HashMap<String, f64>, b: &std::collections::HashMap<String, f64>) -> f64 {
     if a.is_empty() || b.is_empty() {
         return 0.0;
     }
-    let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f64 = a.iter().map(|x| x * x).sum::<f64>().sqrt();
-    let norm_b: f64 = b.iter().map(|x| x * x).sum::<f64>().sqrt();
+
+    // Uniao das chaves
+    let mut all_keys: std::collections::HashSet<_> = a.keys().cloned().collect();
+    all_keys.extend(b.keys().cloned());
+
+    let mut dot: f64 = 0.0;
+    let mut norm_a: f64 = 0.0;
+    let mut norm_b: f64 = 0.0;
+
+    for k in &all_keys {
+        let va = a.get(k).copied().unwrap_or(0.0);
+        let vb = b.get(k).copied().unwrap_or(0.0);
+        dot += va * vb;
+        norm_a += va * va;
+        norm_b += vb * vb;
+    }
+
     if norm_a == 0.0 || norm_b == 0.0 {
         0.0
     } else {
-        dot / (norm_a * norm_b)
+        dot / (norm_a * norm_b).sqrt()
     }
 }
 
@@ -307,4 +335,65 @@ mod tests {
         std::fs::remove_file(&p).ok();
     }
 
+
+    #[test]
+    fn cosine_aligns_terms_by_name_not_position() {
+        // REGRESSION: o bug antigo retornava Vec<f64> ordenado e zippava por
+        // posicao, misturando termos nao relacionados. Com HashMap, apenas
+        // termos realmente compartilhados contribuem para o dot product.
+        use std::collections::HashMap;
+        let mut a: HashMap<String, f64> = HashMap::new();
+        a.insert("code".to_string(), 1.0);
+        a.insert("review".to_string(), 1.0);
+        let mut b: HashMap<String, f64> = HashMap::new();
+        b.insert("weather".to_string(), 1.0);
+        b.insert("forecast".to_string(), 1.0);
+
+        // Nenhum termo compartilhado -> score 0
+        assert_eq!(cosine_similarity_maps(&a, &b), 0.0);
+
+        // Um termo compartilhado -> score > 0
+        let mut c: HashMap<String, f64> = HashMap::new();
+        c.insert("code".to_string(), 1.0);
+        c.insert("weather".to_string(), 1.0);
+        let score = cosine_similarity_maps(&a, &c);
+        assert!(score > 0.0 && score < 1.0, "partial overlap, got {}", score);
+    }
+
+    #[test]
+    fn cosine_identical_vectors_is_one() {
+        use std::collections::HashMap;
+        let mut a: HashMap<String, f64> = HashMap::new();
+        a.insert("alpha".to_string(), 0.5);
+        a.insert("beta".to_string(), 0.25);
+        let score = cosine_similarity_maps(&a, &a);
+        assert!((score - 1.0).abs() < 1e-9, "identical vectors, got {}", score);
+    }
+
+    #[test]
+    fn semantic_ranks_exact_topic_first() {
+        // REGRESSION: verifica o ranking correto, nao apenas score > 0.
+        let p = {
+            let mut path = std::env::temp_dir();
+            path.push(format!("ayrola_sem_rank2_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut store = EventStore::open(&p).unwrap();
+        store.append("event", serde_json::json!({"_text": "database migration to production"})).unwrap();
+        store.append("event", serde_json::json!({"_text": "grep pattern in source code"})).unwrap();
+        store.append("event", serde_json::json!({"_text": "sandbox executed cargo test"})).unwrap();
+        store.append("event", serde_json::json!({"_text": "llm answered question about water"})).unwrap();
+
+        let results = search_semantic(&store, "database migration", 1).unwrap();
+        assert_eq!(results.len(), 1);
+        let text = results[0].event.payload
+            .get("_text").and_then(|v| v.as_str()).unwrap_or("");
+        assert!(
+            text.contains("database"),
+            "top hit must be the database memory, got: {}",
+            text
+        );
+
+        std::fs::remove_file(&p).ok();
+    }
 }

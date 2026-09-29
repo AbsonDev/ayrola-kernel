@@ -34,6 +34,16 @@ enum Commands {
         #[arg(long, default_value = "false")]
         llm: bool,
     },
+    /// Indexa uma memoria (texto livre + payload)
+    Remember {
+        /// Tipo do evento (ex: decision.made)
+        kind: String,
+        /// Texto livre para busca semantica
+        text: String,
+        /// Payload JSON opcional
+        #[arg(long, default_value = "{}")]
+        payload: String,
+    },
     /// Busca memorias por similaridade semantica (TF-IDF)
     Recall {
         /// Query de busca
@@ -262,6 +272,17 @@ async fn main() {
         }
         Commands::Doctor => {
             run_doctor().await;
+        }
+        Commands::Remember { kind, text, payload } => {
+            let p = std::env::var("AYROLA_EVENT_STORE")
+                .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+            let mut idx = ayrola_kernel::memory::MemoryIndex::open(&p)
+                .expect("failed to open memory index");
+            let payload_json: serde_json::Value = serde_json::from_str(&payload)
+                .unwrap_or(serde_json::json!({}));
+            let event = idx.remember(&kind, &text, payload_json)
+                .expect("remember failed");
+            println!("remembered: seq={} kind={}", event.seq, event.kind);
         }
         Commands::Recall { query, top_k } => {
             let p = std::env::var("AYROLA_EVENT_STORE")
