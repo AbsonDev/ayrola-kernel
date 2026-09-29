@@ -30,12 +30,11 @@ impl KernelConfig {
         if self.kernel.version.trim().is_empty() {
             return Err(ConfigError::missing("kernel.version"));
         }
-        if self.decision.t2_confidence_threshold < 0.0
-            || self.decision.t2_confidence_threshold > 1.0
-        {
+        let t = self.decision.t2_confidence_threshold;
+        if !t.is_finite() || t < 0.0 || t > 1.0 {
             return Err(ConfigError::invalid(
                 "decision.t2_confidence_threshold",
-                "must be between 0.0 and 1.0",
+                "must be a finite number between 0.0 and 1.0",
             ));
         }
         if self.agent.max_subagents == 0 {
@@ -170,5 +169,28 @@ mod tests {
         let back: KernelConfig = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(cfg.kernel.name, back.kernel.name);
         assert_eq!(cfg.decision.t2_confidence_threshold, back.decision.t2_confidence_threshold);
+    }
+
+    #[test]
+    fn nan_confidence_threshold_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.decision.t2_confidence_threshold = f64::NAN;
+        // NaN must be rejected — comparisons with NaN are always false,
+        // so the current < 0.0 || > 1.0 check would pass NaN.
+        assert!(cfg.validate().is_err(), "NaN confidence threshold must be rejected");
+    }
+
+    #[test]
+    fn infinity_confidence_threshold_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.decision.t2_confidence_threshold = f64::INFINITY;
+        assert!(cfg.validate().is_err(), "INFINITY must be rejected");
+    }
+
+    #[test]
+    fn neg_infinity_confidence_threshold_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.decision.t2_confidence_threshold = f64::NEG_INFINITY;
+        assert!(cfg.validate().is_err(), "NEG_INFINITY must be rejected");
     }
 }
