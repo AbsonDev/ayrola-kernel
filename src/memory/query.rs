@@ -69,8 +69,9 @@ pub fn count_by_kind(store: &EventStore) -> std::io::Result<std::collections::BT
 /// correto de termos), sem dependencias externas.
 ///
 /// Uso:
-/// ```
+/// ```no_run
 /// use ayrola_kernel::event_store::EventStore;
+/// use ayrola_kernel::memory::query::search_semantic;
 /// use std::env;
 /// let p = env::temp_dir().join("ayrola_doc_test.ndjson");
 /// let store = EventStore::open(&p).unwrap();

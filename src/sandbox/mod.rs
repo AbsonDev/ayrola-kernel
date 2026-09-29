@@ -219,7 +219,8 @@ impl CircuitBreaker {
 /// - Coleta de memoria via `/usr/bin/time -v` (fallback: 0)
 ///
 /// Uso:
-/// ```
+/// ```no_run
+/// use ayrola_kernel::sandbox::{RemoteSandboxExecutor, SandboxConfig};
 /// let exec = RemoteSandboxExecutor::new(SandboxConfig::default());
 /// let result = exec.run("echo hello");
 /// ```

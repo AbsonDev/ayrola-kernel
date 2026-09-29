@@ -1,0 +1,12 @@
+{
+  "blocker": "Railway VM sandbox unavailable (Pilar 4 re-validation)",
+  "command": "ssh -o BatchMode=yes root@railway.new echo probe_ok",
+  "exit_code": 12,
+  "stdout": "{\"status\":\"claim_required\",\"human_claim_url\":\"https://railway.com/ssh-signup?code=NeB0vbzoTeE2mipPCnkcMw\",\"poll_url\":\"https://backboard.railway.com/ssh-signup/poll?code=NeB0vbzoTeE2mipPCnkcMw\",\"description\":\"The build window for this box has expired. A user can claim it with human_claim_url; poll_url long-polls until they have. Both are absent when a claim session could not be minted here.\"}",
+  "stderr": "",
+  "interpretation": "exit 12 + claim_required JSON = build window expired, human claim required at railway.com/ssh-signup",
+  "workaround_in_code": "ToolType::Run and CodeShadowRunner detect claim_required and return an actionable error instead of a raw exit 12",
+  "original_measurement": "6/6 pass at 2.7s p50 when the box was claimed (commit 9ba549c era)",
+  "reprovision_attempted": true,
+  "reprovision_result": "railway_vm.provision() returns host=railway.new with trial_minutes=60 idle_timeout_min=5, but SSH still returns claim_required immediately"
+}

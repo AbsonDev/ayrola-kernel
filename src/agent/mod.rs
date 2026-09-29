@@ -179,6 +179,9 @@ impl Agent {
     ///
     /// Em producao, substitua por DecisionEngine compartilhado:
     /// ```no_run
+    /// use std::sync::{Arc, RwLock};
+    /// use ayrola_kernel::decision::DecisionEngine;
+    ///
     /// let engine = Arc::new(RwLock::new(DecisionEngine::with_llm()));
     /// // ... passa engine para o AgentState ...
     /// ```

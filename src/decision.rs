@@ -423,7 +423,8 @@ impl Tier2LLM {
         } else if no_score > yes_score {
             Answer::YesNo { yes: false, confidence: 0.75 + (no_score as f64 * 0.03).min(0.2) }
         } else {
-            Answer::YesNo { yes: true, confidence: 0.6 }
+            // Zero keywords ou empate: sem evidencia para agir. Default conservador = no.
+            Answer::YesNo { yes: false, confidence: 0.5 }
         }
     }
 }
@@ -669,12 +670,12 @@ mod tests {
     fn decision_engine_cache_miss_falls_through_to_tier2() {
         let mut engine = DecisionEngine::new();
 
-        // Cache miss -> tier 1 (None) -> tier 2 (heuristic: yes=true, 0.60).
+        // Cache miss -> tier 1 (None) -> tier 2 (heuristic: no keywords = no evidence -> false, 0.50).
         let a = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match a {
             Answer::YesNo { yes, confidence } => {
-                assert!(yes, "tier 2 heuristic default: yes=true");
-                assert!((confidence - 0.60).abs() < 1e-9, "expected 0.60, got {}", confidence);
+                assert!(!yes, "tier 2 heuristic default: no evidence -> false");
+                assert!((confidence - 0.50).abs() < 1e-9, "expected 0.50, got {}", confidence);
             }
             _ => panic!("expected YesNo"),
         }
@@ -683,9 +684,9 @@ mod tests {
         let b = engine.ask(QuestionType::YesNo, "unknown question xyz");
         match b {
             Answer::YesNo { yes, confidence } => {
-                assert!(yes);
+                assert!(!yes);
                 assert!(
-                    (confidence - 0.60).abs() < 1e-9,
+                    (confidence - 0.50).abs() < 1e-9,
                     "cache hit devolve a mesma resposta do tier 2"
                 );
             }
@@ -748,8 +749,12 @@ mod tests {
     fn tier2_llm_fallback_returns_default() {
         let llm = Tier2LLM::new();
         let ans = llm.query("anything");
-        // "anything" has no keywords → default confidence 0.6
-        assert!((ans.confidence() - 0.60).abs() < 1e-9);
+        // "anything" has no keywords → no evidence -> confidence 0.5 (default no)
+        assert!((ans.confidence() - 0.50).abs() < 1e-9);
+        match ans {
+            Answer::YesNo { yes, .. } => assert!(!yes, "default no when no keywords matched"),
+            _ => panic!("expected YesNo"),
+        }
     }
 
 
