@@ -135,7 +135,8 @@ impl MemoryIndex {
 
         // Tira um snapshot a cada 10 eventos.
         let len = self.store.len().unwrap_or(0);
-        if len % 10 == 0 {
+        #[allow(clippy::collapsible_if)]
+        if len.is_multiple_of(10) {
             if let Ok(state) = self.store.replay() {
                 let _ = self.manager.take(state.event_count, &state);
             }
@@ -259,7 +260,6 @@ mod tests {
 
 #[cfg(test)]
 mod memory_index_tests {
-    use super::*;
     use crate::memory::MemoryIndex;
     use std::env;
 
