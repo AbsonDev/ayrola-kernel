@@ -33,6 +33,9 @@ enum Commands {
         /// Habilita LLM real (claude/opencode) no tier 2
         #[arg(long, default_value = "false")]
         llm: bool,
+        /// Desabilita time-travel via MemoryIndex
+        #[arg(long, default_value = "false")]
+        no_memory: bool,
     },
     /// Indexa uma memoria (texto livre + payload)
     Remember {
@@ -191,7 +194,7 @@ async fn main() {
             println!("Decision tiers: {}", info.tiers);
             println!("Phase: 1 (real — opt-in LLM via --llm, 15 modulos)");
         }
-        Commands::Decide { question, qtype, llm } => {
+        Commands::Decide { question, qtype, llm, no_memory } => {
             let qtype = match qtype.as_str() {
                 "yesno" => QuestionType::YesNo,
                 "choice" => QuestionType::Choice,
@@ -203,11 +206,19 @@ async fn main() {
             };
 
             // Usa DecisionEngine: with_llm() habilita LLM real (subprocess).
+            // Time-travel via MemoryIndex quando disponível (AYROLA_EVENT_STORE).
             let mut engine = if llm {
                 DecisionEngine::with_llm()
             } else {
                 DecisionEngine::new()
             };
+            if !no_memory {
+                let p = std::env::var("AYROLA_EVENT_STORE")
+                    .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+                if let Ok(mem) = ayrola_kernel::memory::MemoryIndex::open(&p) {
+                    engine = engine.with_memory(mem);
+                }
+            }
             let answer = engine.ask(qtype, &question);
             match answer {
                 ayrola_kernel::decision::Answer::YesNo { yes, confidence } => {
