@@ -54,10 +54,12 @@ fn mcp_initialize_returns_protocol() {
 
 #[test]
 #[ignore = "requires release build"]
-fn mcp_tools_list_returns_eight() {
+fn mcp_tools_list_returns_ten() {
     let resp = mcp_call(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#);
-    assert!(resp.contains("decide"), "resp: {}", resp);
-    assert!(resp.contains("run"), "resp: {}", resp);
+    // Verify all 10 tools are exposed: decide, shadow, bench, health, read, grep, webfetch, run, remember, recall
+    for tool in &["decide", "shadow", "bench", "health", "read", "grep", "webfetch", "run", "remember", "recall"] {
+        assert!(resp.contains(tool), "missing tool {} in resp: {}", tool, resp);
+    }
 }
 
 #[test]
