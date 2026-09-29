@@ -301,7 +301,7 @@ impl RemoteSandboxExecutor {
         let remote_script = format!(
             r#"mkdir -p '{dir}' && cd '{dir}' && timeout {t}s sh -c '{cmd}' 2>&1; echo AYROLA_EXIT:$? ; cd / && rm -rf '{dir}'"#,
             dir = sandbox_dir,
-            t = self.config.max_execution_ms / 1000,
+            t = (self.config.max_execution_ms / 1000).max(1),
             cmd = escaped,
         );
 
