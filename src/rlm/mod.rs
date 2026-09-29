@@ -48,14 +48,15 @@ impl Decomposition {
     pub fn add_subtask(&mut self, description: impl Into<String>) -> &SubTask {
         let id = format!("{}-{}", self.task_id, self.subtasks.len());
         let st = SubTask {
-            id: id.clone(),
+            id,
             description: description.into(),
             parent_task: self.task_id.clone(),
             depth: self.depth + 1,
             status: SubTaskStatus::Pending,
         };
         self.subtasks.push(st);
-        self.subtasks.last().unwrap()
+        // push always succeeds; last() always returns Some after push
+        self.subtasks.last().expect("subtasks must not be empty after push")
     }
 }
 

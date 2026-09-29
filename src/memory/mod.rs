@@ -75,7 +75,7 @@ impl SnapshotManager {
     /// Cria e armazena um snapshot.
     pub fn take(&mut self, seq: u64, state: &crate::event_store::ReplayState) -> &Snapshot {
         self.snapshots.insert(seq, Snapshot::from_replay(seq, state));
-        self.snapshots.get(&seq).expect("acabou de inserir")
+        self.snapshots.get(&seq).expect("snapshot deve existir apos insercao")
     }
 
     pub fn get(&self, seq: u64) -> Option<&Snapshot> {
