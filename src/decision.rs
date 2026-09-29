@@ -789,9 +789,8 @@ mod tests {
 
     #[test]
     
-    #[test]
     fn parse_llm_response_handles_9router_real() {
-use crate::decision::Tier2LLM;
+        use crate::decision::Tier2LLM;
         
         let llm = Tier2LLM::with_llm();
         let resp = llm.query("Answer with ONLY the word: yes");
