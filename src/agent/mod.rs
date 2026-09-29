@@ -43,12 +43,15 @@ pub enum AgentEvent {
 }
 
 /// Estado de um agente em execucao.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AgentState {
     pub id: AgentId,
     pub parent: Option<AgentId>,
     pub task: String,
     pub spawned_at: chrono::DateTime<chrono::Utc>,
+    /// S21: DecisionEngine compartilhado via Arc<RwLock<>>.
+    /// Permite acesso concorrente ao mesmo engine com memoria time-travel.
+    pub decision_engine: std::sync::Arc<tokio::sync::RwLock<crate::decision::DecisionEngine>>,
 }
 
 impl AgentState {
@@ -58,6 +61,9 @@ impl AgentState {
             parent: None,
             task: task.into(),
             spawned_at: chrono::Utc::now(),
+            decision_engine: std::sync::Arc::new(
+                tokio::sync::RwLock::new(crate::decision::DecisionEngine::new())
+            ),
         }
     }
 
@@ -169,10 +175,13 @@ impl Agent {
         ids
     }
 
-    /// Decide usando a decision layer.
+    /// Decide usando a decision layer (ContainsSpawn heuristic).
     ///
-    /// Usa decision layer (Tier 0 cache + Tier 1 heuristic + Tier 2 LLM opt-in).
-    /// Em producao: usa `DecisionEngine`.
+    /// Em producao, substitua por DecisionEngine compartilhado:
+    /// ```no_run
+    /// let engine = Arc::new(RwLock::new(DecisionEngine::with_llm()));
+    /// // ... passa engine para o AgentState ...
+    /// ```
     pub async fn decide(&self, _qtype: crate::decision::QuestionType, question: &str) -> crate::decision::Answer {
         use crate::decision::{DecisionLayer, ContainsSpawn};
         let _state = self.state.read().await;
