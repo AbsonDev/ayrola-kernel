@@ -271,7 +271,8 @@ impl ToolExecutor {
                         ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified()
                     }
                     Err(_) => match host.parse::<std::net::Ipv6Addr>() {
-                        Ok(ip) => ip.is_loopback() || ip.is_unspecified(),
+                        Ok(ip) => ip.is_loopback() || ip.is_unspecified()
+                            || ip.is_unique_local() || ip.is_unicast_link_local(),
                         Err(_) => {
                             // Hostname: resolve via DNS and check each resulting IP.
                             let addrs = (host, parsed.port_or_known_default().unwrap_or(80))
