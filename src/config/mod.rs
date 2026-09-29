@@ -40,6 +40,21 @@ impl KernelConfig {
         if self.agent.max_subagents == 0 {
             return Err(ConfigError::invalid("agent.max_subagents", "must be > 0"));
         }
+
+        // ensemble_mode must be one of the recognized modes.
+        match self.decision.ensemble_mode.as_str() {
+            "three_tier" | "two_tier" | "tier1_only" => {}
+            _ => {
+                return Err(ConfigError::invalid(
+                    "decision.ensemble_mode",
+                    format!(
+                        "must be one of: three_tier, two_tier, tier1_only (got: {})",
+                        self.decision.ensemble_mode
+                    ),
+                ));
+            }
+        }
+
         Ok(())
     }
 }
@@ -192,5 +207,14 @@ mod tests {
         let mut cfg = KernelConfig::default();
         cfg.decision.t2_confidence_threshold = f64::NEG_INFINITY;
         assert!(cfg.validate().is_err(), "NEG_INFINITY must be rejected");
+    }
+
+    #[test]
+    fn invalid_ensemble_mode_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.decision.ensemble_mode = "two_tire".to_string();
+        assert!(cfg.validate().is_err(), "typo in ensemble_mode must be rejected");
+        cfg.decision.ensemble_mode = "three_tier".to_string();
+        assert!(cfg.validate().is_ok(), "three_tier must be accepted");
     }
 }
