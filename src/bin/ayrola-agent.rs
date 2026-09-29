@@ -21,7 +21,7 @@ use ayrola_kernel::{
     bench::default_suite,
     config::ConfigLoader,
     decision::{DecisionEngine, QuestionType},
-    obs::init_tracing,
+    obs::init_tracing_with_level,
     tools::{GrepTool, ToolReader},
 };
 
@@ -368,7 +368,10 @@ fn handle_bench(_args: &serde_json::Value) -> anyhow::Result<ToolResult> {
 }
 
 fn handle_health(_args: &serde_json::Value) -> anyhow::Result<ToolResult> {
-    init_tracing();
+    let cfg = ConfigLoader::load_or_default("config/default.yaml")
+        .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
+    let log_level = std::env::var("AYROLA_LOG").unwrap_or_else(|_| cfg.logging.level.clone());
+    init_tracing_with_level(&log_level, &cfg.logging.format, &cfg.logging.output);
     let event_path = std::env::var("AYROLA_EVENT_STORE")
         .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
     let report = ayrola_kernel::obs::health_check(&event_path);
@@ -553,7 +556,10 @@ fn run_stdio() {
 }
 
 fn main() {
-    init_tracing();
+    let cfg = ConfigLoader::load_or_default("config/default.yaml")
+        .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
+    let log_level = std::env::var("AYROLA_LOG").unwrap_or_else(|_| cfg.logging.level.clone());
+    init_tracing_with_level(&log_level, &cfg.logging.format, &cfg.logging.output);
 
     // Check for --http flag
     let args: Vec<String> = std::env::args().collect();

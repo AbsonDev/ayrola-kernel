@@ -8,7 +8,7 @@
 use clap::{Parser, Subcommand};
 use ayrola_kernel::config::ConfigLoader;
 use ayrola_kernel::decision::{DecisionEngine, QuestionType};
-use ayrola_kernel::obs::{health_check, init_tracing};
+use ayrola_kernel::obs::{health_check, init_tracing_with_level};
 
 /// Ayrola Kernel — Rust-native agent harness (Phase 1)
 #[derive(Parser)]
@@ -300,7 +300,12 @@ async fn main() {
             }
         }
         Commands::Health => {
-            init_tracing();
+            // Wire logging config from YAML into tracing; AYROLA_LOG env var
+            // overrides if set (so interactive debugging still works).
+            let cfg = ConfigLoader::load_or_default("config/default.yaml")
+                .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
+            let log_level = std::env::var("AYROLA_LOG").unwrap_or_else(|_| cfg.logging.level.clone());
+            init_tracing_with_level(&log_level, &cfg.logging.format, &cfg.logging.output);
             let event_path = std::env::var("AYROLA_EVENT_STORE")
                 .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
             let report = health_check(&event_path);

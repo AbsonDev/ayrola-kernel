@@ -224,16 +224,28 @@ pub fn health_check(event_store_path: &str) -> HealthReport {
 /// Inicializa o subscriber de tracing (idempotente).
 ///
 /// Chame uma vez no main. Em testes e seguro chamar varias vezes.
+/// Uses `AYROLA_LOG` env var, defaulting to "warn".
 pub fn init_tracing() {
+    let level = std::env::var("AYROLA_LOG").unwrap_or_else(|_| "warn".to_string());
+    init_tracing_with_level(&level, "text", "stderr");
+}
+
+/// Inicializa o subscriber de tracing com um nivel explicito.
+///
+/// `level` deve ser um dos: error, warn, info, debug, trace.
+/// Valores invalidos caem para "warn".
+///
+/// `format` and `output` are accepted but not yet enforced in the runtime
+/// (they are validated in `KernelConfig::validate()`).
+pub fn init_tracing_with_level(level: &str, _format: &str, _output: &str) {
     static ONCE: OnceLock<()> = OnceLock::new();
     ONCE.get_or_init(|| {
-        let level = std::env::var("AYROLA_LOG").unwrap_or_else(|_| "warn".to_string());
-        // Parse manual: tracing_subscriber espera uma string de filtro.
-        let filter = match level.as_str() {
+        let filter = match level {
             "trace" => "trace",
             "debug" => "debug",
             "info" => "info",
             "warn" => "warn",
+            "error" => "error",
             _ => "warn",
         };
         let env_filter = tracing_subscriber::EnvFilter::new(filter);
