@@ -181,9 +181,22 @@ impl SandboxExecutor {
         if command.chars().any(|c| FORBIDDEN.contains(&c)) {
             return false;
         }
-        // Always allowed basic commands
+        // Always allowed basic commands (no path arguments expected)
         let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
         if allowed.contains(&base) {
+            // If the command takes an absolute path argument, enforce allowed_paths.
+            // Commands like `cat /etc/passwd` must respect the path restriction.
+            if self.config.allowed_paths.is_empty() {
+                return true;
+            }
+            for arg in command.split_whitespace().skip(1) {
+                if arg.starts_with('/')
+                    && !self.config.allowed_paths.iter().any(|p| {
+                        arg.starts_with(p.as_str())
+                    }) {
+                    return false;
+                }
+            }
             return true;
         }
         // Network commands only if allow_network is true
@@ -378,6 +391,18 @@ impl RemoteSandboxExecutor {
         }
         let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
         if allowed.contains(&base) {
+            // Enforce allowed_paths on absolute-path arguments (RemoteSandboxExecutor).
+            if self.config.allowed_paths.is_empty() {
+                return true;
+            }
+            for arg in command.split_whitespace().skip(1) {
+                if arg.starts_with('/')
+                    && !self.config.allowed_paths.iter().any(|p| {
+                        arg.starts_with(p.as_str())
+                    }) {
+                    return false;
+                }
+            }
             return true;
         }
         if self.config.allow_network {
@@ -447,7 +472,29 @@ mod tests {
         for _ in 0..4 {
             cb.record_failure();
         }
+
         assert!(!cb.is_open(), "4 falhas < threshold 5");
+    }
+
+    // ── REGRESSION: allowed_paths must be enforced on absolute-path arguments
+    #[test]
+    fn sandbox_blocks_absolute_path_outside_allowed_paths() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        // allowed_paths defaults to ["/tmp"], so /etc/passwd must be blocked.
+        assert!(!exec.is_allowed("cat /etc/passwd"));
+        assert!(!exec.is_allowed("ls /etc"));
+        assert!(!exec.is_allowed("grep foo /var/log/syslog"));
+    }
+
+    #[test]
+    fn sandbox_allows_absolute_path_inside_allowed_paths() {
+        let cfg = SandboxConfig {
+            allowed_paths: vec!["/tmp".to_string(), "/var/log".to_string()],
+            ..Default::default()
+        };
+        let exec = SandboxExecutor::new(cfg);
+        assert!(exec.is_allowed("cat /tmp/foo"));
+        assert!(exec.is_allowed("grep bar /var/log/syslog"));
     }
 
     #[test]
