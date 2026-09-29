@@ -175,6 +175,76 @@ fn handle_run(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
     })
 }
 
+
+fn handle_remember(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let kind = args.get("kind").and_then(|v| v.as_str()).unwrap_or("memory.note");
+    let text = args.get("text").and_then(|v| v.as_str()).unwrap_or("");
+    if text.is_empty() {
+        return anyhow::Ok(ToolResult {
+            content: vec![ContentBlock { kind: "text".into(), text: "missing 'text' argument".into() }],
+            is_error: Some(true),
+        });
+    }
+    let payload = args.get("payload").cloned().unwrap_or(serde_json::json!({}));
+    let payload = match payload {
+        serde_json::Value::String(s) => {
+            // Aceita JSON string, parseia.
+            serde_json::from_str(&s).unwrap_or(serde_json::json!({"value": s}))
+        }
+        p => p,
+    };
+
+    let path = std::env::var("AYROLA_EVENT_STORE")
+        .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+    let mut idx = ayrola_kernel::memory::MemoryIndex::open(&path)
+        .map_err(|e| anyhow::anyhow!("failed to open memory index: {}", e))?;
+    let event = idx.remember(kind, text, payload)
+        .map_err(|e| anyhow::anyhow!("remember failed: {}", e))?;
+
+    Ok(ToolResult {
+        content: vec![ContentBlock {
+            kind: "text".into(),
+            text: format!("remembered: seq={} kind={}", event.seq, event.kind),
+        }],
+        is_error: None,
+    })
+}
+
+fn handle_recall(args: &serde_json::Value) -> anyhow::Result<ToolResult> {
+    let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
+    if query.is_empty() {
+        return anyhow::Ok(ToolResult {
+            content: vec![ContentBlock { kind: "text".into(), text: "missing 'query' argument".into() }],
+            is_error: Some(true),
+        });
+    }
+    let top_k = args.get("top_k").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+
+    let path = std::env::var("AYROLA_EVENT_STORE")
+        .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+    let idx = ayrola_kernel::memory::MemoryIndex::open(&path)
+        .map_err(|e| anyhow::anyhow!("failed to open memory index: {}", e))?;
+    let results = idx.recall(query, top_k)
+        .map_err(|e| anyhow::anyhow!("recall failed: {}", e))?;
+
+    if results.is_empty() {
+        return Ok(ToolResult {
+            content: vec![ContentBlock { kind: "text".into(), text: "(no results)".into() }],
+            is_error: None,
+        });
+    }
+
+    let mut out = String::new();
+    for r in results {
+        out.push_str(&format!("[score={:.3}] {}: {}\n", r.score, r.event.kind, r.event.payload));
+    }
+
+    Ok(ToolResult {
+        content: vec![ContentBlock { kind: "text".into(), text: out.trim_end().to_string() }],
+        is_error: None,
+    })
+}
+
 fn handle_tool(name: &str, arguments: &serde_json::Value) -> anyhow::Result<ToolResult> {
     match name {
         "decide" => handle_decide(arguments),
@@ -185,6 +255,8 @@ fn handle_tool(name: &str, arguments: &serde_json::Value) -> anyhow::Result<Tool
         "grep" => handle_grep(arguments),
         "webfetch" => handle_webfetch(arguments),
         "run" => handle_run(arguments),
+        "remember" => handle_remember(arguments),
+        "recall" => handle_recall(arguments),
         _ => anyhow::Ok(ToolResult {
             content: vec![ContentBlock { kind: "text".into(), text: format!("unknown tool: {}", name) }],
             is_error: Some(true),
@@ -347,6 +419,31 @@ fn process_request(req: JsonRpcRequest) -> JsonRpcResponse {
                         "type": "object",
                         "properties": { "command": { "type": "string" } },
                         "required": ["command"]
+                    }
+                }),
+                serde_json::json!({
+                    "name": "remember",
+                    "description": "Store a memory with free text for semantic search (TF-IDF)",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "kind": { "type": "string", "description": "Event kind, e.g. decision.made" },
+                            "text": { "type": "string", "description": "Free text used for semantic recall" },
+                            "payload": { "type": "object", "description": "Structured data" }
+                        },
+                        "required": ["text"]
+                    }
+                }),
+                serde_json::json!({
+                    "name": "recall",
+                    "description": "Search past memories by semantic similarity (TF-IDF cosine)",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": { "type": "string" },
+                            "top_k": { "type": "integer", "description": "Number of results (default 5)" }
+                        },
+                        "required": ["query"]
                     }
                 }),
             ];

@@ -127,7 +127,9 @@ pub fn search_semantic(
 
     let n_docs = event_texts.len() as f64;
     for (tok, df) in &doc_freq {
-        *idf.entry(tok.clone()).or_insert(0.0) = (n_docs / *df as f64).ln();
+        // Smoothed IDF: evita IDF=0 quando todos os docs contem o termo.
+        // Usa (1 + ln(N/df)) que e sempre positivo.
+        *idf.entry(tok.clone()).or_insert(0.0) = 1.0 + (n_docs / *df as f64).ln();
     }
 
     // Vetor da query (HashMap para alinhamento correto de termos)
