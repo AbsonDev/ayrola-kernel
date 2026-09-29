@@ -298,8 +298,10 @@ impl RemoteSandboxExecutor {
 
         let start = std::time::Instant::now();
 
-        // Gera ID unico para o diretorio do sandbox
-        let sandbox_id = format!("ayrola-sandbox-{}", std::process::id());
+        // ID unico por chamada. So o PID nao basta: duas execucoes
+        // concorrentes no mesmo processo usariam o mesmo diretorio, e o
+        // `rm -rf` de uma apagaria o trabalho da outra.
+        let sandbox_id = format!("ayrola-sandbox-{}-{}", std::process::id(), uuid::Uuid::new_v4());
         let sandbox_dir = format!("/tmp/{}", sandbox_id);
 
         // Escapa o comando para shell remoto
@@ -613,6 +615,22 @@ mod tests {
         assert!(!exec.is_allowed("dd if=/dev/zero of=/dev/sda"),
             "dd must not be allowed");
     }
+
+    #[test]
+    fn remote_sandbox_dir_is_unique_per_call() {
+        use std::collections::HashSet;
+        let mut ids = HashSet::new();
+        for _ in 0..100 {
+            let sandbox_id = format!(
+                "ayrola-sandbox-{}-{}",
+                std::process::id(),
+                uuid::Uuid::new_v4()
+            );
+            ids.insert(sandbox_id);
+        }
+        assert_eq!(ids.len(), 100, "sandbox dir IDs must be unique per call");
+    }
+
 
 
     #[test]
