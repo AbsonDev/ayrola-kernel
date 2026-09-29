@@ -67,6 +67,27 @@ impl DecisionLayer for ContainsSpawn {
 
 /// Verifica se `text` contem `keyword` como palavra inteira (boundary-aware).
 /// Evita falsos positivos como "no" dentro de "unknown".
+/// Finds the first occurrence of any word in the list, respecting word boundaries.
+/// Returns (byte_offset, is_yes) of the earliest match. If multiple words match,
+/// the polarity of the *actual first match* is preserved (not overwritten by later words).
+fn find_first_word(text: &str, words: &[&str]) -> Option<(usize, bool)> {
+    let mut first: Option<(usize, bool)> = None;
+    for word in words {
+        let is_yes = matches!(*word, "yes" | "sim" | "true" | "correct");
+        if let Some(pos) = text.find(word) {
+            let before_ok = pos == 0 || !text.as_bytes()[pos - 1].is_ascii_alphanumeric();
+            let after = pos + word.len();
+            let after_ok = after >= text.len() || !text.as_bytes()[after].is_ascii_alphanumeric();
+            if before_ok && after_ok {
+                first = first.map_or(Some((pos, is_yes)), |(fp, fyes)| {
+                    if pos < fp { Some((pos, is_yes)) } else { Some((fp, fyes)) }
+                });
+            }
+        }
+    }
+    first
+}
+
 fn contains_word(text: &str, keyword: &str) -> bool {
     if keyword.is_empty() || text.len() < keyword.len() {
         return false;
@@ -345,23 +366,7 @@ impl Tier2LLM {
         let no_words = ["no", "nao", "não", "false"];
 
         // Funcao auxiliar: primeiro match de qualquer palavra com boundary.
-        let find_first = |text: &str, words: &[&str]| -> Option<(usize, bool)> {
-            let mut first: Option<(usize, bool)> = None;
-            for word in words {
-                let is_yes = matches!(*word, "yes" | "sim" | "true" | "correct");
-                if let Some(pos) = text.find(word) {
-                    let before_ok = pos == 0 || !text.as_bytes()[pos - 1].is_ascii_alphanumeric();
-                    let after = pos + word.len();
-                    let after_ok = after >= text.len() || !text.as_bytes()[after].is_ascii_alphanumeric();
-                    if before_ok && after_ok {
-                        first = first.map_or(Some((pos, is_yes)), |(fp, _)| Some((fp.min(pos), is_yes)));
-                    }
-                }
-            }
-            first
-        };
-
-        if let Some((pos, is_yes)) = find_first(head, &yes_words) {
+        if let Some((pos, is_yes)) = find_first_word(head, &yes_words) {
             // Verifica se tem 'no' ANTES desse 'yes' no head (ex: "no, yes").
             let has_no_before = no_words.iter().any(|w| {
                 head.find(w).is_some_and(|p| {
@@ -1125,6 +1130,27 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
         assert_eq!(cert.tier, crate::cert::DecisionTier::Tier0);
     }
 }
+    #[test]
+    fn find_first_word_preserves_polarity_of_earliest_match() {
+        // REGRESSION: find_first_word must return the polarity of the *actual*
+        // first match, not the polarity of the word that happened to be iterated
+        // when the minimum position was found.
+        let mixed = ["no", "yes"];
+        // "yes" at pos 0, "no" at pos 6. First match must be (0, true).
+        let r1 = find_first_word("yes then no", &mixed);
+        assert_eq!(r1, Some((0, true)), "mixed: 'yes' at pos 0 must win, got {:?}", r1);
+
+        // "no" at pos 0, "yes" at pos 4. First match must be (0, false).
+        let r2 = find_first_word("no then yes", &mixed);
+        assert_eq!(r2, Some((0, false)), "mixed: 'no' at pos 0 must win, got {:?}", r2);
+
+        // Sanity: yes-only list always returns true.
+        let r3 = find_first_word("yes", &["yes"]);
+        assert_eq!(r3, Some((0, true)));
+    }
+
+    // Test helper mirroring the fixed find_first logic.
+
     #[test]
     fn parse_llm_response_fallback_is_conservative_no() {
         // REGRESSION: when neither yes nor no keyword is found, fallback
