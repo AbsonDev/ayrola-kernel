@@ -127,11 +127,13 @@ fn normalize(text: &str) -> String {
 #[derive(Debug, Clone, Default)]
 pub struct Tier0Cache {
     hits: HashMap<CacheKey, Answer>,
+    lookups: u64,
+    hit_count: u64,
 }
 
 impl Tier0Cache {
     pub fn new() -> Self {
-        Tier0Cache::default()
+        Tier0Cache { hits: HashMap::new(), lookups: 0, hit_count: 0 }
     }
 
     /// Insere uma resposta no cache. So chame apos validacao externa.
@@ -141,18 +143,32 @@ impl Tier0Cache {
     }
 
     /// Lookup O(1). Retorna Some se cache hit (> 0.95 similaridade).
-    pub fn get(&self, question: &str) -> Option<Answer> {
+    /// Conta hits/misses para `hit_rate()`.
+    pub fn get(&mut self, question: &str) -> Option<Answer> {
+        let result = self.get_inner(question);
+        self.record(result.is_some());
+        result
+    }
+
+    fn get_inner(&self, question: &str) -> Option<Answer> {
         let key = CacheKey::from(question);
         self.hits.get(&key).cloned()
     }
 
-    /// Hit rate (0.0..1.0).
+    fn record(&mut self, was_hit: bool) {
+        self.lookups += 1;
+        if was_hit {
+            self.hit_count += 1;
+        }
+    }
+
+    /// Fraction de lookups que acertaram no cache (0.0..1.0).
+    /// Zero lookups = 0.0 (nunca chamou `get`).
     pub fn hit_rate(&self) -> f64 {
-        let total: usize = self.hits.values().map(|a| a.confidence() as usize).sum();
-        if total == 0 {
+        if self.lookups == 0 {
             0.0
         } else {
-            total as f64 / self.hits.len() as f64
+            self.hit_count as f64 / self.lookups as f64
         }
     }
 }
@@ -624,8 +640,21 @@ mod tests {
     }
 
     #[test]
+    fn cache_hit_rate_tracks_hits_and_misses() {
+        let mut cache = Tier0Cache::new();
+        cache.insert("q1", Answer::YesNo { yes: true, confidence: 0.75 });
+        assert_eq!(cache.hit_rate(), 0.0, "zero lookups => 0.0");
+
+        let _ = cache.get("q1"); // hit
+        assert!((cache.hit_rate() - 1.0).abs() < 1e-9, "1 hit / 1 lookup = 1.0");
+
+        let _ = cache.get("unknown"); // miss
+        assert!((cache.hit_rate() - 0.5).abs() < 1e-9, "1 hit / 2 lookups = 0.5");
+    }
+
+    #[test]
     fn tier0_cache_returns_none_on_miss() {
-        let cache = Tier0Cache::new();
+        let mut cache = Tier0Cache::new();
         assert!(cache.get("any question").is_none());
     }
 
