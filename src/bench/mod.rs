@@ -231,11 +231,15 @@ impl Scoreboard {
             avg_q
         );
 
-        // Mostra microssegundos quando latencia e sub-milissegundo
-        let avg_us = self.results.iter().map(|r| r.duration_ms * 1000).sum::<u64>() as f64
-            / self.results.len() as f64;
-        if avg_us < 1000.0 && avg_us > 0.0 {
-            s.push_str(&format!(" ({:.0}us)", avg_us));
+        // Mostra microssegundos quando latencia e sub-milissegundo.
+        // Guarda para results vazio: o campo e u64 e o scoreboard pode
+        // estar vazio, produzindo inf/NaN no summary.
+        if !self.results.is_empty() {
+            let avg_us = self.results.iter().map(|r| r.duration_ms * 1000).sum::<u64>() as f64
+                / self.results.len() as f64;
+            if avg_us < 1000.0 && avg_us > 0.0 {
+                s.push_str(&format!(" ({:.0}us)", avg_us));
+            }
         }
 
         if let Some(b) = baseline {
