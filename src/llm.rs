@@ -445,7 +445,9 @@ mod tests {
         }
         let resp = llm.query("Say hi").unwrap();
         assert_eq!(resp.backend, LlmBackend::NineRouter);
-        assert!(!resp.content.is_empty() || true); // content varies
+        // Content may or may not be returned depending on 9Router response;
+        // asserting the response was successfully received (not an error).
+        let _ = &resp.content;
         assert_eq!(resp.cost_usd, 0.0);
     }
 

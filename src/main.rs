@@ -353,7 +353,9 @@ async fn main() {
         }
         Commands::Spawn { task } => {
             println!("Spawning subagent for: {}", task);
-            let mut engine = ayrola_kernel::decision::DecisionEngine::new();
+            let cfg = ConfigLoader::load_or_default("config/default.yaml")
+                .unwrap_or_else(|_| ayrola_kernel::config::KernelConfig::default());
+            let mut engine = ayrola_kernel::decision::DecisionEngine::from_config(&cfg);
             let agent = ayrola_kernel::agent::Agent::new("demo");
             let child_id = agent.spawn_subagent(task.clone()).await;
             println!("Spawned subagent: {}", child_id);
