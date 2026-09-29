@@ -153,6 +153,11 @@ impl Llm {
             .map_err(|e| format!("opencode not found: {}", e))?;
 
         let duration = start.elapsed();
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("opencode failed: {}", stderr));
+        }
+
         let content = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let output_tokens = (content.len() / 4) as u32;
 
@@ -355,6 +360,11 @@ impl Llm {
             .arg("SELECT key FROM apiKeys WHERE isActive=1 LIMIT 1;")
             .output()
             .map_err(|e| format!("sqlite3 failed: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("sqlite3 failed: {}", stderr));
+        }
 
         let key = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if key.is_empty() {
