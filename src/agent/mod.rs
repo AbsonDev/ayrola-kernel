@@ -132,12 +132,11 @@ impl Agent {
         let handle: JoinHandle<()> = tokio::spawn(async move {
             eprintln!("[{}] running: {}", child_id, task_str);
 
-            // Real work: execute a shell command via sandbox.
-            let exec = crate::sandbox::SandboxExecutor::new(
-                crate::sandbox::SandboxConfig::default(),
-            );
-            let res = exec.run(&format!("echo 'subagent {} completed: {}'", child_id, task_str));
-            eprintln!("[{}] sandbox result: exit={} stdout={}", child_id, res.exit_code, res.stdout.trim());
+            // Real work: directly mark completion (avoids shell-injection via task_str).
+            // Previously used exec.run with shell interpolation, which let a crafted
+            // task like "'; rm -rf / #" escape the echo and run arbitrary commands.
+            let completion = format!("subagent {} completed: {}", child_id, task_str);
+            eprintln!("[{}] {}", child_id, completion);
 
             let _ev = AgentEvent::SubagentFinished {
                 parent: parent_id,
@@ -155,7 +154,8 @@ impl Agent {
 
     /// Spawn multiplos subagentes em paralelo e aguarda todos.
     ///
-    /// Retorna Vec com os AgentIds dos filhos, na ordem de conclusao.
+    /// Retorna Vec com os AgentIds dos filhos, na ordem em que cada
+    /// spawn termina (JoinSet completion order, not input order).
     pub async fn spawn_parallel(&self, subtasks: Vec<String>) -> Vec<AgentId> {
         use tokio::task::JoinSet;
 

@@ -281,7 +281,7 @@ impl ToolExecutor {
                 if res.stdout.contains("claim_required") {
                     return ToolResult::err(
                         ToolType::Run,
-                        "remote sandbox expired (Railway claim_required);                          provision a new box with railway_vm.provision()",
+                        "remote sandbox expired (Railway claim_required); provision a new box with railway_vm.provision()",
                     );
                 }
 
