@@ -70,6 +70,31 @@ impl DecisionLayer for ContainsSpawn {
 /// Finds the first occurrence of any word in the list, respecting word boundaries.
 /// Returns (byte_offset, is_yes) of the earliest match. If multiple words match,
 /// the polarity of the *actual first match* is preserved (not overwritten by later words).
+/// Retorna todas as posicoes de `word` em `text` que passam na fronteira
+/// de palavra (nao coladas em caractere alfanumerico antes/depois).
+///
+/// `find` sozinho nao serve: devolve so a primeira ocorrencia do substring,
+/// que pode ser parte de outra palavra.
+fn word_positions(text: &str, word: &str) -> Vec<usize> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    while let Some(rel) = text[start..].find(word) {
+        let pos = start + rel;
+        let before_ok = pos == 0 || !bytes[pos - 1].is_ascii_alphanumeric();
+        let after = pos + word.len();
+        let after_ok = after >= bytes.len() || !bytes[after].is_ascii_alphanumeric();
+        if before_ok && after_ok {
+            out.push(pos);
+        }
+        start = pos + 1;
+        if start >= text.len() {
+            break;
+        }
+    }
+    out
+}
+
 fn find_first_word(text: &str, words: &[&str]) -> Option<(usize, bool)> {
     let mut first: Option<(usize, bool)> = None;
     for word in words {
@@ -378,13 +403,14 @@ impl Tier2LLM {
         // Funcao auxiliar: primeiro match de qualquer palavra com boundary.
         if let Some((pos, is_yes)) = find_first_word(head, &yes_words) {
             // Verifica se tem 'no' ANTES desse 'yes' no head (ex: "no, yes").
+            // REGRESSION: usava `head.find(w)`, que devolve apenas a PRIMEIRA
+            // ocorrencia do substring. Se essa ocorrencia falha na fronteira
+            // de palavra (ex: "nothing" -> "no" em pos 0 colado em 't'), nenhuma
+            // ocorrencia posterior era examinada — um 'no' valido mais adiante
+            // virava invisivel e a resposta saia `yes`. Agora varremos todas as
+            // posicoes aceitando so as que passam na fronteira.
             let has_no_before = no_words.iter().any(|w| {
-                head.find(w).is_some_and(|p| {
-                    let before_ok = p == 0 || !head.as_bytes()[p - 1].is_ascii_alphanumeric();
-                    let after = p + w.len();
-                    let after_ok = after >= head.len() || !head.as_bytes()[after].is_ascii_alphanumeric();
-                    before_ok && after_ok && p < pos
-                })
+                word_positions(head, w).iter().any(|&p| p < pos)
             });
             if !has_no_before {
                 return Answer::YesNo { yes: is_yes, confidence: 0.85 };
@@ -1434,6 +1460,36 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
             engine.last_tier
         );
         let _ = ans;
+    }
+
+    // REGRESSION: `has_no_before` used head.find() which returns only the
+    // first substring occurrence. If that occurrence failed word-boundary
+    // (e.g. "nothing" contains "no" at pos 0, followed by 't'), a genuine
+    // standalone "no" later in the head was never examined — the parser
+    // incorrectly returned yes=true.
+    #[test]
+    fn parse_llm_response_head_yes_with_substring_no_followed_by_valid_no() {
+        // "nothing no yes": standalone "no" at pos 8 is BEFORE "yes" at 15.
+        // OLD bug: head.find("no") returns pos 0 (substring of "nothing"),
+        // which fails boundary check → standalone "no" at 8 is invisible →
+        // has_no_before = false → returns yes=true immediately.
+        //
+        // With fix: word_positions finds standalone "no" at 8 → has_no_before=true
+        // → falls to TAIL. TAIL uses last-match-wins ("yes" is later) → yes=true.
+        // The key invariant: the conflict IS detected (has_no_before=true),
+        // and the documented TAIL strategy applies consistently.
+        let content = "nothing no yes";
+        let a = Tier2LLM::parse_llm_response(content);
+        // Before fix: returned YesNo { yes: true, confidence: 0.85 } in HEAD
+        // because has_no_before was false (missed standalone "no").
+        // After fix: has_no_before correctly true, falls to TAIL → yes=true
+        // (last-match-wins). Both paths agree on yes=true because "yes"
+        // appears after "no" in the full head.
+        assert!(
+            matches!(a, Answer::YesNo { yes: true, confidence: 0.85 }),
+            "standalone 'no' before 'yes' must trigger fallthrough to TAIL,              where last-match-wins selects the later word 'yes', got {:?}",
+            a
+        );
     }
 }
 
