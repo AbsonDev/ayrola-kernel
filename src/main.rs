@@ -44,6 +44,8 @@ enum Commands {
         #[arg(long, default_value = "{}")]
         payload: String,
     },
+    /// Mostra estatisticas do indice de memoria
+    Memory,
     /// Busca memorias por similaridade semantica (TF-IDF)
     Recall {
         /// Query de busca
@@ -283,6 +285,23 @@ async fn main() {
             let event = idx.remember(&kind, &text, payload_json)
                 .expect("remember failed");
             println!("remembered: seq={} kind={}", event.seq, event.kind);
+        }
+        Commands::Memory => {
+            let p = std::env::var("AYROLA_EVENT_STORE")
+                .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+            let idx = ayrola_kernel::memory::MemoryIndex::open(&p)
+                .expect("failed to open memory index");
+            let len = idx.len().expect("len failed");
+            let empty = idx.is_empty().expect("is_empty failed");
+            let snaps = idx.snapshots();
+            let verified = idx.verify().expect("verify failed");
+
+            println!("MemoryIndex {{");
+            println!("  events: {}", len);
+            println!("  empty: {}", empty);
+            println!("  snapshots: {}", snaps.len());
+            println!("  chain_verified: {}", verified);
+            println!("}}");
         }
         Commands::Recall { query, top_k } => {
             let p = std::env::var("AYROLA_EVENT_STORE")
