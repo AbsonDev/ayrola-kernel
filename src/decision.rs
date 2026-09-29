@@ -429,7 +429,9 @@ impl Tier2LLM {
                 } else if no && !yes {
                     Answer::YesNo { yes: false, confidence: 0.75 }
                 } else {
-                    Answer::YesNo { yes: true, confidence: 0.6 }
+                    // Sem evidencia clara (ambos ou nenhum): conservador.
+                    // Nao fabricamos "yes" sem evidencia — mesma classe do Bug 2.
+                    Answer::YesNo { yes: false, confidence: 0.5 }
                 }
             }
         }
@@ -977,9 +979,10 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
 
     #[test]
     fn parse_llm_response_falls_back_on_ambiguous() {
-        // Resposta ambigua sem veredito claro
+        // Ambiguous response with no clear yes/no: conservative fallback
+        // must NOT fabricate "yes: true" (Bug 2 class).
         let a = Tier2LLM::parse_llm_response("That depends on the context.");
-        assert!(matches!(a, Answer::YesNo { yes: true, confidence } if confidence <= 0.6));
+        assert!(matches!(a, Answer::YesNo { yes: false, confidence } if confidence <= 0.5));
     }
 
     #[test]
@@ -1122,3 +1125,18 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
         assert_eq!(cert.tier, crate::cert::DecisionTier::Tier0);
     }
 }
+    #[test]
+    fn parse_llm_response_fallback_is_conservative_no() {
+        // REGRESSION: when neither yes nor no keyword is found, fallback
+        // must NOT fabricate "yes:true" — same class as Bug 2.
+        let answer = Tier2LLM::parse_llm_response("The answer is indeterminate");
+        match answer {
+            Answer::YesNo { yes, confidence } => {
+                assert!(!yes, "fallback with no evidence must be conservative (yes=false), got yes={}", yes);
+                assert!(confidence <= 0.5,
+                    "fallback confidence must be low (<= 0.5), got {}", confidence);
+            }
+            _ => panic!("expected YesNo"),
+        }
+    }
+

@@ -216,6 +216,12 @@ impl Pruner {
             if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") {
                 let name = Self::extract_fn_name(trimmed);
                 if let Some(name) = name {
+                    // main e entry point — nunca e codigo morto, mesmo
+                    // aparecendo uma unica vez. find_dead_symbols ja faz
+                    // esta checagem; prune precisa do mesmo filtro.
+                    if name == "main" {
+                        continue;
+                    }
                     let count = source.matches(&name).count();
                     if count <= 1 {
                         lines_to_remove.push((i + 1) as u32);
@@ -489,4 +495,16 @@ fn main() {}
         // main nao deve ser reportado como dead (entry point)
         assert!(!dead.iter().any(|s| s.contains("main")), "main should not be dead: {:?}", dead);
     }
-}
+}    #[test]
+    fn prune_ignores_main() {
+        // REGRESSION: prune() must skip main, same as find_dead_symbols().
+        let pruner = Pruner::new();
+        let source = "fn main() { println!(\"hello\"); }
+fn unused_helper() {}
+";
+        let lines = pruner.prune(source);
+        assert!(!lines.contains(&1), "main at line 1 must not be pruned, got: {:?}", lines);
+        assert!(lines.contains(&2), "unused_helper at line 2 must be pruned, got: {:?}", lines);
+    }
+
+
