@@ -129,7 +129,10 @@ impl Llm {
         let duration = start.elapsed();
         let content = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let success = output.status.success();
+
+        if !output.status.success() {
+            return Err(format!("claude failed: {}", stderr));
+        }
 
         let input_tokens = (prompt.len() / 4) as u32;
         let output_tokens = (content.len() / 4) as u32;
@@ -137,7 +140,7 @@ impl Llm {
 
         Ok(LlmResponse {
             backend: LlmBackend::Claude,
-            content: if success { content } else { stderr },
+            content,
             duration_ms: duration.as_millis() as u64,
             cost_usd: cost,
             input_tokens,
@@ -263,14 +266,18 @@ impl Llm {
 
         fn tokens(obj: &serde_json::Value) -> (u32, u32) {
             let usage = obj.get("usage");
+            // Saturating cast: a u64 token count above u32::MAX would silently
+            // wrap to a small number and report a bogus usage figure.
             let in_t = usage
                 .and_then(|u| u.get("prompt_tokens"))
                 .and_then(|t| t.as_u64())
-                .unwrap_or(0) as u32;
+                .unwrap_or(0)
+                .min(u32::MAX as u64) as u32;
             let out_t = usage
                 .and_then(|u| u.get("completion_tokens"))
                 .and_then(|t| t.as_u64())
-                .unwrap_or(0) as u32;
+                .unwrap_or(0)
+                .min(u32::MAX as u64) as u32;
             (in_t, out_t)
         }
 
