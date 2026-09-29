@@ -65,10 +65,13 @@ impl Snapshot {
 
     /// Hash canônico do snapshot: cobre seq (ponto no tempo) + state.
     fn compute_hash(seq: u64, state: &serde_json::Value) -> String {
-        let canonical = serde_json::json!({
-            "seq": seq,
-            "state": state,
-        });
+        // Deterministic struct (fixed key order) instead of JSON Value object.
+        #[derive(Serialize)]
+        struct HashCanonical<'a> {
+            seq: u64,
+            state: &'a serde_json::Value,
+        }
+        let canonical = HashCanonical { seq, state };
         sha256_hex(&serde_json::to_string(&canonical).unwrap_or_default())
     }
 }

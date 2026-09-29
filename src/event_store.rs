@@ -33,13 +33,26 @@ impl Event {
     /// Calcula o hash deterministico deste evento.
     pub fn compute_hash(&self) -> String {
         use sha2::{Digest, Sha256};
-        // Serializa os campos que definem identidade, na ordem fixa.
-        let canonical = format!(
-            "{}|{}|{}|{}|{}",
-            self.seq, self.ts, self.kind, self.payload, self.prev_hash
-        );
+        // Deterministic byte representation via a struct with fixed key order
+        // (seq, ts, kind, payload, prev_hash). JSON Value objects do not
+        // guarantee key ordering, so a struct is used instead.
+        #[derive(Serialize)]
+        struct HashCanonical<'a> {
+            seq: u64,
+            ts: &'a str,
+            kind: &'a str,
+            payload: &'a serde_json::Value,
+            prev_hash: &'a str,
+        }
+        let canonical = HashCanonical {
+            seq: self.seq,
+            ts: &self.ts,
+            kind: &self.kind,
+            payload: &self.payload,
+            prev_hash: &self.prev_hash,
+        };
         let mut hasher = Sha256::new();
-        hasher.update(canonical.as_bytes());
+        hasher.update(serde_json::to_vec(&canonical).unwrap_or_default());
         let result = hasher.finalize();
         result.iter().map(|b| format!("{:02x}", b)).collect::<String>()
     }
@@ -323,5 +336,40 @@ mod tests {
         assert_eq!(es.len().unwrap(), 3);
 
         std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn compute_hash_distinguishes_pipe_in_kind_vs_payload() {
+        // REGRESSION: a hash chain must be collision-free even when `kind`
+        // or `payload` contains the field separator character `|`.
+        let ts = "2025-01-01T00:00:00Z";
+        let prev = "genesis";
+
+        // Event A: kind="decision", payload="leaked|secret"
+        let mut a = Event {
+            seq: 0,
+            ts: ts.into(),
+            kind: "decision".into(),
+            payload: serde_json::json!("leaked|secret"),
+            prev_hash: prev.into(),
+            hash: String::new(),
+        };
+        a.hash = a.compute_hash();
+
+        // Event B: kind="decision|leaked", payload="secret"
+        let mut b = Event {
+            seq: 0,
+            ts: ts.into(),
+            kind: "decision|leaked".into(),
+            payload: serde_json::json!("secret"),
+            prev_hash: prev.into(),
+            hash: String::new(),
+        };
+        b.hash = b.compute_hash();
+
+        // These are different events and must produce different hashes.
+        assert_ne!(a.hash, b.hash,
+            "events with kind/payload swapped across pipe boundary must hash differently, got {}",
+            a.hash);
     }
 }
