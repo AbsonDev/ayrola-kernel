@@ -186,6 +186,7 @@ impl Llm {
 
         let output = Command::new("curl")
             .arg("-s")
+            .arg("-f")  // fail on HTTP >= 400 so error responses surface as Err
             .arg("--max-time")
             .arg((self.timeout_ms / 1000).max(1).to_string())
             .arg("-X")
@@ -200,6 +201,10 @@ impl Llm {
             .output()
             .map_err(|e| format!("curl failed: {e}"))?;
 
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("curl to 9Router failed: {}", stderr));
+        }
         let response = String::from_utf8_lossy(&output.stdout);
         let duration = start.elapsed();
 
