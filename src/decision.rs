@@ -538,11 +538,17 @@ impl DecisionEngine {
             let past = mem.recall(&format!("decision {}", question), 1)
                 .unwrap_or_default();
             if let Some(hit) = past.first() && hit.score > 0.7 {
+                // Stored answer is {"YesNo": {"yes": true, "confidence": ...}}
                 let yes = hit.event.payload
                     .get("answer")
+                    .and_then(|v| v.get("YesNo"))
                     .and_then(|v| v.get("yes"))
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true);
+                    .and_then(|v| v.as_bool());
+                // Conservative: se o campo nao existe, nao fabricamos resposta.
+                let Some(yes) = yes else {
+                    // Nao achamos o campo esperado — nao usamos este hit.
+                    return self.llm.query(question);
+                };
                 let answer = Answer::YesNo { yes, confidence: hit.score };
                 self.cache.insert(question, answer.clone());
                 self.last_tier = crate::cert::DecisionTier::Tier1_5;
@@ -633,6 +639,7 @@ impl DecisionEngine {
 
 #[cfg(test)]
 mod tests {
+    use crate::memory::MemoryIndex;
     use super::*;
 
     #[test]
@@ -873,6 +880,54 @@ mod tests {
             _ => panic!("expected YesNo from 9Router"),
         }
     }
+
+
+#[test]
+fn tier1_5_recall_reads_correct_payload_field() {
+    // REGRESSION: armazena uma decisao yes e força o recall a buscar
+    // o campo "answer" como {"YesNo": {"yes": true, ...}}, nao {"yes": ...}.
+    let p = std::env::temp_dir().join(format!(
+        "ayrola_t15_{}.json", uuid::Uuid::new_v4()
+    ));
+    let mut mem = MemoryIndex::open(&p).expect("open memory");
+    mem.remember("decision.made", "test-yes",
+        serde_json::json!({"answer": {"YesNo": {"yes": true, "confidence": 0.95}}})).expect("remember yes");
+    mem.remember("decision.made", "test-no",
+        serde_json::json!({"answer": {"YesNo": {"yes": false, "confidence": 0.95}}})).expect("remember no");
+
+    let mut engine = DecisionEngine::new();
+    engine.memory = Some(Box::new(mem));
+
+    // Pergunta semanticamente similar a "test-yes"
+    let answer = engine.ask(QuestionType::YesNo, "should i say yes");
+    assert!(matches!(answer, Answer::YesNo { yes: true, confidence: c } if c > 0.7));
+
+    std::fs::remove_file(&p).ok();
+}
+
+#[test]
+fn tier1_5_falls_back_when_answer_missing() {
+    // REGRESSION: evento sem campo 'answer' nao deve retornar yes:true
+    // fabricado; deve cair para LLM/heuristic (confidence baixo).
+    let p = std::env::temp_dir().join(format!(
+        "ayrola_t15b_{}.json", uuid::Uuid::new_v4()
+    ));
+    let mut mem = MemoryIndex::open(&p).expect("open memory");
+    mem.remember("agent.spawned", "some-spawn",
+        serde_json::json!({"agent_id": "x"})).expect("remember");
+
+    let mut engine = DecisionEngine::new();
+    engine.memory = Some(Box::new(mem));
+
+    let answer = engine.ask(QuestionType::YesNo, "anything at all");
+    // Fallback conservador -> confidence <= 0.5
+    if let Answer::YesNo { yes: _, confidence } = answer {
+        assert!(confidence <= 0.5,
+            "must be conservative fallback, got confidence={}", confidence);
+    }
+
+    std::fs::remove_file(&p).ok();
+}
 
 
 #[test]
