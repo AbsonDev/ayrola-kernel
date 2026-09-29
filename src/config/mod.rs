@@ -55,6 +55,43 @@ impl KernelConfig {
             }
         }
 
+        // logging.level must be a recognized severity (validated, not yet enforced
+        // in the runtime — see declared-but-unread note in session summary).
+        match self.logging.level.as_str() {
+            "error" | "warn" | "info" | "debug" | "trace" => {}
+            _ => {
+                return Err(ConfigError::invalid(
+                    "logging.level",
+                    format!(
+                        "must be one of: error, warn, info, debug, trace (got: {})",
+                        self.logging.level
+                    ),
+                ));
+            }
+        }
+
+        // logging.format must be json or text.
+        match self.logging.format.as_str() {
+            "json" | "text" => {}
+            _ => {
+                return Err(ConfigError::invalid(
+                    "logging.format",
+                    format!("must be one of: json, text (got: {})", self.logging.format)
+                ));
+            }
+        }
+
+        // logging.output must be stdout or stderr.
+        match self.logging.output.as_str() {
+            "stdout" | "stderr" => {}
+            _ => {
+                return Err(ConfigError::invalid(
+                    "logging.output",
+                    format!("must be one of: stdout, stderr (got: {})", self.logging.output)
+                ));
+            }
+        }
+
         Ok(())
     }
 }
@@ -216,5 +253,32 @@ mod tests {
         assert!(cfg.validate().is_err(), "typo in ensemble_mode must be rejected");
         cfg.decision.ensemble_mode = "three_tier".to_string();
         assert!(cfg.validate().is_ok(), "three_tier must be accepted");
+    }
+
+    #[test]
+    fn invalid_logging_level_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.logging.level = "verbose".to_string();
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn invalid_logging_format_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.logging.format = "xml".to_string();
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn invalid_logging_output_rejected() {
+        let mut cfg = KernelConfig::default();
+        cfg.logging.output = "file".to_string();
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn valid_logging_config_passes() {
+        let cfg = KernelConfig::default();
+        assert!(cfg.validate().is_ok());
     }
 }
