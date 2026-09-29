@@ -873,6 +873,64 @@ mod tests {
     }
 
     #[test]
+    fn time_travel_reuses_past_decision() {
+        use crate::memory::MemoryIndex;
+        use std::env;
+
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_tt_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut mem = MemoryIndex::open(&p).unwrap();
+        mem.remember(
+            "decision.made",
+            "spawn subagent for code review",
+            serde_json::json!({"yes": true}),
+        ).unwrap();
+
+        let mut engine = DecisionEngine::new().with_memory(mem);
+        let ans = engine.ask(QuestionType::YesNo, "spawn subagent for code review");
+        match ans {
+            Answer::YesNo { yes, confidence } => {
+                assert!(yes, "time-travel should reuse past decision");
+                assert!(confidence > 0.7, "confidence should be high, got {}", confidence);
+            }
+            _ => panic!("expected YesNo"),
+        }
+
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn time_travel_no_match_falls_through_to_llm() {
+        use crate::memory::MemoryIndex;
+        use std::env;
+
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_tt2_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut mem = MemoryIndex::open(&p).unwrap();
+        mem.remember(
+            "decision.made",
+            "spawn subagent for code review",
+            serde_json::json!({"yes": true}),
+        ).unwrap();
+
+        let mut engine = DecisionEngine::new().with_memory(mem);
+        // Pergunta sem relacao semantica — deve cair no LLM (heuristic fallback)
+        let ans = engine.ask(QuestionType::YesNo, "what is the capital of France?");
+        match ans {
+            Answer::YesNo { .. } => {} // qualquer resposta e valida
+            _ => panic!("expected YesNo"),
+        }
+
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
     fn ask_certified_cache_hit_is_tier0() {
         let mut engine = DecisionEngine::new();
         let q = "unique question xyz";
