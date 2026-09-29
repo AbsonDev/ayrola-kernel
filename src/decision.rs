@@ -567,7 +567,11 @@ impl DecisionEngine {
                 // Conservative: se o campo nao existe, nao fabricamos resposta.
                 let Some(yes) = yes else {
                     // Nao achamos o campo esperado — nao usamos este hit.
-                    return self.llm.query(question);
+                    // Cai para LLM e marca corretamente o tier.
+                    let answer = self.llm.query(question);
+                    self.cache.insert(question, answer.clone());
+                    self.last_tier = crate::cert::DecisionTier::Tier2;
+                    return answer;
                 };
                 let answer = Answer::YesNo { yes, confidence: hit.score };
                 self.cache.insert(question, answer.clone());
@@ -1278,6 +1282,41 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
             Answer::YesNo { yes, .. } => assert!(!yes, "no should win"),
             _ => panic!("expected YesNo"),
         }
+    }
+
+
+    #[test]
+    fn tier15_missing_field_sets_last_tier_to_tier2() {
+        // Regression: when Tier 1.5 has a hit but the expected payload
+        // field is absent, ask() must fall back to Tier 2 and set
+        // last_tier to Tier2 — not leave it stale from a prior call.
+        let mut engine = DecisionEngine::new();
+        // First ask: cache miss → Tier 2 (populates cache).
+        let _ = engine.ask(QuestionType::YesNo, "cached question");
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier2);
+        // Second ask: cache hit → Tier 0.
+        let _ = engine.ask(QuestionType::YesNo, "cached question");
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier0);
+
+        // Enable memory with a deliberately malformed event (no "answer.YesNo.yes").
+        let p = std::env::temp_dir().join(format!(
+            "ayrola_tier15_bug_{}.ndjson", uuid::Uuid::new_v4()
+        ));
+        let mut idx = MemoryIndex::open(&p).expect("open memory");
+        // Remember an event whose payload has the right kind but no YesNo field.
+        idx.remember("decision.made", "test question", serde_json::json!({
+            "kind": "decision.made",
+            "text": "test"
+        })).expect("remember");
+        engine = engine.with_memory(idx);
+
+        // Now ask a question semantically similar to the stored event.
+        let answer = engine.ask(QuestionType::YesNo, "test question similar");
+        // Must have fallen through to Tier 2, not left Tier0 stale.
+        assert_eq!(engine.last_tier, crate::cert::DecisionTier::Tier2,
+            "Tier 1.5 fallback must set Tier2, got {:?}", engine.last_tier);
+        assert_eq!(answer.confidence(), 0.5, "Tier 2 heuristic fallback is 0.5");
+        std::fs::remove_file(&p).ok();
     }
 
 }
