@@ -34,7 +34,7 @@ Se alguém adulterar o `decision` posteriormente, `verify()` retorna `false`.
 
 ## Consequências
 
-- `cert/mod.rs`: 297 linhas, 9 testes
+- `cert/mod.rs`: 300 linhas, 9 testes
 - `DecisionLog`: registry de decisões, `verify_all()`, `by_tier()`
 - Integração futura: `DecisionEngine::ask()` retorna `CertifiedDecision` ao invés de `Answer`
 - Hash usa representação canônica JSON (chaves ordenadas)

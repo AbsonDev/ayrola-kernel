@@ -48,7 +48,7 @@ logging:
 
 ## Consequências
 
-- `config/mod.rs`: 174 linhas, 5 testes
+- `config/mod.rs`: 175 linhas, 6 testes
 - `ConfigLoader::load()`: parse + validate em um passo
 - `ConfigError`: erros tipados (NotFound, YamlParse, MissingField, InvalidValue)
 - `thiserror` para derivar `Error`

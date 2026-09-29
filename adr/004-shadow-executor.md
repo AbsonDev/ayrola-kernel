@@ -29,7 +29,7 @@ Circuit breaker: 3 falhas consecutivas → bloqueia promoções.
 
 ## Consequências
 
-- `shadow/mod.rs`: 352 linhas, 10 testes
+- `shadow/mod.rs`: 909 linhas, 15 testes
 - `GoldenCase`: input + expected_output + tolerance
 - `ShadowReport`: total/passed/failed/promoted
 - `execute_or_rollback()`: rollback automático em falha
