@@ -957,8 +957,6 @@ mod tests {
         assert_eq!(store.len().unwrap(), 3);
     }
 
-}
-
     #[test]
     fn ask_certified_returns_certified_decision() {
         let mut engine = DecisionEngine::new();
@@ -1042,4 +1040,4 @@ mod tests {
         let cert = engine.ask_certified(QuestionType::YesNo, q);
         assert_eq!(cert.tier, crate::cert::DecisionTier::Tier0);
     }
-
+}
