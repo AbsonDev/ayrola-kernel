@@ -517,7 +517,7 @@ fn main() {
     }
 }
 
-/// HTTP mode: serve MCP over TCP (JSON-RPC line-delimited).
+/// TCP mode: serve MCP over raw TCP (JSON-RPC line-delimited, not HTTP).
 fn run_http(port: u16) {
     let addr = format!("0.0.0.0:{}", port);
     let listener = match std::net::TcpListener::bind(&addr) {
@@ -527,7 +527,7 @@ fn run_http(port: u16) {
             std::process::exit(1);
         }
     };
-    println!("Ayrola MCP HTTP on {}", addr);
+    println!("Ayrola MCP TCP on {}", addr);
     for stream in listener.incoming() {
         let Ok(s) = stream else { continue };
         let reader = BufReader::new(&s);
