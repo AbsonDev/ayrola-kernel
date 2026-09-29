@@ -111,29 +111,58 @@ impl SandboxExecutor {
 
         let start = std::time::Instant::now();
 
-        let output = std::process::Command::new("sh")
+        // max_execution_ms e parte do contrato de config: se o comando exceder,
+        // matamos o processo (nao apenas ignoramos, como acontecia antes).
+        let mut child = match std::process::Command::new("sh")
                 .arg("-c")
                 .arg(command)
                 .env_clear()
                 .envs(&self.config.env_vars)
                 .current_dir("/tmp")
-                .output();
-
-        match output {
-            Ok(out) => {
-                let duration_ms = start.elapsed().as_millis() as u64;
-                let success = out.status.success();
-                SandboxResult {
-                    success,
-                    stdout: String::from_utf8_lossy(&out.stdout).to_string(),
-                    stderr: String::from_utf8_lossy(&out.stderr).to_string(),
-                    exit_code: out.status.code().unwrap_or(-1),
-                    duration_ms,
-                    memory_used_mb: 0, // Phase 2: collect via /usr/bin/time
-                }
-            }
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn() {
+            Ok(c) => c,
             Err(e) => {
-                SandboxResult::failure(format!("exec error: {}", e), 127)
+                return SandboxResult::failure(format!("exec error: {}", e), 127);
+            }
+        };
+
+        let limit_ms = self.config.max_execution_ms;
+        let mut timed_out = false;
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    let mut out = Vec::new();
+                    let mut err = Vec::new();
+                    if let Some(mut stdout) = child.stdout.take() {
+                        let _ = std::io::Read::read_to_end(&mut stdout, &mut out);
+                    }
+                    if let Some(mut stderr) = child.stderr.take() {
+                        let _ = std::io::Read::read_to_end(&mut stderr, &mut err);
+                    }
+                    let exit_code = status.code().unwrap_or(-1);
+                    let duration_ms = start.elapsed().as_millis() as u64;
+                    return SandboxResult {
+                        success: status.success() && !timed_out,
+                        stdout: String::from_utf8_lossy(&out).to_string(),
+                        stderr: String::from_utf8_lossy(&err).to_string(),
+                        exit_code: if timed_out { 124 } else { exit_code },
+                        duration_ms,
+                        memory_used_mb: 0,
+                    };
+                }
+                Ok(None) => {
+                    if start.elapsed().as_millis() as u64 > limit_ms {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        timed_out = true;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                Err(e) => {
+                    return SandboxResult::failure(format!("wait error: {}", e), 127);
+                }
             }
         }
     }
@@ -322,9 +351,25 @@ impl RemoteSandboxExecutor {
     }
 
     /// Verifica allowlist de comandos permitidos (mesma logica do SandboxExecutor local).
+    /// O doc-comment original afirmava paridade, mas a implementacao usava blocklist
+    /// (7 strings perigosas), permitindo comandos arbitrarios. Corrigido para
+    /// alinhar com o executor local: allowlist positiva para comandos basicos.
     fn is_allowed(&self, command: &str) -> bool {
-        let blocked = ["rm -rf /", "rm -rf ~", ":(){ :|:& };:", "dd if=/dev/zero", "mkfs", "shutdown", "reboot"];
-        !blocked.iter().any(|b| command.contains(b))
+        let base = command.split_whitespace().next().unwrap_or("");
+        if base.is_empty() {
+            return true;
+        }
+        let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
+        if allowed.contains(&base) {
+            return true;
+        }
+        if self.config.allow_network {
+            let network_cmds = ["curl", "wget", "nc", "ncat", "telnet", "ssh", "scp", "rsync"];
+            if network_cmds.contains(&base) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -440,6 +485,52 @@ mod tests {
         let r = ex.run("");
         assert!(r.success);
         assert!(r.stdout.contains("empty command"));
+    }
+
+    #[test]
+    fn local_sandbox_enforces_max_execution_ms() {
+        // REGRESSION: max_execution_ms is part of the config contract.
+        // Before the fix it was declared but never enforced, so a
+        // `sleep 10` ran to completion despite a 200ms limit.
+        let cfg = SandboxConfig { max_execution_ms: 200, ..Default::default() };
+        let ex = SandboxExecutor::new(cfg);
+        let start = std::time::Instant::now();
+        let r = ex.run("sleep 10");
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        assert!(!r.success, "timed-out command must not report success");
+        assert_eq!(r.exit_code, 124, "timeout uses conventional exit code 124");
+        assert!(elapsed_ms < 3000,
+            "command must be killed near the limit, took {}ms", elapsed_ms);
+    }
+
+    #[test]
+    fn local_sandbox_allows_fast_command_within_limit() {
+        // Counterpart to the timeout test: normal commands must still
+        // complete and produce their stdout.
+        let cfg = SandboxConfig { max_execution_ms: 5_000, ..Default::default() };
+        let ex = SandboxExecutor::new(cfg);
+        let r = ex.run("echo fast_ok");
+        assert!(r.success);
+        assert!(r.stdout.contains("fast_ok"),
+            "stdout must be captured, got: {:?}", r.stdout);
+    }
+
+    #[test]
+    fn remote_sandbox_is_allowed_uses_allowlist() {
+        // REGRESSION: the remote executor's doc comment claimed parity with
+        // the local allowlist, but it used a 7-entry blocklist that allowed
+        // arbitrary commands (`rm -rf /var`, `python`, `chmod`, ...).
+        let exec = RemoteSandboxExecutor::new(SandboxConfig::default());
+        // Allowlisted basics still work.
+        assert!(exec.is_allowed("echo hi"), "echo must be allowed");
+        assert!(exec.is_allowed("ls -la /tmp"), "ls must be allowed");
+        // Arbitrary commands must be rejected.
+        assert!(!exec.is_allowed("python3 -c 'import os'"),
+            "python must not be allowed (allowlist, not blocklist)");
+        assert!(!exec.is_allowed("rm -rf /var"), "rm must not be allowed");
+        assert!(!exec.is_allowed("chmod 777 /"), "chmod must not be allowed");
+        assert!(!exec.is_allowed("dd if=/dev/zero of=/dev/sda"),
+            "dd must not be allowed");
     }
 
 
