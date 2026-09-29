@@ -565,7 +565,9 @@ fn main() {
 
 /// TCP mode: serve MCP over raw TCP (JSON-RPC line-delimited, not HTTP).
 fn run_http(port: u16) {
-    let addr = format!("0.0.0.0:{}", port);
+    // Bind to localhost only — remote access would expose run/read/grep/webfetch
+    // without any authentication, allowing arbitrary command execution.
+    let addr = format!("127.0.0.1:{}", port);
     let listener = match std::net::TcpListener::bind(&addr) {
         Ok(l) => l,
         Err(e) => {
