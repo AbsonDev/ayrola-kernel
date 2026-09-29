@@ -51,7 +51,7 @@ impl Evaluation {
         self.quality_delta > 0.0
             && self.latency_delta >= 0.0
             && self.cost_delta <= 0.0
-            && self.security_delta >= 0.0
+            && self.security_delta > 0.5
     }
 
     /// Score composto: soma ponderada dos eixos.
@@ -464,6 +464,32 @@ fn main() {}
             passed: false,
         };
         assert!(!e.is_promotable());
+    }
+
+    #[test]
+    fn evaluation_security_gate_blocks_risky_candidates() {
+        // REGRESSION: security_delta must be > 0.5 to be promotable.
+        // Before the fix, `>= 0.0` made the gate a no-op (security_score
+        // clamps to [0.0, 1.0], so a maximally risky score of 0.0 still passed).
+        let unsafe_eval = Evaluation {
+            quality_delta: 1.0,
+            latency_delta: 1.0,
+            cost_delta: -0.001,
+            security_delta: 0.0, // maximally risky
+            overall: 0.0,
+            passed: true,
+        };
+        assert!(!unsafe_eval.is_promotable(), "security gate must block unsafe candidates");
+
+        let safe_eval = Evaluation {
+            quality_delta: 1.0,
+            latency_delta: 1.0,
+            cost_delta: -0.001,
+            security_delta: 0.8, // safe
+            overall: 0.0,
+            passed: true,
+        };
+        assert!(safe_eval.is_promotable(), "safe candidates must still be promotable");
     }
 
     #[test]
