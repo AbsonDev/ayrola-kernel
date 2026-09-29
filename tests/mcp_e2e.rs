@@ -26,6 +26,22 @@ fn mcp_call_env(input: &str, store: &std::path::Path) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
+
+
+/// Sends a JSON-RPC request over raw TCP (not HTTP) to the MCP server.
+fn mcp_call_tcp(input: &str, port: u16) -> String {
+    use std::net::TcpStream;
+    use std::io::{Write, Read};
+    use std::time::Duration;
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect");
+    stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
+    stream.write_all((input.to_string() + "\n").as_bytes()).expect("write");
+    stream.flush().expect("flush");
+    let mut buf = Vec::new();
+    stream.read_to_end(&mut buf).expect("read");
+    String::from_utf8_lossy(&buf).trim().to_string()
+}
+
 /// Sends a JSON-RPC request to the MCP server via stdin and captures stdout.
 fn mcp_call(input: &str) -> String {
     let mut child = Command::new("./target/release/ayrola-agent")
@@ -96,4 +112,23 @@ fn mcp_remember_and_recall_roundtrip() {
     assert!(resp3.contains("code review"), "recall should find the code review memory: {}", resp3);
 
     std::fs::remove_file(&store).ok();
+}
+
+#[test]
+#[ignore = "requires release build and free port"]
+fn mcp_tcp_mode_tools_list() {
+    let mut server = Command::new("./target/release/ayrola-agent")
+        .arg("--http")
+        .arg("20131")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn server");
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let resp = mcp_call_tcp(r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#, 20131);
+    assert!(resp.contains("tools"), "resp: {}", resp);
+    assert!(resp.contains("decide"), "missing decide: {}", resp);
+    assert!(resp.contains("recall"), "missing recall: {}", resp);
+    server.kill().expect("kill server");
+    server.wait().expect("wait server");
 }
