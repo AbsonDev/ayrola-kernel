@@ -1142,7 +1142,6 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
         let cert = engine.ask_certified(QuestionType::YesNo, q);
         assert_eq!(cert.tier, crate::cert::DecisionTier::Tier0);
     }
-}
     #[test]
     fn find_first_word_preserves_polarity_of_earliest_match() {
         // REGRESSION: find_first_word must return the polarity of the *actual*
@@ -1234,4 +1233,52 @@ fn parse_llm_response_handles_multibyte_at_byte_boundary() {
         let a = Tier2LLM::parse_llm_response(&content);
         assert!(matches!(a, Answer::YesNo { yes: true, .. }), "multibyte prefix: got {:?}", a);
     }
+
+    // --- Adversarial parser tests ---
+
+    
+
+    
+
+    
+    #[test]
+    fn parse_llm_response_empty_fallback_conservative_no() {
+        let a = Tier2LLM::parse_llm_response("");
+        match a {
+            Answer::YesNo { yes, confidence } => {
+                assert!(!yes, "empty string must fallback to no");
+                assert_eq!(confidence, 0.5, "empty string confidence must be 0.5");
+            }
+            _ => panic!("expected YesNo"),
+        }
+    }
+
+    #[test]
+    fn parse_llm_response_whitespace_only_fallback() {
+        let a = Tier2LLM::parse_llm_response("   \n\t  ");
+        match a {
+            Answer::YesNo { yes, .. } => assert!(!yes, "whitespace-only must fallback to no"),
+            _ => panic!("expected YesNo"),
+        }
+    }
+
+    #[test]
+    fn parse_llm_response_mixed_punctuation() {
+        let a = Tier2LLM::parse_llm_response("Yes! The answer is definitely yes.");
+        match a {
+            Answer::YesNo { yes, .. } => assert!(yes, "yes with punctuation must match"),
+            _ => panic!("expected YesNo"),
+        }
+    }
+
+    #[test]
+    fn parse_llm_response_question_mark_does_not_fool() {
+        let a = Tier2LLM::parse_llm_response("maybe? no way!");
+        match a {
+            Answer::YesNo { yes, .. } => assert!(!yes, "no should win"),
+            _ => panic!("expected YesNo"),
+        }
+    }
+
+}
 
