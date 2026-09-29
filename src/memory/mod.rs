@@ -5,6 +5,7 @@ pub mod query;
 pub mod snapshot;
 
 use serde::{Deserialize, Serialize};
+use crate::memory::query::SearchResult;
 
 /// SHA-256 em hex de uma string.
 fn sha256_hex(s: &str) -> String {
@@ -85,6 +86,92 @@ impl SnapshotManager {
         self.snapshots.values().collect()
     }
 }
+
+
+/// Indice de memoria: combina event store + snapshots + busca semantica.
+///
+/// Phase 3 — S20: fecha o loop Pilar 1.
+/// Cada decisao certificada vira um evento indexado semanticamente.
+/// O agente pode "lembrar" (append) e "recordar" (search) qualquer
+/// decisao passada por similaridade de texto.
+pub struct MemoryIndex {
+    store: crate::event_store::EventStore,
+    manager: SnapshotManager,
+}
+
+impl MemoryIndex {
+    /// Abre ou cria o indice no caminho.
+    pub fn open(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
+        let store = crate::event_store::EventStore::open(path)?;
+        Ok(Self {
+            store,
+            manager: SnapshotManager::new(),
+        })
+    }
+
+    /// Lembra (indexa) uma entrada de memoria.
+    ///
+    /// `kind` categoriza a memoria (ex: "decision.made", "agent.spawned").
+    /// `text` e o texto livre para busca semantica (TF-IDF).
+    /// `payload` sao dados estruturados adicionais.
+    pub fn remember(
+        &mut self,
+        kind: impl Into<String>,
+        text: impl Into<String>,
+        payload: serde_json::Value,
+    ) -> std::io::Result<crate::event_store::Event> {
+        let kind = kind.into();
+        let text = text.into();
+
+        // Indexa o texto no payload para busca semantica.
+        let mut p = payload;
+        if let Some(obj) = p.as_object_mut() {
+            obj.insert("_text".to_string(), serde_json::json!(text));
+        } else {
+            p = serde_json::json!({"_text": text, "value": p});
+        }
+
+        let event = self.store.append(&kind, p)?;
+
+        // Tira um snapshot a cada 10 eventos.
+        let len = self.store.len().unwrap_or(0);
+        if len % 10 == 0 {
+            if let Ok(state) = self.store.replay() {
+                let _ = self.manager.take(state.event_count, &state);
+            }
+        }
+
+        Ok(event)
+    }
+
+    /// Recorda (busca) memorias por similaridade semantica.
+    ///
+    /// Retorna os top-K eventos mais similares a `query`.
+    pub fn recall(&self, query: &str, top_k: usize) -> std::io::Result<Vec<SearchResult>> {
+        query::search_semantic(&self.store, query, top_k)
+    }
+
+    /// Replay completo do indice + verificacao da hash chain.
+    pub fn verify(&self) -> std::io::Result<bool> {
+        self.store.verify_chain()
+    }
+
+    /// Numero de eventos indexados.
+    pub fn len(&self) -> std::io::Result<usize> {
+        self.store.len()
+    }
+
+    /// Vazio?
+    pub fn is_empty(&self) -> std::io::Result<bool> {
+        self.store.is_empty()
+    }
+
+    /// Snapshots disponiveis.
+    pub fn snapshots(&self) -> Vec<&Snapshot> {
+        self.manager.list()
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -169,3 +256,82 @@ mod tests {
         assert_eq!(mgr.list().len(), 1, "mesmo seq sobrescreve");
     }
 }
+
+#[cfg(test)]
+mod memory_index_tests {
+    use super::*;
+    use crate::memory::MemoryIndex;
+    use std::env;
+
+    #[test]
+    fn memory_index_remembers_and_recalls() {
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_mem_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut idx = MemoryIndex::open(&p).unwrap();
+        idx.remember("decision.made", "spawn subagent for code review", serde_json::json!({"yes": true})).unwrap();
+        idx.remember("agent.spawned", "agent a1 executed", serde_json::json!({"agent_id": "a1"})).unwrap();
+
+        let results = idx.recall("spawn agent", 5).unwrap();
+        assert!(!results.is_empty(), "recall should find events");
+        assert!(results[0].score > 0.0, "top result should have positive score");
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn memory_index_verifies_chain() {
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_mem_v_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let idx = MemoryIndex::open(&p).unwrap();
+        assert!(idx.verify().unwrap());
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn memory_index_len_counts_events() {
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_mem_len_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut idx = MemoryIndex::open(&p).unwrap();
+        assert_eq!(idx.len().unwrap(), 0);
+        idx.remember("a", "text", serde_json::json!({})).unwrap();
+        assert_eq!(idx.len().unwrap(), 1);
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn memory_index_is_empty() {
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_mem_empty_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let idx = MemoryIndex::open(&p).unwrap();
+        assert!(idx.is_empty().unwrap());
+        std::fs::remove_file(&p).ok();
+    }
+
+    #[test]
+    fn memory_index_takes_snapshot_every_10_events() {
+        let p = {
+            let mut path = env::temp_dir();
+            path.push(format!("ayrola_mem_snap_{}.ndjson", uuid::Uuid::new_v4()));
+            path
+        };
+        let mut idx = MemoryIndex::open(&p).unwrap();
+        for i in 0..10 {
+            idx.remember("event", format!("event {}", i), serde_json::json!({"i": i})).unwrap();
+        }
+        let snaps = idx.snapshots();
+        assert_eq!(snaps.len(), 1, "one snapshot at 10 events");
+        std::fs::remove_file(&p).ok();
+    }
+}
+

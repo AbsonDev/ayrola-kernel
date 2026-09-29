@@ -34,6 +34,14 @@ enum Commands {
         #[arg(long, default_value = "false")]
         llm: bool,
     },
+    /// Busca memorias por similaridade semantica (TF-IDF)
+    Recall {
+        /// Query de busca
+        query: String,
+        /// Numero de resultados
+        #[arg(long, default_value_t = 5)]
+        top_k: usize,
+    },
     /// Cria agente e spawn de subagente (demonstracao)
     Spawn {
         /// Tarefa do subagente
@@ -254,6 +262,17 @@ async fn main() {
         }
         Commands::Doctor => {
             run_doctor().await;
+        }
+        Commands::Recall { query, top_k } => {
+            let p = std::env::var("AYROLA_EVENT_STORE")
+                .unwrap_or_else(|_| "/tmp/ayrola-events.ndjson".to_string());
+            let idx = ayrola_kernel::memory::MemoryIndex::open(&p)
+                .expect("failed to open memory index");
+            let results = idx.recall(&query, top_k)
+                .expect("recall failed");
+            for r in results {
+                println!("[score={:.3}] {}: {}", r.score, r.event.kind, r.event.payload);
+            }
         }
         Commands::Spawn { task } => {
             println!("Spawning subagent for: {}", task);
