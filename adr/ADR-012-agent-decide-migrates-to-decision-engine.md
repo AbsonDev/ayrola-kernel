@@ -38,9 +38,9 @@ keyword casava (empate ou zero keywords). Isso quebrava o contrato do teste
    deveria significar "sem confiança", não "sim mas sem confiança".
 
 ## Evidência
-- 270 testes verdes (inclui `time_travel_reuses_past_decision` e
+- 284 testes verdes (inclui `time_travel_reuses_past_decision` e
   `time_travel_no_match_falls_through_to_llm`).
 - `decide --llm "Is the sky blue?"` → `Yes: true | Confidence: 0.90` (9Router real).
 - `decide "Should I delete the database?"` → `Yes: false | Confidence: 0.50`
   (heuristic fallback, zero keywords).
-- `doctor`: 270 testes | CLEAN | OK | OK.
+- `doctor`: 284 testes | CLEAN | OK | OK.
