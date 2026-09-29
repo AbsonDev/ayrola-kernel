@@ -173,6 +173,14 @@ impl SandboxExecutor {
         if base.is_empty() {
             return true; // empty command
         }
+        // SECURITY: the full command string is passed to `sh -c`, so a
+        // command like `echo safe; rm -rf /` would pass the first-word
+        // check and then execute the chained `rm`. Reject any command
+        // containing shell metacharacters that could chain or redirect.
+        const FORBIDDEN: &[char] = &[';', '&', '|', '`', '$', '>', '<', '\\', '\n', '\r'];
+        if command.chars().any(|c| FORBIDDEN.contains(&c)) {
+            return false;
+        }
         // Always allowed basic commands
         let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
         if allowed.contains(&base) {
@@ -359,6 +367,13 @@ impl RemoteSandboxExecutor {
         if base.is_empty() {
             return true;
         }
+        // SECURITY: same metacharacter guard as SandboxExecutor. The remote
+        // script wraps the command in `sh -c`, so chained commands would
+        // execute over SSH if not blocked here.
+        const FORBIDDEN: &[char] = &[';', '&', '|', '`', '$', '>', '<', '\\', '\n', '\r'];
+        if command.chars().any(|c| FORBIDDEN.contains(&c)) {
+            return false;
+        }
         let allowed = ["cat", "ls", "grep", "find", "wc", "echo", "sleep", "true"];
         if allowed.contains(&base) {
             return true;
@@ -470,6 +485,72 @@ mod tests {
     }
 
 }
+    #[test]
+    fn sandbox_rejects_chained_commands() {
+        // REGRESSION (Bug 30): shell metacharacters like `;` let the first-word
+        // allowlist be bypassed. `echo safe; rm file` ran the rm.
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("echo safe; echo pwned");
+        assert!(!r.success, "chained command must be blocked");
+        assert_eq!(r.exit_code, 126, "should return allowlist-denied exit code");
+    }
+
+    #[test]
+    fn sandbox_rejects_pipe_chain() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("echo data | grep d");
+        assert!(!r.success, "pipe chain must be blocked");
+        assert_eq!(r.exit_code, 126);
+    }
+
+    #[test]
+    fn sandbox_rejects_backtick_substitution() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("echo $(whoami)");
+        assert!(!r.success, "command substitution must be blocked");
+        assert_eq!(r.exit_code, 126);
+    }
+
+    #[test]
+    fn sandbox_rejects_redirect() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("echo x > /tmp/ayrola_test_redirect");
+        assert!(!r.success, "redirect must be blocked");
+        assert_eq!(r.exit_code, 126);
+    }
+
+    #[test]
+    fn sandbox_allows_simple_echo() {
+        // Legitimate allowlisted command with no metacharacters must still work.
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("echo hello");
+        assert!(r.success, "simple echo must pass: stderr={}", r.stderr);
+        assert!(r.stdout.contains("hello"));
+    }
+
+    #[test]
+    fn remote_sandbox_rejects_chained_commands() {
+        // REGRESSION (Bug 30): remote executor had the same first-word-only
+        // allowlist hole as the local one. The remote script wraps the command
+        // in `sh -c`, so `;` would chain a second command over SSH.
+        let exec = RemoteSandboxExecutor::new(SandboxConfig::default());
+        assert!(!exec.is_allowed("echo safe; rm -rf /"));
+        assert!(!exec.is_allowed("echo a && echo b"));
+        assert!(!exec.is_allowed("echo `whoami`"));
+        assert!(!exec.is_allowed("echo x > /tmp/f"));
+        // Legitimate commands still pass.
+        assert!(exec.is_allowed("echo hello"));
+        assert!(exec.is_allowed("ls /tmp"));
+    }
+
+    #[test]
+    fn sandbox_rejects_disallowed_base_command() {
+        let exec = SandboxExecutor::new(SandboxConfig::default());
+        let r = exec.run("rm -rf /tmp/nothing");
+        assert!(!r.success, "rm must be blocked by allowlist");
+        assert_eq!(r.exit_code, 126);
+    }
+
     #[test]
     fn local_sandbox_blocks_network_when_disabled() {
         let cfg = SandboxConfig { allow_network: false, ..Default::default() };
