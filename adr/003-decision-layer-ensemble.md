@@ -24,7 +24,7 @@ Laya é candidata para Tier 2 (quando integrado via MCP), não camada principal.
 
 ## Consequências
 
-- `decision.rs`: 1238 linhas, 41 testes
+- `decision.rs`: 1285 linhas, 45 testes
 - `DecisionEngine::ask()`: cache-first, fallback progressivo
 - `Tier1PreFilter`: word-boundary matching (evita falsos como "no" em "unknown")
 - `Tier2LLM`: stub simulado; integração MCP é próxima etapa

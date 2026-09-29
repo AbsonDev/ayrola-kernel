@@ -4,7 +4,7 @@ Kernel do **Ayrola Harness** — agente Rust-native com memória event-sourced,
 subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 
 **Status:** Semanas 1-8 do ROADMAP concluídas.
-**Testes:** 254 (246 unit + 6 mcp e2e + 2 doc) — todos verdes.
+**Testes:** 254 (247 unit + 4 e2e + 2 doc + 1 integração) — todos verdes.
 **Clippy:** `cargo clippy -- -D warnings` limpo.
 **Linhas:** 5.125 (source).
 
@@ -14,19 +14,19 @@ subagentes sub-100ms, auto-melhoria nível 3 e decision layer ensemble.
 
 | Módulo | Linhas | O que faz |
 |---|---|---|
-| `event_store` | 327 | Log append-only NDJSON, cadeia causal SHA-256, `replay`, `verify_chain` |
-| `decision` | 476 | `trait DecisionLayer` + `DecisionEngine` 3 tiers (cache → heurística → LLM) |
-| `agent` | 235 | `AgentId`, `AgentState`, `spawn_subagent`, `spawn_parallel`, `AgentRegistry` (live tracking) |
-| `memory` | 486 | `Snapshot` (SHA-256), `SnapshotManager`, query, compaction |
-| `refine` | 234 | `Critic` (avalia vs GoldenSet), `Pruner` (dead-code), `Proposer`, `Environment` (patch + `cargo check`) |
-| `shadow` | 352 | `GoldenSet`, `ShadowExecutor`, `ShadowReport`, rollback automático |
-| `cert` | 297 | `CertifiedDecision` (SHA-256), `DecisionLog` — certificação de decisão |
-| `bench` | 277 | `BenchTask` (10 tipos), `Scoreboard` (speedup vs baseline), `run_suite` — ayrola-bench v1 |
-| `sandbox` | 220 | `SandboxConfig`, `SandboxExecutor` (real `std::process::Command` + allowlist), `CircuitBreaker` |
-| `tools` | 248 | `ToolReader`, `GrepTool`, `ToolExecutor` (dispatch + JoinSet paralelo), `ToolRegistry` |
-| `config` | 253 | `KernelConfig` (YAML), `ConfigLoader`, `ConfigError`, validação |
-| `rlm` | 208 | `Decomposer` (heurística), `Planner` (spawn paralelo + `ExecutionReport` com timing) |
-| `llm` | 220 | `Llm` (subprocess: claude/opencode), `LlmBackend`, `LlmResponse` |ude/opencode), `LlmBackend`, `LlmResponse` |
+| `event_store` | 328 | Log append-only NDJSON, cadeia causal SHA-256, `replay`, `verify_chain` |
+| `decision` | 1285 | `trait DecisionLayer` + `DecisionEngine` 3 tiers (cache → heurística → LLM) |
+| `agent` | 333 | `AgentId`, `AgentState`, `spawn_subagent`, `spawn_parallel`, `AgentRegistry` (live tracking) |
+| `memory` | 1033 | `Snapshot` (SHA-256), `SnapshotManager`, query, compaction |
+| `refine` | 537 | `Critic` (avalia vs GoldenSet), `Pruner` (dead-code), `Proposer`, `Environment` (patch + `cargo check`) |
+| `shadow` | 909 | `GoldenSet`, `ShadowExecutor`, `ShadowReport`, rollback automático |
+| `cert` | 300 | `CertifiedDecision` (SHA-256), `DecisionLog` — certificação de decisão |
+| `bench` | 780 | `BenchTask` (10 tipos), `Scoreboard` (speedup vs baseline), `run_suite` — ayrola-bench v1 |
+| `sandbox` | 694 | `SandboxConfig`, `SandboxExecutor` (real `std::process::Command` + allowlist), `CircuitBreaker` |
+| `tools` | 506 | `ToolReader`, `GrepTool`, `ToolExecutor` (dispatch + JoinSet paralelo), `ToolRegistry` |
+| `config` | 349 | `KernelConfig` (YAML), `ConfigLoader`, `ConfigError`, validação |
+| `rlm` | 336 | `Decomposer` (heurística), `Planner` (spawn paralelo + `ExecutionReport` com timing) |
+| `llm` | 438 | `Llm` (subprocess: claude/opencode), `LlmBackend`, `LlmResponse` |ude/opencode), `LlmBackend`, `LlmResponse` |
 
 ---
 
