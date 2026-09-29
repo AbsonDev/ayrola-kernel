@@ -183,9 +183,19 @@ impl Agent {
     /// - Tier 1.5: time-travel via MemoryIndex (se configurado)
     /// - Tier 2: LLM real (9Router) ou heuristic fallback
     pub async fn decide(&self, qtype: crate::decision::QuestionType, question: &str) -> crate::decision::Answer {
-        let state = self.state.read().await;
-        let mut engine = state.decision_engine.write().await;
-        engine.ask(qtype, question)
+        // Clone the Arc so the engine lock is acquired inside the blocking
+        // closure. Holding the write guard here would tie it to `&self`,
+        // which cannot cross into a 'static task.
+        let engine_arc = self.state.read().await.decision_engine.clone();
+        let q = question.to_string();
+        // Tier 2 (LLM) calls external processes via blocking Command::output().
+        // Offload to spawn_blocking so the Tokio executor is not starved.
+        tokio::task::spawn_blocking(move || {
+            let mut engine = engine_arc.blocking_write();
+            engine.ask(qtype, &q)
+        })
+        .await
+        .expect("blocking ask panicked")
     }
 }
 
